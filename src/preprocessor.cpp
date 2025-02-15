@@ -64,6 +64,11 @@ Preprocessor::Preprocessor(const Case &c, const Parameters &params) : c(c), para
             set_correlated_vertices[order_proximity[j].second].insert(i);
         }
     }
+    for (int i = 1; i <= c.num_customer_; i++) {
+        for (int x : set_correlated_vertices[i]) {
+            correlated_vertices_[i].push_back(x);
+        }
+    }
 
     // Make charging decision, filling the vector with correlated vertices
     this->best_stations_ = std::vector<std::vector<int>>(c.num_depot_ + c.num_customer_,std::vector<int>(c.num_depot_ + c.num_customer_));
