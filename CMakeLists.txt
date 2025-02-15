@@ -14,6 +14,9 @@ set(DEPENDENCIES
         include/command_line.hpp
         src/command_line.cpp
         include/parameters.hpp
+        include/preprocessor.hpp
+        src/preprocessor.cpp
+        external/include/CircleSector.h
 )
 
 add_executable(Run main.cpp ${DEPENDENCIES})

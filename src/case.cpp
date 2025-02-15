@@ -95,6 +95,7 @@ void Case::read_problem(const std::string &file_path) {
     infile.close();
 
 
+    this->max_service_time_ = std::numeric_limits<double>::max();
     this->distances_ = generate_2D_matrix_double(problem_size_, problem_size_);
     for (int i = 0; i < problem_size_; i++) {
         for (int j = 0; j < problem_size_; j++) {

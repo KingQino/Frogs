@@ -27,7 +27,7 @@ const string kDataPath = "../data/";
 
 class Case {
 public:
-    Case(const string& file_name);
+    explicit Case(const string& file_name);
     ~Case();
     void read_problem(const string& file_path);	                                    // reads .evrp file
     static double **generate_2D_matrix_double(int n, int m);                        // generate a 2D matrix of double
@@ -50,6 +50,7 @@ public:
     int num_vehicle_{};
     int problem_size_{};                    // Total number of customers, charging stations and depot
     int max_vehicle_capa_{};                // maximum capacity of the vehicle
+    double max_service_time_{};             // maximum service time of the driver
     double max_battery_capa_{};             // maximum energy capacity of the vehicle
     double energy_consumption_rate_{};      // energy consumption rate
     double optimum_{};
