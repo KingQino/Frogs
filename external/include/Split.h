@@ -56,7 +56,7 @@ struct Trivial_Deque
     inline int get_next_front(){return myDeque[indexFront + 1];}
     inline int get_back(){return myDeque[indexBack];}
     void reset(int firstNode) { myDeque[0] = firstNode; indexBack = 0; indexFront = 0; }
-    inline int size(){return indexBack - indexFront + 1;}
+    inline int size() const{return indexBack - indexFront + 1;}
 
     Trivial_Deque(int nbElements, int firstNode)
     {
