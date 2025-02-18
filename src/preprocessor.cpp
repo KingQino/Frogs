@@ -16,9 +16,16 @@ Preprocessor::Preprocessor(const Case &c, const Parameters &params) : c(c), para
         }
     }
 
-    // A reasonable scale for the initial values of the penalties
-    this->penalty_capacity_ = std::max<double>(0.1, std::min<double>(1000., max_distance_ / max_demand_));
-    this->penalty_duration_ = 1;
+    if (params.is_hard_constraint) {
+        // A great penalty for the hard constraint
+        this->penalty_capacity_ = 1e10;
+        this->penalty_duration_ = 1e10;
+    } else {
+        // A reasonable scale for the initial values of the penalties
+        this->penalty_capacity_ = std::max<double>(0.1, std::min<double>(1000., max_distance_ / max_demand_));
+        this->penalty_duration_ = 1;
+    }
+    this->is_duration_constraint_ = params.is_duration_constraint;
 
     this->customers_ = vector<Customer>(c.num_customer_ + 1);
     customers_[0].coord_x = c.positions_[0].first;

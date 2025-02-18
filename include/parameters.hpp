@@ -21,6 +21,9 @@ typedef struct tParameters {
 
     // Algorithm parameters
     int nb_granular;            // Granular search parameter
+    bool is_hard_constraint;    // Hard constraint
+    bool is_duration_constraint;// Whether to consider duration constraint
+
 
     // Constructor: Initializes default values
     tParameters() :
@@ -32,6 +35,8 @@ typedef struct tParameters {
             seed(0) {
 
         nb_granular = 20;
+        is_hard_constraint = true;
+        is_duration_constraint = false;
     }
 } Parameters;
 

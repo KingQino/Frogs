@@ -38,6 +38,7 @@ public:
     double max_distance_{};         // the longest arc distance between any two nodes
     double penalty_capacity_{};	    // Penalty for one unit of capacity excess (adapted through the search)
     double penalty_duration_{};		// Penalty for one unit of duration excess (adapted through the search)
+    bool is_duration_constraint_{};  // Whether to consider duration constraint
 
     vector<int> customer_ids_;      // the id of customers
     vector<int> station_ids_;       // the id of charging stations

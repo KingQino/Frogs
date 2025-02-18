@@ -30,6 +30,8 @@ void CommandLine::parse_parameters(Parameters& params) const {
     params.enable_multithreading = get_bool("enable_multithreading", params.enable_multithreading);
     params.seed = get_int("seed", params.seed);
     params.nb_granular = get_int("nb_granular", params.nb_granular);
+    params.is_hard_constraint = get_bool("is_hard_constraint", params.is_hard_constraint);
+    params.is_duration_constraint = get_bool("is_duration_constraint", params.is_duration_constraint);
 }
 
 // Display help message
@@ -37,13 +39,15 @@ void CommandLine::display_help() {
     std::cout << "--------------------------------------------------- Parameters Instruction  ---------------------------------------------------" << std::endl;
     std::cout << "Usage: ./Run [options]\n"
               << "Options:\n"
-              << "  -algorithm [name]           : Algorithm name (e.g., Ma, Lahc)\n"
-              << "  -instance [filename]        : Problem instance filename\n"
-              << "  -enable_logging [0|1]       : Enable logging (default: 0)\n"
-              << "  -stop_criteria [0|1|2]      : Stopping criteria (default: 0)\n"
-              << "  -enable_multithreading [0|1]: Enable multi-threading (default: 1)\n"
-              << "  -seed [int]                 : Random seed (default: 0)\n"
-              << "  -nb_granular [int]          : Granular search parameter (default: 20)\n";
+              << "  -algorithm [name]            : Algorithm name (e.g., Ma, Lahc)\n"
+              << "  -instance [filename]         : Problem instance filename\n"
+              << "  -enable_logging [0|1]        : Enable logging (default: 0)\n"
+              << "  -stop_criteria [0|1|2]       : Stopping criteria (default: 0)\n"
+              << "  -enable_multithreading [0|1] : Enable multi-threading (default: 1)\n"
+              << "  -seed [int]                  : Random seed (default: 0)\n"
+              << "  -nb_granular [int]           : Granular search parameter (default: 20)\n"
+              << "  -is_hard_constraint [0|1]    : Whether to use hard constraint (default: 1)\n"
+              << "  -is_duration_constraint [0|1]: Whether to consider duration constraint (default: 0)\n";
     std::cout << "-------------------------------------------------------------------------------------------------------------------------------" << std::endl;
 }
 

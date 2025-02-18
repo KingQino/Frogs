@@ -19,6 +19,8 @@ set(DEPENDENCIES
         external/include/CircleSector.h
         include/individual.hpp
         src/individual.cpp
+        external/include/Split.h
+        external/src/Split.cpp
 )
 
 add_executable(Run main.cpp ${DEPENDENCIES})
