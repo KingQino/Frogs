@@ -211,6 +211,54 @@ int Split::splitLF(Individual * indiv)
     return (end == 0);
 }
 
+vector<vector<int>> Split::prinsSplit(const vector<int> &chromosome) {
+    vector<int> x(chromosome.size() + 1, 0); // a giant tour starts from 0
+    copy(chromosome.begin(), chromosome.end(), x.begin() + 1);
+
+    vector<double> vv(x.size(), std::numeric_limits<double>::max()); // value, the accumulated cost of the shortest path from 0 to i
+    vector<int> pp(x.size(), 0); // path, record the split routes of the corresponding shortest path
+    vv[0] = 0.0;
+
+    for (int i = 1; i < x.size(); ++i) {
+        int load = 0;
+        double cost = 0;
+        int j = i;
+        do
+        {
+            load += instance->get_customer_demand_(x[j]);
+            if (i == j) {
+                cost = instance->get_distance(instance->depot_, x[j]) * 2;
+            } else {
+                cost -= instance->get_distance(x[j -1], instance->depot_);
+                cost += instance->get_distance(x[j -1], x[j]);
+                cost += instance->get_distance(instance->depot_, x[j]);
+            }
+
+            if (load <= instance->max_vehicle_capa_) {
+                if (vv[i - 1] + cost < vv[j]) {
+                    vv[j] = vv[i - 1] + cost;
+                    pp[j] = i - 1;
+                }
+                j++;
+            }
+        } while (!(j >= x.size() || load >instance->max_vehicle_capa_));
+    }
+
+    vector<vector<int>> all_routes;
+    auto j = x.size() - 1;
+    while (true) {
+        int i = pp[j];
+        vector<int> temp(x.begin() + i + 1, x.begin() + j + 1);
+        all_routes.push_back(temp);
+        j = i;
+        if (i == 0) {
+            break;
+        }
+    }
+
+    return all_routes;
+}
+
 Split::Split(Case* instance, Preprocessor* preprocessor): instance(instance), preprocessor(preprocessor)
 {
 	// Structures of the linear Split

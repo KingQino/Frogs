@@ -20,6 +20,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.*/
 
+/*
+ * autor: Thibaut Vidal
+ * modifier: Yinghao Qin
+ * update date: 18/02/2025
+ */
+
 #ifndef SPLIT_H
 #define SPLIT_H
 
@@ -69,7 +75,7 @@ private:
     // Problem parameters
     Case* instance;
     Preprocessor* preprocessor;
-    int maxVehicles ;
+    int maxVehicles{};
 
     /* Auxiliary data structures to run the Linear Split algorithm */
     std::vector < ClientSplit > cliSplit;
@@ -112,6 +118,10 @@ public:
 
     // General Split function (tests the unlimited fleet, and only if it does not produce a feasible solution, runs the Split algorithm for limited fleet)
     void generalSplit(Individual * indiv, int nbMaxVehicles);
+
+
+    // O(nB) Prins, C., 2004. A simple and effective evolutionary algorithm for the vehicle routing problem. Computers & operations research, 31(12), pp.1985-2002.
+    vector<vector<int>> prinsSplit(const vector<int>& chromosome);
 
     // Constructor
     Split(Case* instance, Preprocessor* preprocessor);

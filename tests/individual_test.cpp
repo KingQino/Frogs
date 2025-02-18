@@ -65,17 +65,17 @@ TEST_F(IndividualTest, ConstructorWithChromTAndChromR) {
 
     vector<int> chromT(preprocessor->customer_ids_);
     std::shuffle(chromT.begin(), chromT.end(), rng);
-//    vector<vector<int>> chromR(preprocessor->route_cap_, vector<int>());
-//    for (int i = 0; i < chromR.size(); ++i) {
-//        chromR[i] = chromT;
-//    }
     Individual ind(instance, preprocessor, chromT);
     split->generalSplit(&ind, preprocessor->route_cap_);
+
+    // Prins split - O(nB) Ground truth
+    vector<vector<int>> routes = split->prinsSplit(chromT);
 
 
     EXPECT_EQ(ind.chromT.size(), instance->num_customer_);
     EXPECT_EQ(ind.chromR.size(), preprocessor->route_cap_);
-    EXPECT_NE(ind.chromR[preprocessor->route_cap_ - 1].size(), 0);
     EXPECT_EQ(ind.successors.size(), instance->num_customer_ + 1);
     EXPECT_EQ(ind.predecessors.size(), instance->num_customer_ + 1);
+    EXPECT_NE(ind.chromR[preprocessor->route_cap_ - 1].size(), 0);
+    EXPECT_EQ(ind.chromR[preprocessor->route_cap_ - routes.size()], routes[routes.size() - 1]);
 }
