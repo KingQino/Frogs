@@ -32,6 +32,8 @@ SOFTWARE.*/
 #include "case.hpp"
 #include "preprocessor.hpp"
 #include "individual.hpp"
+#include <random>
+
 
 struct ClientSplit
 {
@@ -56,7 +58,7 @@ struct Trivial_Deque
     inline int get_next_front(){return myDeque[indexFront + 1];}
     inline int get_back(){return myDeque[indexBack];}
     void reset(int firstNode) { myDeque[0] = firstNode; indexBack = 0; indexFront = 0; }
-    inline int size() const{return indexBack - indexFront + 1;}
+    [[nodiscard]] inline int size() const{return indexBack - indexFront + 1;}
 
     Trivial_Deque(int nbElements, int firstNode)
     {
@@ -76,6 +78,7 @@ private:
     Case* instance;
     Preprocessor* preprocessor;
     int maxVehicles{};
+    std::default_random_engine randomEngine;
 
     /* Auxiliary data structures to run the Linear Split algorithm */
     std::vector < ClientSplit > cliSplit;
@@ -119,9 +122,13 @@ public:
     // General Split function (tests the unlimited fleet, and only if it does not produce a feasible solution, runs the Split algorithm for limited fleet)
     void generalSplit(Individual * indiv, int nbMaxVehicles);
 
-
     // O(nB) Prins, C., 2004. A simple and effective evolutionary algorithm for the vehicle routing problem. Computers & operations research, 31(12), pp.1985-2002.
     vector<vector<int>> prinsSplit(const vector<int>& chromosome);
+
+    // Hien et al., "A greedy search based evolutionary algorithm for electric vehicle routing problem", 2023.
+    void initIndividualWithHienClustering(Individual* ind);
+    // Jia Ya-Hui, et al., "Confidence-Based Ant Colony Optimization for Capacitated Electric Vehicle Routing Problem With Comparison of Different Encoding Schemes", 2022
+    void initIndividualWithDirectEncoding(Individual* ind);
 
     // Constructor
     Split(Case* instance, Preprocessor* preprocessor);

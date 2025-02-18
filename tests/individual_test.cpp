@@ -17,7 +17,7 @@ protected:
         params = new Parameters();
         preprocessor = new Preprocessor(*instance, *params);
         split = new Split(instance, preprocessor);
-        rng = std::default_random_engine(0);;
+        rng = std::default_random_engine(preprocessor->params.seed);
     }
 
     void TearDown() override {
@@ -71,8 +71,6 @@ TEST_F(IndividualTest, ConstructorWithChromTAndChromR) {
     // Prins split - O(nB) Ground truth
     vector<vector<int>> routes = split->prinsSplit(chromT);
 
-    ind.evaluate_upper_cost();
-
     EXPECT_EQ(ind.upper_cost.nb_routes, routes.size());
     EXPECT_EQ(ind.chromT.size(), instance->num_customer_);
     EXPECT_EQ(ind.chromR.size(), preprocessor->route_cap_);
@@ -80,5 +78,27 @@ TEST_F(IndividualTest, ConstructorWithChromTAndChromR) {
     EXPECT_EQ(ind.predecessors.size(), instance->num_customer_ + 1);
     EXPECT_NE(ind.chromR[preprocessor->route_cap_ - 1].size(), 0);
     EXPECT_EQ(ind.chromR[preprocessor->route_cap_ - routes.size()], routes[routes.size() - 1]);
+    EXPECT_DOUBLE_EQ(ind.upper_cost.penalised_cost, ind.upper_cost.distance);
+}
+
+TEST_F(IndividualTest, InitIndividualWithHienClustering) {
+    Individual ind(instance, preprocessor);
+
+    split->initIndividualWithHienClustering(&ind);
+
+    EXPECT_TRUE(ind.is_upper_feasible);
+    EXPECT_EQ(ind.chromT.size(), instance->num_customer_);
+    EXPECT_EQ(ind.chromT[0], ind.chromR[0][0]);
+    EXPECT_DOUBLE_EQ(ind.upper_cost.penalised_cost, ind.upper_cost.distance);
+}
+
+TEST_F(IndividualTest, InitIndividualWithDirectEncoding) {
+    Individual ind(instance, preprocessor);
+
+    split->initIndividualWithDirectEncoding(&ind);
+
+    EXPECT_TRUE(ind.is_upper_feasible);
+    EXPECT_EQ(ind.chromT.size(), instance->num_customer_);
+    EXPECT_EQ(ind.chromT[0], ind.chromR[0][0]);
     EXPECT_DOUBLE_EQ(ind.upper_cost.penalised_cost, ind.upper_cost.distance);
 }

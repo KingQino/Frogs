@@ -24,7 +24,7 @@ void Split::generalSplit(Individual * indiv, int nbMaxVehicles)
         splitLF(indiv);
 
     // Build up the rest of the Individual structure
-//    indiv->evaluateCompleteCost();
+    indiv->evaluate_upper_cost();
 }
 
 int Split::splitSimple(Individual * indiv)
@@ -88,9 +88,6 @@ int Split::splitSimple(Individual * indiv)
 
     if (potential[0][instance->num_customer_] > 1.e29)
         throw std::string("ERROR : no Split solution has been propagated until the last node");
-
-//    indiv->upper_cost.penalised_cost = potential[0][instance->num_customer_];
-//    indiv->upper_cost.distance = potential[0][instance->num_customer_];
 
     // Filling the chromR structure
     for (int k = preprocessor->route_cap_ - 1; k >= maxVehicles; k--)
@@ -259,6 +256,149 @@ vector<vector<int>> Split::prinsSplit(const vector<int> &chromosome) {
     return all_routes;
 }
 
+void Split::initIndividualWithHienClustering(Individual* ind) {
+    vector<int> chromosome(preprocessor->customer_ids_);
+
+    // Clustering
+    std::shuffle(chromosome.begin(),chromosome.end(), randomEngine);
+    vector<vector<int>> routes;
+    vector<int> route;
+    while (!chromosome.empty()) {
+        route.clear();
+
+        int anchor = chromosome.front();
+        chromosome.erase(chromosome.begin());
+        route.push_back(anchor);
+        int cap = instance->get_customer_demand_(anchor);
+
+        vector<int> nearby_customers = preprocessor->sorted_nearby_customers_[anchor];
+        int length = static_cast<int>(nearby_customers.size()); // the size of nearby_customers
+
+        for (int i = 0; i < length; ++i) {
+            int node = nearby_customers[i];
+            auto it = find(chromosome.begin(),chromosome.end(), node);
+            if (it == chromosome.end()) {
+                continue;
+            }
+            if (cap + instance->get_customer_demand_(node) <= instance->max_vehicle_capa_) {
+                route.push_back(node);
+                cap += instance->get_customer_demand_(node);
+                chromosome.erase(it);
+            } else {
+                routes.push_back(route);
+                break;
+            }
+        }
+    }
+
+    routes.push_back(route);
+
+
+    // Balance the routes
+    vector<int>& lastRoute = routes.back();
+    uniform_int_distribution<> distribution(0, static_cast<int >(lastRoute.size() -1) );
+    int customer = lastRoute[distribution(randomEngine)];  // Randomly choose a customer from the last route
+
+    int cap1 = 0;
+    for (int node : lastRoute) {
+        cap1 += instance->get_customer_demand_(node);
+    }
+    int size = instance->num_customer_ - 1; // the size of nearby_customers
+
+    for (int i = 0; i < size; ++i) {
+        int x = preprocessor->sorted_nearby_customers_[customer][i];
+        if (find(lastRoute.begin(), lastRoute.end(), x) != lastRoute.end()) {
+            continue;
+        }
+        auto route2It = find_if(routes.begin(), routes.end(), [x](const vector<int>& route) {
+            return find(route.begin(), route.end(), x) != route.end();
+        });
+        if (route2It != routes.end()) {
+            vector<int>& route2 = *route2It;
+            int cap2 = 0;
+            for (int node : route2) {
+                cap2 += instance->get_customer_demand_(node);
+            }
+
+            int demand_X = instance->get_customer_demand_(x);
+
+            if (demand_X + cap1 <= instance->max_vehicle_capa_ && abs((cap1 + demand_X) - (cap2 - demand_X)) < abs(cap1 - cap2)) {
+                route2.erase(remove(route2.begin(), route2.end(), x), route2.end());
+                lastRoute.push_back(x);
+                cap1 += demand_X;
+            } else {
+                break;
+            }
+        }
+    }
+
+    int index = 0;
+    ind->chromT.clear();  // Clear previous values
+    for (const auto&  tour: routes) {
+        ind->chromT.insert(ind->chromT.end(), tour.begin(), tour.end());
+        ind->chromR[index++] = tour;
+    }
+
+    ind->evaluate_upper_cost();
+}
+
+void Split::initIndividualWithDirectEncoding(Individual* ind) {
+    vector<int> customers_(preprocessor->customer_ids_);
+
+    int vehicle_idx = 0; // vehicle index - starts from the vehicle 0
+    int load_of_one_route = 0; // the load of the current vehicle
+    vector<int> route = {instance->depot_}; // the first route starts from depot_ 0
+
+    vector<vector<int>> all_routes;
+    while(!customers_.empty()) {
+        vector<int> all_temp;
+        for(int i : customers_) {
+            if(instance->get_customer_demand_(i) <= instance->max_vehicle_capa_ - load_of_one_route) {
+                all_temp.push_back(i);
+            }
+        }
+
+        int remain_total_demand_ = accumulate(customers_.begin(), customers_.end(), 0, [&](int total, int i) {
+            return total + instance->get_customer_demand_(i);
+        });
+        if(remain_total_demand_ <= instance->max_vehicle_capa_ * (instance->num_vehicle_ - vehicle_idx - 1) || all_temp.empty()) {
+            all_temp.push_back(instance->depot_); // add depot_ node into the all_temp
+        }
+
+        int cur = route.back();
+        uniform_int_distribution<> distribution(0, static_cast<int>(all_temp.size()) - 1);
+        int next = all_temp[distribution(randomEngine)]; // int next = roulette_wheel_selection(all_temp, cur);
+        route.push_back(next);
+
+        if (next == instance->depot_) {
+            all_routes.push_back(route);
+            vehicle_idx += 1;
+            route = {0};
+            load_of_one_route = 0;
+        } else {
+            load_of_one_route += instance->get_customer_demand_(next);
+            customers_.erase(remove(customers_.begin(), customers_.end(), next), customers_.end());
+        }
+    }
+
+    all_routes.push_back(route);
+
+    // 🔹 Remove `instance.depot_` from each route
+    for (auto& tour : all_routes) {
+        tour.erase(remove(tour.begin(), tour.end(), instance->depot_), tour.end());
+    }
+
+    int index = 0;
+    ind->chromT.clear();  // Clear previous values
+    for (const auto& tour : all_routes) {
+        ind->chromT.insert(ind->chromT.end(), tour.begin(), tour.end());
+        ind->chromR[index++] = tour;
+    }
+
+    ind->evaluate_upper_cost();
+}
+
+
 Split::Split(Case* instance, Preprocessor* preprocessor): instance(instance), preprocessor(preprocessor)
 {
 	// Structures of the linear Split
@@ -268,4 +408,5 @@ Split::Split(Case* instance, Preprocessor* preprocessor): instance(instance), pr
 	sumService = std::vector <double>(instance->num_customer_ + 1, 0.);
 	potential = std::vector<vector<double>>(preprocessor->route_cap_ + 1, std::vector<double>(instance->num_customer_ + 1,1.e30));
 	pred = std::vector < std::vector <int> >(preprocessor->route_cap_ + 1, std::vector<int>(instance->num_customer_ + 1, 0));
+    randomEngine = std::default_random_engine(preprocessor->params.seed);
 }
