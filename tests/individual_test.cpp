@@ -71,11 +71,14 @@ TEST_F(IndividualTest, ConstructorWithChromTAndChromR) {
     // Prins split - O(nB) Ground truth
     vector<vector<int>> routes = split->prinsSplit(chromT);
 
+    ind.evaluate_upper_cost();
 
+    EXPECT_EQ(ind.upper_cost.nb_routes, routes.size());
     EXPECT_EQ(ind.chromT.size(), instance->num_customer_);
     EXPECT_EQ(ind.chromR.size(), preprocessor->route_cap_);
     EXPECT_EQ(ind.successors.size(), instance->num_customer_ + 1);
     EXPECT_EQ(ind.predecessors.size(), instance->num_customer_ + 1);
     EXPECT_NE(ind.chromR[preprocessor->route_cap_ - 1].size(), 0);
     EXPECT_EQ(ind.chromR[preprocessor->route_cap_ - routes.size()], routes[routes.size() - 1]);
+    EXPECT_DOUBLE_EQ(ind.upper_cost.penalised_cost, ind.upper_cost.distance);
 }

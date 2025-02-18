@@ -31,8 +31,8 @@ public:
     vector<int> chromT;             // Giant tour representing the individual
     vector<vector<int>> chromR;     // For each vehicle, the associated sequence of deliveries (complete solution)
     UpperCost upper_cost;           // The cost of upper-level solution
-    double lower_cost{};            // The cost of lower-level solution, i.e., the complete solution
     bool is_upper_feasible{};       // Feasibility status of the individual
+    double lower_cost{};            // The cost of lower-level solution, i.e., the complete solution
 
     // Ma: population diversity control
     double biased_fitness{};        // The biased fitness. The smaller, the better.
@@ -45,9 +45,9 @@ public:
     Individual(Case* instance, Preprocessor* preprocessor, const vector<int>& chromT);     // Constructor: random individual, the next step is to use `Split` to generate the ChromR
     Individual(Case* instance, Preprocessor* preprocessor, const vector<int>& chromT, const vector<vector<int>>& chromR, double upper_cost);  // Constructor: some delicate methods for initialisation
 
+    void evaluate_upper_cost();                                                     // Measuring cost of a solution from the information of chromR
     double broken_pairs_distance(Individual* ind);                                  // Distance measure with another individual
     double average_broken_pairs_distance_closest(int nb_closest);                   // Returns the average distance of this individual with the nbClosest individuals
-
 };
 
 

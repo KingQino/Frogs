@@ -71,3 +71,34 @@ double Individual::average_broken_pairs_distance_closest(int nb_closest) {
 
     return result/(double)max_size ;
 }
+
+void Individual::evaluate_upper_cost() {
+    for (int r = 0; r < preprocessor->route_cap_; r++) {
+        if (!chromR[r].empty())
+        {
+            double distance = instance->get_distance(instance->depot_, chromR[r][0]);
+            double load = preprocessor->customers_[chromR[r][0]].demand;
+            double service = preprocessor->customers_[chromR[r][0]].service_duration;
+            predecessors[chromR[r][0]] = instance->depot_;
+            for (int i = 1; i < (int)chromR[r].size(); i++)
+            {
+                distance += instance->get_distance(chromR[r][i-1], chromR[r][i]);
+                load += preprocessor->customers_[chromR[r][i]].demand;
+                service += preprocessor->customers_[chromR[r][i]].service_duration;
+                predecessors[chromR[r][i]] = chromR[r][i-1];
+                successors[chromR[r][i-1]] = chromR[r][i];
+            }
+            successors[chromR[r][chromR[r].size()-1]] = instance->depot_;
+            distance += instance->get_distance(chromR[r][chromR[r].size() - 1], instance->depot_);
+            upper_cost.distance += distance;
+            upper_cost.nb_routes++;
+            if (load > instance->max_vehicle_capa_) upper_cost.capacity_excess += load - instance->max_vehicle_capa_;
+            // The time spent on the route is directly proportional to the distance traveled, plus the service time at each customer
+            // Here, assume that the time spent is equal to 1 by the distance traveled.
+            if (distance + service > instance->max_service_time_) upper_cost.duration_excess += distance + service - instance->max_service_time_;
+        }
+    }
+
+    upper_cost.penalised_cost = upper_cost.distance + upper_cost.capacity_excess * preprocessor->penalty_capacity_ + upper_cost.duration_excess * preprocessor->penalty_duration_;
+    is_upper_feasible = (upper_cost.capacity_excess < MY_EPSILON && upper_cost.duration_excess < MY_EPSILON);
+}
