@@ -35,14 +35,14 @@ Preprocessor::Preprocessor(const Case &c, const Parameters &params) : c(c), para
         station_ids_.push_back(i);
     }
 
-    this->sorted_nearby_customers = vector<vector<int>>(c.num_customer_ + 1);
+    this->sorted_nearby_customers_ = vector<vector<int>>(c.num_customer_ + 1);
     for (int i = 1; i <= c.num_customer_; i++) {
         for (auto node : customer_ids_) {
             if (node == i) continue;
-            sorted_nearby_customers[i].push_back(node);
+            sorted_nearby_customers_[i].push_back(node);
         }
 
-        sort(sorted_nearby_customers[i].begin(), sorted_nearby_customers[i].end(), [&](const int a, const int b) {
+        sort(sorted_nearby_customers_[i].begin(), sorted_nearby_customers_[i].end(), [&](const int a, const int b) {
             return c.distances_[i][a] < c.distances_[i][b];
         });
     }

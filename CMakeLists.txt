@@ -17,6 +17,8 @@ set(DEPENDENCIES
         include/preprocessor.hpp
         src/preprocessor.cpp
         external/include/CircleSector.h
+        include/individual.hpp
+        src/individual.cpp
 )
 
 add_executable(Run main.cpp ${DEPENDENCIES})
@@ -38,7 +40,8 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
             ${DEPENDENCIES}
             tests/case_test.cpp
             tests/command_line_test.cpp
-            tests/preprocessor_test.cpp)
+            tests/preprocessor_test.cpp
+            tests/individual_test.cpp)
 
     target_include_directories(Tests PRIVATE include external/include)
     target_link_libraries(Tests PRIVATE gtest gtest_main)
