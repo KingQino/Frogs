@@ -307,7 +307,7 @@ void Follower::recursive_charging_placement(int m_len, int n_len, int* chosen_po
     }
 }
 
-double Follower::insert_station_by_all_enumeration(int* repaired_route, int& repaired_length) {
+double Follower::insert_station_by_all_enumeration(int* repaired_route, int& repaired_length) const {
     int length = repaired_length;
     int* route = new int[length];
     memcpy(route, repaired_route, sizeof(int) * length);
