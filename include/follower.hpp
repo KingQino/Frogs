@@ -9,6 +9,7 @@
 #include "preprocessor.hpp"
 #include "individual.hpp"
 #include <list>
+#include <stack>
 
 #define INFEASIBLE 1'000'000'000L
 
