@@ -21,6 +21,8 @@ set(DEPENDENCIES
         src/individual.cpp
         external/include/Split.h
         external/src/Split.cpp
+        external/include/LocalSearch.h
+        external/src/LocalSearch.cpp
 )
 
 add_executable(Run main.cpp ${DEPENDENCIES})

@@ -139,6 +139,22 @@ double Case::get_evals() const {
     return evals_;
 }
 
+double Case::calculate_total_dist(const vector<vector<int>>& chromR) {
+    double tour_length = 0.0;
+
+    for (const auto& route : chromR) {
+        if (route.empty()) continue;
+
+        tour_length += distances_[depot_][route[0]];
+        for (int j = 0; j < route.size() - 1; ++j) {
+            tour_length += distances_[route[j]][route[j + 1]];
+        }
+        tour_length += distances_[route.back()][depot_];
+    }
+
+    return tour_length;
+}
+
 // TODO: modify these two functions below for new Individual structure
 double Case::compute_total_distance(const vector<vector<int>> &routes) {
     double tour_length = 0.0;

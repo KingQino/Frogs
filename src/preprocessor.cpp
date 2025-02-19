@@ -6,6 +6,7 @@
 
 Preprocessor::Preprocessor(const Case &c, const Parameters &params) : c(c), params(params) {
 
+    this->nb_granular_ = params.nb_granular;
     this->max_demand_ = *std::max_element(c.demand_.begin(), c.demand_.end());
     this->total_demand_ = std::accumulate(c.demand_.begin(), c.demand_.end(), 0);
     this->route_cap_ = 3 * c.num_vehicle_;
@@ -65,7 +66,7 @@ Preprocessor::Preprocessor(const Case &c, const Parameters &params) : c(c), para
             order_proximity.emplace_back(c.distances_[i][j], j);
         }
         std::sort(order_proximity.begin(), order_proximity.end());
-        for (int j = 0; j < std::min<int>(params.nb_granular, c.num_customer_ - 1); ++j) {
+        for (int j = 0; j < std::min<int>(nb_granular_, c.num_customer_ - 1); ++j) {
             //  if i is correlated with j, then j should be correlated with i
             set_correlated_vertices[i].insert(order_proximity[j].second);
             set_correlated_vertices[order_proximity[j].second].insert(i);
@@ -85,6 +86,8 @@ Preprocessor::Preprocessor(const Case &c, const Parameters &params) : c(c), para
         }
     }
 
+    // initialise the random engine
+    this->random_engine = std::default_random_engine(this->params.seed);
 }
 
 int Preprocessor::get_best_station(const int from, const int to) const {

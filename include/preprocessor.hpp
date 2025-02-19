@@ -8,6 +8,7 @@
 #include "case.hpp"
 #include "parameters.hpp"
 #include "CircleSector.h"
+#include <random>
 
 
 #define MY_EPSILON 0.000'01 // Precision parameter, used to avoid numerical instabilities
@@ -25,12 +26,14 @@ class Preprocessor {
 public:
     const Case& c;
     const Parameters& params;
+    std::default_random_engine  random_engine;
 
     // Stop criteria
     double max_evals_{};            // the max number of evaluations can be used
     int max_exec_time_{};           // the max execution time of the algorithm
     int max_no_change_count_{};     // the max number of iterations without improvement
 
+    int nb_granular_{};             // Granular search parameter, limits the neighbourhood size of each solution in the local search move
     int max_demand_{};              // the max customer demand among all customers
     int total_demand_{};            // the total customer demand
     int route_cap_{};               // the capacity of route, 3 * the number of vehicles
@@ -38,7 +41,7 @@ public:
     double max_distance_{};         // the longest arc distance between any two nodes
     double penalty_capacity_{};	    // Penalty for one unit of capacity excess (adapted through the search)
     double penalty_duration_{};		// Penalty for one unit of duration excess (adapted through the search)
-    bool is_duration_constraint_{};  // Whether to consider duration constraint
+    bool is_duration_constraint_{}; // Whether to consider duration constraint
 
     vector<int> customer_ids_;      // the id of customers
     vector<int> station_ids_;       // the id of charging stations

@@ -73,6 +73,7 @@ double Individual::average_broken_pairs_distance_closest(int nb_closest) {
 }
 
 void Individual::evaluate_upper_cost() {
+    upper_cost.reset();
     for (int r = 0; r < preprocessor->route_cap_; r++) {
         if (!chromR[r].empty())
         {

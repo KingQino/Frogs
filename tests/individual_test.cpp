@@ -5,6 +5,7 @@
 #include "gtest/gtest.h"
 #include "individual.hpp"
 #include "Split.h"
+#include "LocalSearch.h"
 #include <random>
 
 using namespace ::testing;
@@ -17,6 +18,7 @@ protected:
         params = new Parameters();
         preprocessor = new Preprocessor(*instance, *params);
         split = new Split(instance, preprocessor);
+        local_search = new LocalSearch(instance, preprocessor);
         rng = std::default_random_engine(preprocessor->params.seed);
     }
 
@@ -25,12 +27,14 @@ protected:
         delete params;
         delete preprocessor;
         delete split;
+        delete local_search;
     }
 
     Case* instance{};
     Parameters* params{};
     Preprocessor* preprocessor{};
     Split* split{};
+    LocalSearch* local_search;
     std::default_random_engine rng;
 };
 
@@ -101,4 +105,21 @@ TEST_F(IndividualTest, InitIndividualWithDirectEncoding) {
     EXPECT_EQ(ind.chromT.size(), instance->num_customer_);
     EXPECT_EQ(ind.chromT[0], ind.chromR[0][0]);
     EXPECT_DOUBLE_EQ(ind.upper_cost.penalised_cost, ind.upper_cost.distance);
+}
+
+TEST_F(IndividualTest, LocalSearch) {
+    vector<int> chromT(preprocessor->customer_ids_);
+    std::shuffle(chromT.begin(), chromT.end(), rng);
+    Individual ind(instance, preprocessor, chromT);
+    split->generalSplit(&ind, preprocessor->route_cap_);
+
+    UpperCost upper_cost_prev = ind.upper_cost;
+
+    local_search->run(&ind, preprocessor->penalty_capacity_, preprocessor->penalty_duration_);
+
+    double ground_truth_dis = instance->calculate_total_dist(ind.chromR);
+
+    EXPECT_GT(upper_cost_prev.penalised_cost, ind.upper_cost.penalised_cost);
+    EXPECT_GT(upper_cost_prev.nb_routes, ind.upper_cost.nb_routes);
+    EXPECT_DOUBLE_EQ(ind.upper_cost.distance, ground_truth_dis);
 }

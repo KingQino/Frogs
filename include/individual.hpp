@@ -20,6 +20,13 @@ typedef struct tUpperCost  {
     double distance{};			    // Total Distance
     double capacity_excess{};		// Sum of excess load in all routes
     double duration_excess{};		// Sum of excess duration in all routes
+    void reset() {
+        penalised_cost = 0.;
+        nb_routes = 0;
+        distance = 0.;
+        capacity_excess = 0.;
+        duration_excess = 0.;
+    }
 } UpperCost;
 
 class Individual {
