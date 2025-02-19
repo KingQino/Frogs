@@ -10,9 +10,11 @@
 
 using namespace std;
 
+enum class Algorithm { Cbma, Lahc };
+
 struct Parameters {
     // Running parameters
-    string algorithm;           // Algorithm name
+    Algorithm algorithm;        // Algorithm name
     string instance;            // Problem instance name
     bool enable_logging;        // Enable logging
     int stop_criteria;          // Stopping criteria (e.g., max evaluations used)
@@ -23,11 +25,12 @@ struct Parameters {
     int nb_granular;            // Granular search parameter
     bool is_hard_constraint;    // Hard constraint
     bool is_duration_constraint;// Whether to consider duration constraint
+    int history_length;         // LAHC history length
 
 
     // Constructor: Initializes default values
     Parameters() :
-            algorithm("Lahc"),
+            algorithm(Algorithm::Lahc),
             instance("E-n22-k4.evrp"),
             enable_logging(false),
             stop_criteria(0),
@@ -37,6 +40,7 @@ struct Parameters {
         nb_granular = 20;
         is_hard_constraint = true;
         is_duration_constraint = false;
+        history_length = 5'000;
     }
 };
 

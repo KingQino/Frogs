@@ -8,6 +8,8 @@
 #include "parameters.hpp"
 #include <unordered_map>
 #include <vector>
+#include <algorithm>
+#include <string>
 
 
 class CommandLine {
@@ -29,6 +31,8 @@ public:
     [[nodiscard]] double get_double(const std::string& key, double default_value) const;
     [[nodiscard]] std::string get_string(const std::string& key, const std::string& default_value) const;
     [[nodiscard]] bool get_bool(const std::string& key, bool default_value) const;
+    [[nodiscard]] static std::string to_lowercase(const std::string& str) ;
+    [[nodiscard]] static Algorithm string_to_algorithm(const std::string& algo_str);
 
     // Debug: Print all parsed arguments
     void print_arguments() const;

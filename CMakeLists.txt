@@ -28,6 +28,8 @@ set(DEPENDENCIES
         include/stats_interface.hpp
         src/stats_interface.cpp
         include/heuristic_interface.hpp
+        include/lahc.hpp
+        src/lahc.cpp
 )
 
 add_executable(Run main.cpp ${DEPENDENCIES})
