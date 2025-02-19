@@ -4,7 +4,20 @@
 
 #include "preprocessor.hpp"
 
+const int Preprocessor::MAX_EVALUATION_FACTOR = 25'000;
+
 Preprocessor::Preprocessor(const Case &c, const Parameters &params) : c(c), params(params) {
+
+    // Stop criteria setting up
+    this->max_evals_ = c.problem_size_ * MAX_EVALUATION_FACTOR;
+    if (c.num_customer_ <= 100) {
+        max_exec_time_ = static_cast<int>(1 * (c.problem_size_ / 100.0) * 60 * 60);
+    } else if (c.num_customer_ <= 915) {
+        max_exec_time_ = static_cast<int>(2 * (c.problem_size_ / 100.0) * 60 * 60);
+    } else {
+        max_exec_time_ = static_cast<int>(3 * (c.problem_size_ / 100.0) * 60 * 60);
+    }
+    this->max_no_improvement_count_ = 800; // adjust further  default: 20,000
 
     this->nb_granular_ = params.nb_granular;
     this->max_demand_ = *std::max_element(c.demand_.begin(), c.demand_.end());

@@ -11,7 +11,7 @@
 #include <random>
 
 
-#define MY_EPSILON 0.000'01 // Precision parameter, used to avoid numerical instabilities
+#define MY_EPSILON 0.000'01       // Precision parameter, used to avoid numerical instabilities
 
 struct Customer {
     int id{};                     // Index of the customer
@@ -23,6 +23,8 @@ struct Customer {
 };
 
 class Preprocessor {
+    static const int MAX_EVALUATION_FACTOR;
+
 public:
     const Case& c;
     const Parameters& params;
@@ -31,7 +33,7 @@ public:
     // Stop criteria
     double max_evals_{};            // the max number of evaluations can be used
     int max_exec_time_{};           // the max execution time of the algorithm
-    int max_no_change_count_{};     // the max number of iterations without improvement
+    int max_no_improvement_count_{};// the max number of iterations without improvement
 
     int nb_granular_{};             // Granular search parameter, limits the neighbourhood size of each solution in the local search move
     int max_demand_{};              // the max customer demand among all customers

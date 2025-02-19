@@ -27,6 +27,7 @@ set(DEPENDENCIES
         src/follower.cpp
         include/stats_interface.hpp
         src/stats_interface.cpp
+        include/heuristic_interface.hpp
 )
 
 add_executable(Run main.cpp ${DEPENDENCIES})
