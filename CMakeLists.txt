@@ -25,6 +25,8 @@ set(DEPENDENCIES
         external/src/LocalSearch.cpp
         include/follower.hpp
         src/follower.cpp
+        include/stats_interface.hpp
+        src/stats_interface.cpp
 )
 
 add_executable(Run main.cpp ${DEPENDENCIES})
