@@ -21,7 +21,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.*/
 
 /*
- * autor: Thibaut Vidal
  * modifier: Yinghao Qin
  * update date: 18/02/2025
  */
