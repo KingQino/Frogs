@@ -65,3 +65,17 @@ TEST_F(FollowerTest, Run) {
 
     EXPECT_NE(ind.lower_cost, ind.upper_cost.penalised_cost);
 }
+
+TEST_F(FollowerTest, Refine) {
+    vector<int> chromT(preprocessor->customer_ids_);
+    std::shuffle(chromT.begin(), chromT.end(), preprocessor->random_engine);
+    Individual ind(instance, preprocessor, chromT);
+    split->generalSplit(&ind, preprocessor->route_cap_);
+    local_search->run(&ind, preprocessor->penalty_capacity_, preprocessor->penalty_duration_);
+
+
+    Follower follower(instance, preprocessor);
+    follower.refine(&ind);
+
+    EXPECT_NE(ind.lower_cost, ind.upper_cost.penalised_cost);
+}
