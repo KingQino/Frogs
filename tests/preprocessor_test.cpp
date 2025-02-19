@@ -31,6 +31,6 @@ TEST_F(PreprocessorTest, Construtor) {
     Preprocessor preprocessor(*instance, *params);
 
     EXPECT_FALSE(preprocessor.correlated_vertices_.empty());
-    EXPECT_FALSE(preprocessor.best_stations_.empty());
+    EXPECT_FALSE(preprocessor.best_station_.empty());
 }
 

@@ -79,10 +79,10 @@ Preprocessor::Preprocessor(const Case &c, const Parameters &params) : c(c), para
     }
 
     // Make charging decision, filling the vector with correlated vertices
-    this->best_stations_ = std::vector<std::vector<int>>(c.num_depot_ + c.num_customer_,std::vector<int>(c.num_depot_ + c.num_customer_));
+    this->best_station_ = std::vector<std::vector<int>>(c.num_depot_ + c.num_customer_,std::vector<int>(c.num_depot_ + c.num_customer_));
     for (int i = 0; i < c.num_depot_ + c.num_customer_ - 1; i++) {
         for (int j = i + 1; j < c.num_depot_ + c.num_customer_; j++) {
-            this->best_stations_[i][j] = this->best_stations_[j][i] = get_best_station(i, j);
+            this->best_station_[i][j] = this->best_station_[j][i] = get_best_station(i, j);
         }
     }
 
@@ -98,6 +98,24 @@ int Preprocessor::get_best_station(const int from, const int to) const {
         if (const double dis = c.distances_[from][i] + c.distances_[to][i]; min_dis > dis && from != i && to != i) {
             target_station = i;
             min_dis = dis;
+        }
+    }
+
+    return target_station;
+}
+
+int Preprocessor::get_best_and_feasible_station(const int from, const int to, const double max_dis) const {
+    int target_station = -1;
+    double min_dis = std::numeric_limits<double>::max();
+
+    for (int i = c.num_customer_ + 1; i < c.problem_size_; ++i) {
+        if (c.distances_[from][i] < max_dis &&
+            min_dis > c.distances_[from][i]  + c.distances_[to][i]  &&
+            from != i && to != i &&
+            c.distances_[i][to] < max_cruise_distance_) {
+
+            target_station = i;
+            min_dis = c.distances_[from][i] + c.distances_[to][i];
         }
     }
 

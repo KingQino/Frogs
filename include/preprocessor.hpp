@@ -47,13 +47,14 @@ public:
     vector<int> station_ids_;       // the id of charging stations
     vector<Customer> customers_;    // the information list of customers
 
-    vector<vector<int>> sorted_nearby_customers_; // For Hien's clustering usage only. For each customer, a list of customer nodes from near to far, e.g., {index 1: [5,3,2,6], index 2: [], ...}
-    vector<vector<int>> correlated_vertices_;    // Neighborhood restrictions: For each client, list of nearby customers
-    vector<vector<int>> best_stations_;          // For each pair of customers, the best station to visit, i.e., the station that minimizes the extra cost
+    vector<vector<int>> sorted_nearby_customers_;   // For Hien's clustering usage only. For each customer, a list of customer nodes from near to far, e.g., {index 1: [5,3,2,6], index 2: [], ...}
+    vector<vector<int>> correlated_vertices_;       // Neighborhood restrictions: For each client, list of nearby customers
+    vector<vector<int>> best_station_;              // For each pair of customers, the best station to visit, i.e., the station that minimizes the extra cost
 
     Preprocessor(const Case& c, const Parameters& params);
 
     [[nodiscard]] int get_best_station(int from, int to) const;
+    [[nodiscard]] int get_best_and_feasible_station(int from, int to, double max_dis) const; // the station within allowed max distance from "from", and min dis[from][s]+dis[to][s]
 
 };
 
