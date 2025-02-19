@@ -23,6 +23,8 @@ set(DEPENDENCIES
         external/src/Split.cpp
         external/include/LocalSearch.h
         external/src/LocalSearch.cpp
+        include/follower.hpp
+        src/follower.cpp
 )
 
 add_executable(Run main.cpp ${DEPENDENCIES})

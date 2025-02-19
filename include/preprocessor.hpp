@@ -13,14 +13,14 @@
 
 #define MY_EPSILON 0.000'01 // Precision parameter, used to avoid numerical instabilities
 
-typedef struct tCustomer {
+struct Customer {
     int id{};                     // Index of the customer
     double coord_x{};             // Coordinate X
     double coord_y{};             // Coordinate Y
     double service_duration{};    // Service duration
     int demand{};                 // Demand
     int polar_angle{};            // Polar angle of the customer around the depot, measured in degrees and truncated for convenience
-} Customer;
+};
 
 class Preprocessor {
 public:

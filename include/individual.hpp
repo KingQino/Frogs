@@ -14,7 +14,7 @@
 
 using namespace std;
 
-typedef struct tUpperCost  {
+struct UpperCost {
     double penalised_cost{};        // Penalized cost of the solution
     int nb_routes{};				// Number of routes
     double distance{};			    // Total Distance
@@ -27,7 +27,7 @@ typedef struct tUpperCost  {
         capacity_excess = 0.;
         duration_excess = 0.;
     }
-} UpperCost;
+};
 
 class Individual {
 public:

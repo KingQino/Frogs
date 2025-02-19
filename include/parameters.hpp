@@ -10,7 +10,7 @@
 
 using namespace std;
 
-typedef struct tParameters {
+struct Parameters {
     // Running parameters
     string algorithm;           // Algorithm name
     string instance;            // Problem instance name
@@ -26,7 +26,7 @@ typedef struct tParameters {
 
 
     // Constructor: Initializes default values
-    tParameters() :
+    Parameters() :
             algorithm("Lahc"),
             instance("E-n22-k4.evrp"),
             enable_logging(false),
@@ -38,6 +38,6 @@ typedef struct tParameters {
         is_hard_constraint = true;
         is_duration_constraint = false;
     }
-} Parameters;
+};
 
 #endif //FROGS_PARAMETERS_HPP
