@@ -7,13 +7,13 @@ void LocalSearch::run(Individual * indiv, double penaltyCapacityLS, double penal
 	loadIndividual(indiv);
 
 	// Shuffling the order of the nodes explored by the LS to allow for more diversity in the search
-	std::shuffle(orderNodes.begin(), orderNodes.end(), preprocessor->random_engine);
-	std::shuffle(orderRoutes.begin(), orderRoutes.end(), preprocessor->random_engine);
+	std::shuffle(orderNodes.begin(), orderNodes.end(), random_engine);
+	std::shuffle(orderRoutes.begin(), orderRoutes.end(), random_engine);
     // Designed to use O(nbGranular x n) time overall to avoid possible bottlenecks
     for (int i = 1; i <= instance->num_customer_; i++) {
         std::uniform_int_distribution<int> distribution(0, preprocessor->nb_granular_ - 1);
-        if (distribution(preprocessor->random_engine) == 0) { // Random condition check
-            std::shuffle(preprocessor->correlated_vertices_[i].begin(),  preprocessor->correlated_vertices_[i].end(), preprocessor->random_engine);
+        if (distribution(random_engine) == 0) { // Random condition check
+            std::shuffle(preprocessor->correlated_vertices_[i].begin(),  preprocessor->correlated_vertices_[i].end(), random_engine);
         }
     }
 
@@ -764,6 +764,7 @@ void LocalSearch::exportIndividual(Individual * indiv)
 
 LocalSearch::LocalSearch(Case* instance, Preprocessor* preprocessor) : instance(instance), preprocessor(preprocessor)
 {
+    random_engine = std::default_random_engine(preprocessor->params.seed);
 	clients = std::vector < Node >(instance->num_customer_ + 1);
 	routes = std::vector < Route >(preprocessor->route_cap_);
 	depots = std::vector < Node >(preprocessor->route_cap_);

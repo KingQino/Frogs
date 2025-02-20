@@ -19,6 +19,7 @@ public:
     string name;
     Case* instance;
     Preprocessor* preprocessor;
+    std::default_random_engine random_engine;
     uniform_real_distribution<double> uniform_real_dist;
 
     // Constructor to initialize member variables
@@ -26,6 +27,7 @@ public:
             : name(std::move(heuristic_name)),
               instance(instance),
               preprocessor(preprocessor),
+              random_engine(preprocessor->params.seed),
               uniform_real_dist(0.0, 1.0) {
 
     }

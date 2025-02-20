@@ -260,7 +260,7 @@ void Split::initIndividualWithHienClustering(Individual* ind) {
     vector<int> chromosome(preprocessor->customer_ids_);
 
     // Clustering
-    std::shuffle(chromosome.begin(),chromosome.end(), preprocessor->random_engine);
+    std::shuffle(chromosome.begin(),chromosome.end(), random_engine);
     vector<vector<int>> routes;
     vector<int> route;
     while (!chromosome.empty()) {
@@ -297,7 +297,7 @@ void Split::initIndividualWithHienClustering(Individual* ind) {
     // Balance the routes
     vector<int>& lastRoute = routes.back();
     uniform_int_distribution<> distribution(0, static_cast<int >(lastRoute.size() -1) );
-    int customer = lastRoute[distribution(preprocessor->random_engine)];  // Randomly choose a customer from the last route
+    int customer = lastRoute[distribution(random_engine)];  // Randomly choose a customer from the last route
 
     int cap1 = 0;
     for (int node : lastRoute) {
@@ -367,7 +367,7 @@ void Split::initIndividualWithDirectEncoding(Individual* ind) {
 
         int cur = route.back();
         uniform_int_distribution<> distribution(0, static_cast<int>(all_temp.size()) - 1);
-        int next = all_temp[distribution(preprocessor->random_engine)]; // int next = roulette_wheel_selection(all_temp, cur);
+        int next = all_temp[distribution(random_engine)]; // int next = roulette_wheel_selection(all_temp, cur);
         route.push_back(next);
 
         if (next == instance->depot_) {
@@ -408,4 +408,5 @@ Split::Split(Case* instance, Preprocessor* preprocessor): instance(instance), pr
 	sumService = std::vector <double>(instance->num_customer_ + 1, 0.);
 	potential = std::vector<vector<double>>(preprocessor->route_cap_ + 1, std::vector<double>(instance->num_customer_ + 1,1.e30));
 	pred = std::vector < std::vector <int> >(preprocessor->route_cap_ + 1, std::vector<int>(instance->num_customer_ + 1, 0));
+    random_engine = std::default_random_engine(preprocessor->params.seed);
 }

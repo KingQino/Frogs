@@ -77,6 +77,7 @@ private:
     Case* instance;
     Preprocessor* preprocessor;
     int maxVehicles{};
+    std::default_random_engine random_engine;
 
     /* Auxiliary data structures to run the Linear Split algorithm */
     std::vector < ClientSplit > cliSplit;

@@ -119,7 +119,8 @@ private:
 	
     Case* instance;                             // Problem instance information
     Preprocessor* preprocessor;                 // Preprocessed data
-	bool searchCompleted;						// Tells whether all moves have been evaluated without success
+    std::default_random_engine random_engine;   // Random number generator
+    bool searchCompleted;						// Tells whether all moves have been evaluated without success
 	int nbMoves;								// Total number of moves (RI and SWAP*) applied during the local search. Attention: this is not only a simple counter, it is also used to avoid repeating move evaluations
 	std::vector < int > orderNodes;				// Randomized order for checking the nodes in the RI local search
 	std::vector < int > orderRoutes;			// Randomized order for checking the routes in the SWAP* local search

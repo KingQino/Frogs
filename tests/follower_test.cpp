@@ -19,6 +19,7 @@ protected:
         preprocessor = new Preprocessor(*instance, *params);
         split = new Split(instance, preprocessor);
         local_search = new LocalSearch(instance, preprocessor);
+        random_engine = std::default_random_engine(preprocessor->params.seed);
     }
 
     void TearDown() override {
@@ -34,11 +35,12 @@ protected:
     Preprocessor* preprocessor{};
     Split* split{};
     LocalSearch* local_search{};
+    std::default_random_engine random_engine;
 };
 
 TEST_F(FollowerTest, LoadIndividual) {
     vector<int> chromT(preprocessor->customer_ids_);
-    std::shuffle(chromT.begin(), chromT.end(), preprocessor->random_engine);
+    std::shuffle(chromT.begin(), chromT.end(), random_engine);
     Individual ind(instance, preprocessor, chromT);
     split->generalSplit(&ind, preprocessor->route_cap_);
     local_search->run(&ind, preprocessor->penalty_capacity_, preprocessor->penalty_duration_);
@@ -54,7 +56,7 @@ TEST_F(FollowerTest, LoadIndividual) {
 
 TEST_F(FollowerTest, Run) {
     vector<int> chromT(preprocessor->customer_ids_);
-    std::shuffle(chromT.begin(), chromT.end(), preprocessor->random_engine);
+    std::shuffle(chromT.begin(), chromT.end(), random_engine);
     Individual ind(instance, preprocessor, chromT);
     split->generalSplit(&ind, preprocessor->route_cap_);
     local_search->run(&ind, preprocessor->penalty_capacity_, preprocessor->penalty_duration_);
@@ -68,7 +70,7 @@ TEST_F(FollowerTest, Run) {
 
 TEST_F(FollowerTest, Refine) {
     vector<int> chromT(preprocessor->customer_ids_);
-    std::shuffle(chromT.begin(), chromT.end(), preprocessor->random_engine);
+    std::shuffle(chromT.begin(), chromT.end(), random_engine);
     Individual ind(instance, preprocessor, chromT);
     split->generalSplit(&ind, preprocessor->route_cap_);
     local_search->run(&ind, preprocessor->penalty_capacity_, preprocessor->penalty_duration_);

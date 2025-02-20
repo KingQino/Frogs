@@ -30,6 +30,8 @@ set(DEPENDENCIES
         include/heuristic_interface.hpp
         include/lahc.hpp
         src/lahc.cpp
+        include/leader_lahc.hpp
+        src/leader_lahc.cpp
 )
 
 add_executable(Run main.cpp ${DEPENDENCIES})

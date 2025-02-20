@@ -98,9 +98,6 @@ Preprocessor::Preprocessor(const Case &c, const Parameters &params) : c(c), para
             this->best_station_[i][j] = this->best_station_[j][i] = get_best_station(i, j);
         }
     }
-
-    // initialise the random engine
-    this->random_engine = std::default_random_engine(this->params.seed);
 }
 
 int Preprocessor::get_best_station(const int from, const int to) const {

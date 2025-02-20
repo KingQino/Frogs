@@ -28,7 +28,6 @@ class Preprocessor {
 public:
     const Case& c;
     const Parameters& params;
-    std::default_random_engine  random_engine;
 
     // Stop criteria
     double max_evals_{};            // the max number of evaluations can be used
