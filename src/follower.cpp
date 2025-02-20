@@ -8,8 +8,8 @@ Follower::Follower(Case* instance, Preprocessor* preprocessor) {
     this->instance = instance;
     this->preprocessor = preprocessor;
 
-    int route_cap = preprocessor->route_cap_;
-    int node_cap  = instance->num_customer_;
+    const int route_cap = preprocessor->route_cap_;
+    const int node_cap  = instance->num_customer_;
 
     this->num_routes = 0;
     this->lower_routes = new int *[route_cap];
@@ -63,7 +63,7 @@ void Follower::run(Individual *ind) {
     export_individual(ind);
 }
 
-void Follower::load_individual(Individual* ind) {
+void Follower::load_individual(const Individual* ind) {
     this->num_routes = ind->upper_cost.nb_routes;
     for (int i = 0; i < num_routes; ++i) {
         this->lower_num_nodes_per_route[i] = static_cast<int>(ind->chromR[i].size()) + 2;
@@ -76,8 +76,8 @@ void Follower::export_individual(Individual* ind) const {
     ind->lower_cost = this->lower_cost;
 }
 
-double Follower::insert_station_by_simple_enum( int* repaired_route, int& repaired_length) {
-    int length = repaired_length;
+double Follower::insert_station_by_simple_enum(int* repaired_route, int& repaired_length) {
+    const int length = repaired_length;
     int* route = new int[length];
     memcpy(route, repaired_route, sizeof(int) * length);
 
@@ -89,8 +89,8 @@ double Follower::insert_station_by_simple_enum( int* repaired_route, int& repair
         return accumulated_distance.back();
     }
 
-    int upper_bound = (int)(accumulated_distance.back() / preprocessor->max_cruise_distance_ + 1);
-    int lower_bound = (int)(accumulated_distance.back() / preprocessor->max_cruise_distance_);
+    const int upper_bound = static_cast<int>(accumulated_distance.back() / preprocessor->max_cruise_distance_ + 1);
+    const int lower_bound = static_cast<int>(accumulated_distance.back() / preprocessor->max_cruise_distance_);
     int* chosen_pos = new int[length];
     int* best_chosen_pos = new int[length]; // customized variable
     double final_cost = numeric_limits<double>::max();
@@ -131,7 +131,7 @@ double Follower::insert_station_by_simple_enum( int* repaired_route, int& repair
 }
 
 double Follower::insert_station_by_remove_enum(int* repaired_route, int& repaired_length) const {
-    int length = repaired_length;
+    const int length = repaired_length;
     int* route = new int [length];
     memcpy(route, repaired_route, sizeof(int) * length);
 
@@ -308,7 +308,7 @@ void Follower::recursive_charging_placement(int m_len, int n_len, int* chosen_po
 }
 
 double Follower::insert_station_by_all_enumeration(int* repaired_route, int& repaired_length) const {
-    int length = repaired_length;
+    const int length = repaired_length;
     int* route = new int[length];
     memcpy(route, repaired_route, sizeof(int) * length);
 
@@ -320,8 +320,8 @@ double Follower::insert_station_by_all_enumeration(int* repaired_route, int& rep
         return accumulated_distance.back();
     }
 
-    int upper_bound = ceil(accumulated_distance.back() / preprocessor->max_cruise_distance_);
-    int lower_bound = floor(accumulated_distance.back() / preprocessor->max_cruise_distance_);
+    const int upper_bound = ceil(accumulated_distance.back() / preprocessor->max_cruise_distance_);
+    const int lower_bound = floor(accumulated_distance.back() / preprocessor->max_cruise_distance_);
     int* chosen_pos = new int[length];
     int* chosen_sta = new int[length];
     double cost = numeric_limits<double>::max();

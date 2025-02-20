@@ -5,11 +5,11 @@
 #include "command_line.hpp"
 #include <stdexcept>
 
-CommandLine::CommandLine(int argc, char* argv[]) {
+CommandLine::CommandLine(const int argc, char* argv[]) {
     for (int i = 1; i < argc; i += 2) {
         if (i + 1 < argc) { // Ensure there's a value after the key
             std::string key = argv[i];
-            std::string value = argv[i + 1];
+            const std::string value = argv[i + 1];
 
             // Remove leading '-' or '--' if present
             if (key[0] == '-') key.erase(0, 1);
@@ -53,9 +53,8 @@ void CommandLine::display_help() {
     std::cout << "-------------------------------------------------------------------------------------------------------------------------------" << std::endl;
 }
 
-int CommandLine::get_int(const std::string& key, int default_value) const {
-    auto it = arguments.find(key);
-    if (it != arguments.end()) {
+int CommandLine::get_int(const std::string& key, const int default_value) const {
+    if (const auto it = arguments.find(key); it != arguments.end()) {
         try {
             return std::stoi(it->second);
         } catch (const std::exception&) {
@@ -65,9 +64,8 @@ int CommandLine::get_int(const std::string& key, int default_value) const {
     return default_value;
 }
 
-double CommandLine::get_double(const std::string& key, double default_value) const {
-    auto it = arguments.find(key);
-    if (it != arguments.end()) {
+double CommandLine::get_double(const std::string& key, const double default_value) const {
+    if (const auto it = arguments.find(key); it != arguments.end()) {
         try {
             return std::stod(it->second);
         } catch (const std::exception&) {
@@ -78,14 +76,13 @@ double CommandLine::get_double(const std::string& key, double default_value) con
 }
 
 std::string CommandLine::get_string(const std::string& key, const std::string& default_value) const {
-    auto it = arguments.find(key);
+    const auto it = arguments.find(key);
     return (it != arguments.end()) ? it->second : default_value;
 }
 
-bool CommandLine::get_bool(const std::string& key, bool default_value) const {
-    auto it = arguments.find(key);
-    if (it != arguments.end()) {
-        std::string val = it->second;
+bool CommandLine::get_bool(const std::string& key, const bool default_value) const {
+    if (const auto it = arguments.find(key); it != arguments.end()) {
+        const std::string val = it->second;
         return (val == "1" || val == "true" || val == "yes");
     }
     return default_value;
@@ -93,8 +90,8 @@ bool CommandLine::get_bool(const std::string& key, bool default_value) const {
 
 void CommandLine::print_arguments() const {
     std::cout << "Parsed Command-Line Arguments:\n";
-    for (const auto& arg : arguments) {
-        std::cout << "  " << arg.first << " = " << arg.second << std::endl;
+    for (const auto& [key, value] : arguments) {
+        std::cout << "  " << key << " = " << value << std::endl;
     }
 }
 
@@ -105,7 +102,7 @@ std::string CommandLine::to_lowercase(const std::string &str) {
 }
 
 Algorithm CommandLine::string_to_algorithm(const std::string& algo_str) {
-    std::string lower_algo = to_lowercase(algo_str);
+    const std::string lower_algo = to_lowercase(algo_str);
 
     if (lower_algo == "cbma") return Algorithm::Cbma;
     if (lower_algo == "lahc") return Algorithm::Lahc;

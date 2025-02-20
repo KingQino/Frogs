@@ -15,13 +15,13 @@
 
 // This structure is used in the "enumerate stations"
 struct State {
-    int m_len, n_len, i, stationIdx; // Current state variables
+    int m_len{}, n_len{}, i{}, stationIdx{}; // Current state variables
 };
 
 // This struct is used to store the charging station information for the given route
 struct ChargingMeta {
-    double cost; // cost after applying recharging decision
-    int num_stations; // num of stations
+    double cost{}; // cost after applying recharging decision
+    int num_stations{}; // num of stations
     vector<int> chosen_pos; // chosen position
     vector<int> chosen_sta; // chosen station
 };
@@ -48,7 +48,7 @@ public:
 
     void refine(Individual* ind);
     void run(Individual* ind);
-    void load_individual(Individual* ind);
+    void load_individual(const Individual* ind);
     void export_individual(Individual* ind) const;
     Follower(Case* instance, Preprocessor* preprocessor);
     ~Follower();

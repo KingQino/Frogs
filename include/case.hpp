@@ -29,15 +29,15 @@ class Case {
 public:
     explicit Case(const string& file_name);
     ~Case();
-    void read_problem(const string& file_path);	                                    // reads .evrp file
-    static double **generate_2D_matrix_double(int n, int m);                        // generate a 2D matrix of double
-    [[nodiscard]] int get_customer_demand_(int customer) const;				        // returns the customer demand
-    [[nodiscard]] bool is_charging_station(int node) const;					        // returns true if node is a charging station
-    [[nodiscard]] double euclidean_distance(int i, int j) const;                    // calculate the Euclidean distance between two nodes
-    [[nodiscard]] double get_distance(int from, int to);				            // returns the distance
-    [[nodiscard]] double get_evals() const;									        // returns the number of evaluations
-    [[nodiscard]] double calculate_total_dist(const vector<vector<int>>& chromR);   // return the total distance of the upper solution
-    [[nodiscard]] double compute_total_distance(const vector<vector<int>>& routes); // return the total distance of the given routes
+    void read_problem(const string& file_path);	                                        // reads .evrp file
+    static double **generate_2D_matrix_double(int n, int m);                            // generate a 2D matrix of double
+    [[nodiscard]] int get_customer_demand_(int customer) const;				            // returns the customer demand
+    [[nodiscard]] bool is_charging_station(int node) const;					            // returns true if node is a charging station
+    [[nodiscard]] double euclidean_distance(int i, int j) const;                        // calculate the Euclidean distance between two nodes
+    [[nodiscard]] double get_distance(int from, int to);				                // returns the distance
+    [[nodiscard]] double get_evals() const;									            // returns the number of evaluations
+    [[nodiscard]] double calculate_total_dist(const vector<vector<int>>& chromR) const; // return the total distance of the upper solution
+    [[nodiscard]] double compute_total_distance(const vector<vector<int>>& routes);     // return the total distance of the given routes
     [[nodiscard]] double compute_total_distance(const vector<int>& route) const;
 
 

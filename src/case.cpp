@@ -139,7 +139,7 @@ double Case::get_evals() const {
     return evals_;
 }
 
-double Case::calculate_total_dist(const vector<vector<int>>& chromR) {
+double Case::calculate_total_dist(const vector<vector<int>>& chromR) const {
     double tour_length = 0.0;
 
     for (const auto& route : chromR) {

@@ -53,8 +53,8 @@ public:
     Individual(Case* instance, Preprocessor* preprocessor, const vector<int>& chromT, const vector<vector<int>>& chromR, double upper_cost);  // Constructor: some delicate methods for initialisation
 
     void evaluate_upper_cost();                                                     // Measuring cost of a solution from the information of chromR
-    double broken_pairs_distance(Individual* ind);                                  // Distance measure with another individual
-    double average_broken_pairs_distance_closest(int nb_closest);                   // Returns the average distance of this individual with the nbClosest individuals
+    double broken_pairs_distance(const Individual* ind) const;                      // Distance measure with another individual
+    double average_broken_pairs_distance_closest(int nb_closest) const;             // Returns the average distance of this individual with the nbClosest individuals
 };
 
 

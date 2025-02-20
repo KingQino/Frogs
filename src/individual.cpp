@@ -50,26 +50,27 @@ Individual::Individual(Case* instance, Preprocessor* preprocessor, const vector<
     this->is_upper_feasible = true; // assume that all initialised solutions are feasible
 }
 
-double Individual::broken_pairs_distance(Individual *ind) {
+double Individual::broken_pairs_distance(const Individual* ind) const
+{
     int differences = 0;
     for (int j = 1; j <= instance->num_customer_; j++) {
         if (successors[j] != ind->successors[j] && successors[j] != ind->predecessors[j]) differences++;
         if (predecessors[j] == 0 && ind->predecessors[j] != 0 && ind->successors[j] != 0) differences++;
     }
 
-    return (double)differences/(double)instance->num_customer_;
+    return static_cast<double>(differences)/static_cast<double>(instance->num_customer_);
 }
 
-double Individual::average_broken_pairs_distance_closest(int nb_closest) {
+double Individual::average_broken_pairs_distance_closest(const int nb_closest) const {
     double result = 0 ;
-    int max_size = std::min<int>(nb_closest, static_cast<int>(proximate_individuals.size()));
+    const int max_size = std::min<int>(nb_closest, static_cast<int>(proximate_individuals.size()));
     auto it = proximate_individuals.begin();
     for (int i=0 ; i < max_size; i++) {
         result += it->first ;
         ++it ;
     }
 
-    return result/(double)max_size ;
+    return result/static_cast<double>(max_size) ;
 }
 
 void Individual::evaluate_upper_cost() {
