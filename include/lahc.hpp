@@ -6,6 +6,7 @@
 #define FROGS_LAHC_HPP
 
 #include "case.hpp"
+#include "follower.hpp"
 #include "individual.hpp"
 #include "heuristic_interface.hpp"
 #include "stats_interface.hpp"
@@ -22,6 +23,7 @@ private:
     std::unique_ptr<Individual> global_best;    // Global best solution found so far
     Indicators history_list_metrics;            // The statistical info of the history list
 
+    Follower* follower;
 
 public:
     Lahc(Case *instance, Preprocessor* preprocessor);
