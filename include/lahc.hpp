@@ -12,15 +12,27 @@
 
 using namespace std;
 
-class Lahc : public HeuristicInterface, public StatsInterface {
+class Lahc final : public HeuristicInterface, public StatsInterface {
 private:
     static const std::string ALGORITHM;
-    Case* instance;
-    Preprocessor* preprocessor;
+
+    long iter;                                  // Iteration counter I
+    long idle_iter;                             // Idle iteration counter
+    double* history_list;                       // Lahc history list L, it holds the objetive values
+    std::unique_ptr<Individual> global_best;    // Global best solution found so far
+    Indicators history_list_metrics;            // The statistical info of the history list
+
 
 public:
     Lahc(Case *instance, Preprocessor* preprocessor);
     ~Lahc() override;
+    void run() override;
+    void initialize_heuristic() override;
+    void run_heuristic() override;
+    void open_log_for_evolution() override;
+    void close_log_for_evolution() override;
+    void flush_row_into_evol_log() override;
+    void save_log_for_solution() override;
 
 };
 

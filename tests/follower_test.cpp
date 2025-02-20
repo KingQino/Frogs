@@ -33,7 +33,7 @@ protected:
     Parameters* params{};
     Preprocessor* preprocessor{};
     Split* split{};
-    LocalSearch* local_search;
+    LocalSearch* local_search{};
 };
 
 TEST_F(FollowerTest, LoadIndividual) {
