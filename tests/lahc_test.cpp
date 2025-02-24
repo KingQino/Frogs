@@ -17,7 +17,7 @@ protected:
         params->stop_criteria = 0;
         preprocessor = new Preprocessor(*instance, *params);
 
-        lahc = new Lahc(instance, preprocessor);
+        lahc = new Lahc(preprocessor->params.seed, instance, preprocessor);
     }
 
     void TearDown() override {

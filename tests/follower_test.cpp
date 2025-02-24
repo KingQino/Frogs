@@ -18,10 +18,10 @@ protected:
         instance = new Case(file_name);
         params = new Parameters();
         preprocessor = new Preprocessor(*instance, *params);
-        split = new Split(instance, preprocessor);
-        leader = new LeaderLahc(instance, preprocessor);
+        split = new Split(params->seed, instance, preprocessor);
+        leader = new LeaderLahc(params->seed, instance, preprocessor);
         follower = new Follower(instance, preprocessor);
-        random_engine = std::default_random_engine(preprocessor->params.seed);
+        random_engine = std::default_random_engine(params->seed);
     }
 
     void TearDown() override {

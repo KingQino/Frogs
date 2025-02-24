@@ -35,7 +35,7 @@ public:
     Follower* follower;
 
 public:
-    Lahc(Case *instance, Preprocessor* preprocessor);
+    Lahc(int seed, Case *instance, Preprocessor* preprocessor);
     ~Lahc() override;
     void run() override;
     void initialize_heuristic() override;

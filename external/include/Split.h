@@ -130,7 +130,7 @@ public:
     void initIndividualWithDirectEncoding(Individual* ind);
 
     // Constructor
-    Split(Case* instance, Preprocessor* preprocessor);
+    Split(int seed, Case* instance, Preprocessor* preprocessor);
 
 };
 #endif

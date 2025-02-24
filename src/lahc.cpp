@@ -6,7 +6,7 @@
 
 const std::string ALGORITHM = "Lahc";
 
-Lahc::Lahc(Case* instance, Preprocessor* preprocessor): HeuristicInterface("LAHC", instance, preprocessor) {
+Lahc::Lahc(int seed_val, Case* instance, Preprocessor* preprocessor) : HeuristicInterface("LAHC", seed_val, instance, preprocessor) {
     enable_logging = preprocessor->params.enable_logging;
     stop_criteria = preprocessor->params.stop_criteria;
 
@@ -17,8 +17,8 @@ Lahc::Lahc(Case* instance, Preprocessor* preprocessor): HeuristicInterface("LAHC
     current = nullptr;
     global_best = make_unique<Individual>();
 
-    split = new Split(instance, preprocessor);
-    leader = new LeaderLahc(instance, preprocessor);
+    split = new Split(seed_val, instance, preprocessor);
+    leader = new LeaderLahc(seed_val, instance, preprocessor);
     follower = new Follower(instance, preprocessor);
 }
 
@@ -119,7 +119,7 @@ void Lahc::run() {
 }
 
 void Lahc::open_log_for_evolution() {
-    const string directory = kStatsPath + "/" + this->name + "/" + instance->instance_name_ + "/" + to_string(preprocessor->params.seed);
+    const string directory = kStatsPath + "/" + this->name + "/" + instance->instance_name_ + "/" + to_string(seed);
     create_directories_if_not_exists(directory);
 
     const string file_name = "evols." + instance->instance_name_ + ".csv";
@@ -139,7 +139,7 @@ void Lahc::flush_row_into_evol_log() {
 }
 
 void Lahc::save_log_for_solution() {
-    const string directory = kStatsPath + "/" + this->name + "/" + instance->instance_name_ + "/" + to_string(preprocessor->params.seed);
+    const string directory = kStatsPath + "/" + this->name + "/" + instance->instance_name_ + "/" + to_string(seed);
 
     const string file_name = "solution." + instance->instance_name_ + ".txt";
 

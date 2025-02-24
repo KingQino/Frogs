@@ -32,12 +32,13 @@ set(DEPENDENCIES
         src/lahc.cpp
         include/leader_lahc.hpp
         src/leader_lahc.cpp
+        external/include/magic_enum.hpp
 )
 
 add_executable(Run main.cpp ${DEPENDENCIES})
 
 # Include directories
-target_include_directories(Run PRIVATE include)
+target_include_directories(Run PRIVATE include external/include)
 
 # Enable multithreading if needed
 set(THREADS_PREFER_PTHREAD_FLAG ON)

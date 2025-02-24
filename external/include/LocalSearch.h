@@ -196,7 +196,7 @@ private:
 	void exportIndividual(Individual * indiv);
 
 	// Constructor
-	LocalSearch(Case* instance, Preprocessor* preprocessor);
+	LocalSearch(int seed, Case* instance, Preprocessor* preprocessor);
 };
 
 #endif

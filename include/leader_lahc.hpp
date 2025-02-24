@@ -138,7 +138,7 @@ public:
     void exportIndividual(Individual * indiv);
 
     // Constructor
-    LeaderLahc(Case* instance, Preprocessor* preprocessor);
+    LeaderLahc(int seed, Case* instance, Preprocessor* preprocessor);
 };
 
 

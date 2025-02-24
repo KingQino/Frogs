@@ -17,17 +17,19 @@ using namespace std;
 class HeuristicInterface {
 public:
     string name;
+    int seed;
     Case* instance;
     Preprocessor* preprocessor;
     std::default_random_engine random_engine;
     uniform_real_distribution<double> uniform_real_dist;
 
     // Constructor to initialize member variables
-    HeuristicInterface(string heuristic_name, Case* instance, Preprocessor* preprocessor)
+    HeuristicInterface(string heuristic_name, int seed_value, Case* instance, Preprocessor* preprocessor)
             : name(std::move(heuristic_name)),
+              seed(seed_value),
               instance(instance),
               preprocessor(preprocessor),
-              random_engine(preprocessor->params.seed),
+              random_engine(seed_value),
               uniform_real_dist(0.0, 1.0) {
 
     }

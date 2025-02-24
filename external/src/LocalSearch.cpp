@@ -762,9 +762,9 @@ void LocalSearch::exportIndividual(Individual * indiv)
 	indiv->evaluate_upper_cost();
 }
 
-LocalSearch::LocalSearch(Case* instance, Preprocessor* preprocessor) : instance(instance), preprocessor(preprocessor)
+LocalSearch::LocalSearch(int seed, Case* instance, Preprocessor* preprocessor) : instance(instance), preprocessor(preprocessor)
 {
-    random_engine = std::default_random_engine(preprocessor->params.seed);
+    random_engine = std::default_random_engine(seed);
 	clients = std::vector < Node >(instance->num_customer_ + 1);
 	routes = std::vector < Route >(preprocessor->route_cap_);
 	depots = std::vector < Node >(preprocessor->route_cap_);
