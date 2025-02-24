@@ -155,6 +155,17 @@ double Case::calculate_total_dist(const vector<vector<int>>& chromR) const {
     return tour_length;
 }
 
+double Case::calculate_total_dist_follower(int **routes, int num_routes, const int *num_nodes_per_route) const {
+    double tour_length = 0.0;
+    for (int i = 0; i < num_routes; ++i) {
+        for (int j = 0; j < num_nodes_per_route[i] - 1; ++j) {
+            tour_length += distances_[routes[i][j]][routes[i][j + 1]];
+        }
+    }
+
+    return tour_length;
+}
+
 // TODO: modify these two functions below for new Individual structure
 double Case::compute_total_distance(const vector<vector<int>> &routes) {
     double tour_length = 0.0;

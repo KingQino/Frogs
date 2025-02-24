@@ -39,6 +39,7 @@ public:
     [[nodiscard]] double calculate_total_dist(const vector<vector<int>>& chromR) const; // return the total distance of the upper solution
     [[nodiscard]] double compute_total_distance(const vector<vector<int>>& routes);     // return the total distance of the given routes
     [[nodiscard]] double compute_total_distance(const vector<int>& route) const;
+    [[nodiscard]] double calculate_total_dist_follower(int** routes, int num_routes, const int* num_nodes_per_route) const;
 
 
     string file_name_;

@@ -6,6 +6,9 @@
 #include <random>
 #include <algorithm>
 
+Individual::Individual() {
+    this->lower_cost = numeric_limits<double>::max();
+}
 
 Individual::Individual(const Individual &ind) {
     this->instance = ind.instance;
@@ -103,4 +106,30 @@ void Individual::evaluate_upper_cost() {
 
     upper_cost.penalised_cost = upper_cost.distance + upper_cost.capacity_excess * preprocessor->penalty_capacity_ + upper_cost.duration_excess * preprocessor->penalty_duration_;
     is_upper_feasible = (upper_cost.capacity_excess < MY_EPSILON && upper_cost.duration_excess < MY_EPSILON);
+}
+
+std::ostream& operator<<(std::ostream& os, const Individual& individual) {
+    os << "ChromT: ";
+    for (int i : individual.chromT) {
+        os << i << " ";
+    }
+    os << "\n";
+    os << "ChromR: \n";
+    for (int i = 0; i < individual.chromR.size(); ++i) {
+        os << "  Route " << i << ": ";
+        for (int j : individual.chromR[i]) {
+            os << j << " ";
+        }
+        os << "\n";
+    }
+    os << "Upper Cost: \n";
+    os << "  Penalised Cost: " << individual.upper_cost.penalised_cost << "\n";
+    os << "  Number of Routes: " << individual.upper_cost.nb_routes << "\n";
+    os << "  Distance: " << individual.upper_cost.distance << "\n";
+    os << "  Capacity Excess: " << individual.upper_cost.capacity_excess << "\n";
+    os << "  Duration Excess: " << individual.upper_cost.duration_excess << "\n";
+    os << "Is Upper Feasible: " << individual.is_upper_feasible << "\n";
+    os << "Lower Cost: " << individual.lower_cost << "\n";
+
+    return os;
 }

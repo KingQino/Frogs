@@ -6,6 +6,8 @@
 #define FROGS_LAHC_HPP
 
 #include "case.hpp"
+#include "Split.h"
+#include "leader_lahc.hpp"
 #include "follower.hpp"
 #include "individual.hpp"
 #include "heuristic_interface.hpp"
@@ -14,15 +16,22 @@
 using namespace std;
 
 class Lahc final : public HeuristicInterface, public StatsInterface {
-private:
+public:
     static const std::string ALGORITHM;
+
+    bool enable_logging;
+    int stop_criteria;
 
     long iter;                                  // Iteration counter I
     long idle_iter;                             // Idle iteration counter
-    double* history_list;                       // Lahc history list L, it holds the objetive values
+    int history_length;                         // LAHC history length Lh
+    vector<double> history_list;                // Lahc history list L, it holds the objetive values
     std::unique_ptr<Individual> global_best;    // Global best solution found so far
     Indicators history_list_metrics;            // The statistical info of the history list
+    Individual* current;                        // Current solution s
 
+    Split* split;
+    LeaderLahc* leader;
     Follower* follower;
 
 public:

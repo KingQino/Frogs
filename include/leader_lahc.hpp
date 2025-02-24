@@ -44,11 +44,17 @@ struct Node
 class LeaderLahc
 {
 
-private:
+public:
+    double upperCost;
+
+    double historyCost;
 
     Case* instance;                             // Problem instance information
     Preprocessor* preprocessor;                 // Preprocessed data
     std::default_random_engine random_engine;   // Random number generator
+    uniform_int_distribution<int> uniformIntDis;// Uniform distribution for random integers
+    uniform_int_distribution<int> disIntraMove; // Uniform distribution for random integers in the range for intra-route moves
+    uniform_int_distribution<int> disInterMove; // Uniform distribution for random integers in the range for inter-route moves
     bool searchCompleted;						// Tells whether all moves have been evaluated without success
     int nbMoves;								// Total number of moves (RI and SWAP*) applied during the local search. Attention: this is not only a simple counter, it is also used to avoid repeating move evaluations
     std::vector < int > orderNodes;				// Randomized order for checking the nodes in the RI local search
@@ -87,16 +93,23 @@ private:
 
     /* RELOCATE MOVES */
     // (Legacy notations: move1...move9 from Prins 2004)
+    bool move1_intra();
+    bool move1_inter();
     bool move1 (); // If U is a client node, remove U and insert it after V
     bool move2 (); // If U and X are client nodes, remove them and insert (U,X) after V
     bool move3 (); // If U and X are client nodes, remove them and insert (X,U) after V
 
     /* SWAP MOVES */
+    bool move4_intra();
+    bool move4_inter();
     bool move4 (); // If U and V are client nodes, swap U and V
     bool move5 (); // If U, X and V are client nodes, swap (U,X) and V
     bool move6 (); // If (U,X) and (V,Y) are client nodes, swap (U,X) and (V,Y)
 
     /* 2-OPT and 2-OPT* MOVES */
+    bool move7_intra();
+    bool move8_inter();
+    bool move9_inter();
     bool move7 (); // If route(U) == route(V), replace (U,X) and (V,Y) by (U,V) and (X,Y)
     bool move8 (); // If route(U) != route(V), replace (U,X) and (V,Y) by (U,V) and (X,Y)
     bool move9 (); // If route(U) != route(V), replace (U,X) and (V,Y) by (U,Y) and (V,X)
@@ -107,6 +120,13 @@ private:
     void updateRouteData(Route * myRoute);			// Updates the preprocessed data of a route
 
 public:
+    int getRandomCustomerNodeU();
+    int getRandomCorrelatedNodeV(const int& customerNode);
+    Node* getNodeVFromCustomersAndDepots(const int& customerNode, int numNonEmptyRoutes);
+    [[nodiscard]] bool isAccepted(const double& change) const;
+    void neighbourExplore(double historyVal); // Before we call this function, we need to call loadIndividual first
+    void exportChromosome(Individual * ind);
+    [[nodiscard]] double getUpperCost() const;
 
     // Run the local search with the specified penalty values
     void run(Individual * indiv, double penaltyCapacityLS, double penaltyDurationLS);

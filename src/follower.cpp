@@ -44,7 +44,6 @@ void Follower::refine(Individual* ind) {
 void Follower::run(Individual *ind) {
     load_individual(ind);
 
-    lower_cost = 0.0;
     for (int i = 0; i < num_routes; ++i) {
         double cost_SE = insert_station_by_simple_enum( lower_routes[i], lower_num_nodes_per_route[i]);
 
@@ -64,6 +63,17 @@ void Follower::run(Individual *ind) {
 }
 
 void Follower::load_individual(const Individual* ind) {
+    // clean up
+    this->lower_cost = 0.0;
+    this->num_routes = 0;
+    const int route_cap = preprocessor->route_cap_;
+    const int node_cap  = instance->num_customer_;
+    for (int i = 0; i < route_cap; ++i) {
+        memset(this->lower_routes[i], 0, sizeof(int) * node_cap);
+    }
+    memset(this->lower_num_nodes_per_route, 0, sizeof(int) * route_cap);
+
+
     this->num_routes = ind->upper_cost.nb_routes;
     for (int i = 0; i < num_routes; ++i) {
         this->lower_num_nodes_per_route[i] = static_cast<int>(ind->chromR[i].size()) + 2;
@@ -463,7 +473,7 @@ std::ostream& operator<<(std::ostream& os, const Follower& follower) {
 
     os << "Lower Routes: \n";
     for (int i = 0; i < follower.num_routes; ++i) {
-        os << "Route " << i + 1 << ": ";
+        os << "Route " << i << ": ";
         for (int j = 0; j < follower.instance->num_customer_; ++j) {
             os << follower.lower_routes[i][j] << " ";
         }

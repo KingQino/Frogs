@@ -47,6 +47,7 @@ public:
     vector<int> predecessors;       // For each node, the predecessor in the solution (can be the depot 0)
     multiset<pair<double, Individual*>> proximate_individuals; // The other individuals in the population, ordered by increasing proximity (the set container follows a natural ordering based on the first value of the pair)
 
+    Individual();                                                                   // Constructor: empty individual
     Individual(const Individual& ind);                                              // Copy constructor
     Individual(Case* instance, Preprocessor* preprocessor);                         // Constructor: random individual
     Individual(Case* instance, Preprocessor* preprocessor, const vector<int>& chromT);     // Constructor: random individual, the next step is to use `Split` to generate the ChromR
@@ -55,6 +56,9 @@ public:
     void evaluate_upper_cost();                                                     // Measuring cost of a solution from the information of chromR
     double broken_pairs_distance(const Individual* ind) const;                      // Distance measure with another individual
     double average_broken_pairs_distance_closest(int nb_closest) const;             // Returns the average distance of this individual with the nbClosest individuals
+
+
+    friend ostream& operator<<(ostream& os, const Individual& individual);
 };
 
 

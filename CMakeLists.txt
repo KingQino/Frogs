@@ -55,7 +55,9 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
             tests/command_line_test.cpp
             tests/preprocessor_test.cpp
             tests/individual_test.cpp
-            tests/follower_test.cpp)
+            tests/follower_test.cpp
+            tests/leader_lahc_test.cpp
+            tests/lahc_test.cpp)
 
     target_include_directories(Tests PRIVATE include external/include)
     target_link_libraries(Tests PRIVATE gtest gtest_main)
