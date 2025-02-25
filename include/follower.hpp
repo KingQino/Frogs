@@ -33,6 +33,8 @@ public:
     Preprocessor* preprocessor;
 
     /* Auxiliary data structures to run the follower (i.e., lower optimisation) algorithm */
+    int route_cap;
+    int node_cap;
     int num_routes;                        // Number of routes
     int** lower_routes;
     int*  lower_num_nodes_per_route;

@@ -18,7 +18,8 @@ Lahc::Lahc(int seed_val, Case* instance, Preprocessor* preprocessor) : Heuristic
     global_best = make_unique<Individual>();
 
     split = new Split(seed_val, instance, preprocessor);
-    leader = new LeaderLahc(seed_val, instance, preprocessor);
+//    leader = new LeaderLahc(seed_val, instance, preprocessor);
+    leader = new LeaderArray(seed_val, instance, preprocessor);
     follower = new Follower(instance, preprocessor);
 }
 
@@ -40,18 +41,18 @@ void Lahc::initialize_heuristic() {
 }
 
 void Lahc::run_heuristic() {
+    leader->load_individual(current);
+
     do {
 
-        double current_cost = current->upper_cost.penalised_cost;
+        double current_cost = leader->upper_cost;
 
         auto v = iter % history_length;
         double history_cost = history_list[v];
 
-        leader->loadIndividual(current);
-        leader->neighbourExplore(history_cost);
-        leader->exportChromosome(current);
-
-        double candidate_cost = leader->upperCost;
+        leader->neighbour_explore(history_cost);
+        leader->export_individual(current);
+        double candidate_cost = leader->upper_cost;
 
         // idle judgement and counting
         idle_iter = candidate_cost >= current_cost ? idle_iter + 1 : 0;
@@ -64,14 +65,12 @@ void Lahc::run_heuristic() {
         }
 
         iter++;
-//        duration = std::chrono::high_resolution_clock::now() - start;
 
         follower->run(current);
         if (current->lower_cost < global_best->lower_cost) {
             global_best = std::move(make_unique<Individual>(*current));
         }
 
-//    } while ((iter < 100'000L || idle_iter < static_cast<long>(static_cast<double>(iter) * 0.2)) && duration.count() < preprocessor->max_exec_time_ );
     } while (iter < 100'000L || idle_iter < static_cast<long>(static_cast<double>(iter) * 0.2));
 }
 

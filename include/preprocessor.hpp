@@ -37,7 +37,8 @@ public:
     int nb_granular_{};             // Granular search parameter, limits the neighbourhood size of each solution in the local search move
     int max_demand_{};              // the max customer demand among all customers
     int total_demand_{};            // the total customer demand
-    int route_cap_{};               // the capacity of route, 3 * the number of vehicles
+    int route_cap_{};               // the capacity of routes, 3 * the number of vehicles
+    int node_cap_{};                // the capacity of node per route, the number of customers + 1
     double max_cruise_distance_{};  // the max cruise distance the vehicle can travel without recharging the battery
     double max_distance_{};         // the longest arc distance between any two nodes
     double penalty_capacity_{};	    // Penalty for one unit of capacity excess (adapted through the search)

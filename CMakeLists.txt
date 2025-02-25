@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 project(Frogs)
 
 set(CMAKE_CXX_STANDARD 17)
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -g -O1")
 
 # Enable optimization flags for Release mode
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
@@ -33,6 +34,8 @@ set(DEPENDENCIES
         include/leader_lahc.hpp
         src/leader_lahc.cpp
         external/include/magic_enum.hpp
+        include/leader_array.hpp
+        src/leader_array.cpp
 )
 
 add_executable(Run main.cpp ${DEPENDENCIES})
@@ -58,11 +61,19 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
             tests/individual_test.cpp
             tests/follower_test.cpp
             tests/leader_lahc_test.cpp
-            tests/lahc_test.cpp)
+            tests/lahc_test.cpp
+            tests/leader_array_test.cpp)
 
     target_include_directories(Tests PRIVATE include external/include)
     target_link_libraries(Tests PRIVATE gtest gtest_main)
 
+    # Custom target to run Valgrind on the test executable
+    add_custom_target(valgrind_tests
+            COMMAND valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --log-file=valgrind_tests.log ./Tests
+            DEPENDS Tests
+            COMMENT "Running Valgrind on test executable..."
+    )
+    
     # Register tests
     add_test(NAME FrogsTests COMMAND Tests)
 endif()

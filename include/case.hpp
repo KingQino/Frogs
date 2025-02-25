@@ -40,6 +40,7 @@ public:
     [[nodiscard]] double compute_total_distance(const vector<vector<int>>& routes);     // return the total distance of the given routes
     [[nodiscard]] double compute_total_distance(const vector<int>& route) const;
     [[nodiscard]] double calculate_total_dist_follower(int** routes, int num_routes, const int* num_nodes_per_route) const;
+    [[nodiscard]] int calculate_demand_sum(const vector<int>& route) const;             // return the demand sum of the given route.
 
 
     string file_name_;

@@ -23,16 +23,22 @@ CommandLine::CommandLine(const int argc, char* argv[]) {
 }
 
 void CommandLine::parse_parameters(Parameters& params) const {
-    params.algorithm = string_to_algorithm(get_string("algorithm", "Lahc"));
-    params.instance = get_string("instance", params.instance);
-    params.enable_logging = get_bool("enable_logging", params.enable_logging);
-    params.stop_criteria = get_int("stop_criteria", params.stop_criteria);
-    params.enable_multithreading = get_bool("enable_multithreading", params.enable_multithreading);
-    params.seed = get_int("seed", params.seed);
-    params.nb_granular = get_int("nb_granular", params.nb_granular);
-    params.is_hard_constraint = get_bool("is_hard_constraint", params.is_hard_constraint);
-    params.is_duration_constraint = get_bool("is_duration_constraint", params.is_duration_constraint);
-    params.history_length = get_int("history_length", params.history_length);
+    try {
+        params.algorithm = string_to_algorithm(get_string("alg", "Lahc"));
+        params.instance = get_string("ins", params.instance);
+        params.enable_logging = get_bool("log", params.enable_logging);
+        params.stop_criteria = get_int("stp", params.stop_criteria);
+        params.enable_multithreading = get_bool("mth", params.enable_multithreading);
+        params.seed = get_int("seed", params.seed);
+        params.nb_granular = get_int("nb_granular", params.nb_granular);
+        params.is_hard_constraint = get_bool("is_hard_constraint", params.is_hard_constraint);
+        params.is_duration_constraint = get_bool("is_duration_constraint", params.is_duration_constraint);
+        params.history_length = get_int("history_length", params.history_length);
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        display_help();
+        std::exit(1);
+    }
 }
 
 // Display help message
@@ -40,11 +46,11 @@ void CommandLine::display_help() {
     std::cout << "--------------------------------------------------- Parameters Instruction  ---------------------------------------------------" << std::endl;
     std::cout << "Usage: ./Run [options]\n"
               << "Options:\n"
-              << "  -algorithm [enum]            : Algorithm name (e.g., Cbma, Lahc)\n"
-              << "  -instance [filename]         : Problem instance filename\n"
-              << "  -enable_logging [0|1]        : Enable logging (default: 0)\n"
-              << "  -stop_criteria [0|1|2]       : Stopping criteria, 0: max-evals, 1: max-time, 2: obj-converge (default: 0)\n"
-              << "  -enable_multithreading [0|1] : Enable multi-threading (default: 1)\n"
+              << "  -alg [enum]                  : Algorithm name (e.g., Cbma, Lahc)\n"
+              << "  -ins [filename]              : Problem instance filename\n"
+              << "  -log [0|1]                   : Enable logging (default: 0)\n"
+              << "  -stp [0|1|2]                 : Stopping criteria, 0: max-evals, 1: max-time, 2: obj-converge (default: 0)\n"
+              << "  -mth [0|1]                   : Enable multi-threading (default: 1)\n"
               << "  -seed [int]                  : Random seed (default: 0)\n"
               << "  -nb_granular [int]           : Granular search parameter (default: 20)\n"
               << "  -is_hard_constraint [0|1]    : Whether to use hard constraint (default: 1)\n"

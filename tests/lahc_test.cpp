@@ -75,6 +75,6 @@ TEST_F(LahcTest, RunHeuristic) {
 
 TEST_F(LahcTest, Run) {
 
-//    lahc->run();
+    lahc->run();
     EXPECT_TRUE(true);
 }

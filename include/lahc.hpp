@@ -8,6 +8,7 @@
 #include "case.hpp"
 #include "Split.h"
 #include "leader_lahc.hpp"
+#include "leader_array.hpp"
 #include "follower.hpp"
 #include "individual.hpp"
 #include "heuristic_interface.hpp"
@@ -31,7 +32,8 @@ public:
     Individual* current;                        // Current solution s
 
     Split* split;
-    LeaderLahc* leader;
+//    LeaderLahc* leader;
+    LeaderArray* leader;
     Follower* follower;
 
 public:

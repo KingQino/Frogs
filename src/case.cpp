@@ -166,6 +166,15 @@ double Case::calculate_total_dist_follower(int **routes, int num_routes, const i
     return tour_length;
 }
 
+int Case::calculate_demand_sum(const vector<int> &route) const {
+    int demand_sum = 0;
+    for(auto node : route) {
+        demand_sum += demand_[node];
+    }
+
+    return demand_sum;
+}
+
 // TODO: modify these two functions below for new Individual structure
 double Case::compute_total_distance(const vector<vector<int>> &routes) {
     double tour_length = 0.0;

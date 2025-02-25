@@ -30,7 +30,7 @@ Individual::Individual(Case* instance, Preprocessor *preprocessor) {
 
     this->successors = vector<int>(instance->num_customer_ + 1);
     this->predecessors = vector<int>(instance->num_customer_ + 1);
-    this->chromR = vector<vector<int>>(preprocessor->route_cap_, vector<int>());
+    this->chromR = vector<vector<int>>(preprocessor->route_cap_);
     this->chromT = vector<int>(instance->num_customer_);
 }
 
@@ -79,21 +79,19 @@ double Individual::average_broken_pairs_distance_closest(const int nb_closest) c
 void Individual::evaluate_upper_cost() {
     upper_cost.reset();
     for (int r = 0; r < preprocessor->route_cap_; r++) {
-        if (!chromR[r].empty())
-        {
+        if (!chromR[r].empty()) {
             double distance = instance->get_distance(instance->depot_, chromR[r][0]);
             double load = preprocessor->customers_[chromR[r][0]].demand;
             double service = preprocessor->customers_[chromR[r][0]].service_duration;
             predecessors[chromR[r][0]] = instance->depot_;
-            for (int i = 1; i < (int)chromR[r].size(); i++)
-            {
+            for (int i = 1; i < static_cast<int>(chromR[r].size()); i++) {
                 distance += instance->get_distance(chromR[r][i-1], chromR[r][i]);
                 load += preprocessor->customers_[chromR[r][i]].demand;
                 service += preprocessor->customers_[chromR[r][i]].service_duration;
                 predecessors[chromR[r][i]] = chromR[r][i-1];
                 successors[chromR[r][i-1]] = chromR[r][i];
             }
-            successors[chromR[r][chromR[r].size()-1]] = instance->depot_;
+            successors[chromR[r][chromR[r].size() - 1]] = instance->depot_;
             distance += instance->get_distance(chromR[r][chromR[r].size() - 1], instance->depot_);
             upper_cost.distance += distance;
             upper_cost.nb_routes++;

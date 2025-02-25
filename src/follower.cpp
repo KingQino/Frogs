@@ -8,8 +8,8 @@ Follower::Follower(Case* instance, Preprocessor* preprocessor) {
     this->instance = instance;
     this->preprocessor = preprocessor;
 
-    const int route_cap = preprocessor->route_cap_;
-    const int node_cap  = instance->num_customer_;
+    route_cap = preprocessor->route_cap_;
+    node_cap = preprocessor->node_cap_;
 
     this->num_routes = 0;
     this->lower_routes = new int *[route_cap];
@@ -23,7 +23,7 @@ Follower::Follower(Case* instance, Preprocessor* preprocessor) {
 }
 
 Follower::~Follower() {
-    for (int i = 0; i < this->preprocessor->route_cap_; ++i) {
+    for (int i = 0; i < this->route_cap; ++i) {
         delete[] this->lower_routes[i];
     }
     delete[] this->lower_routes;
@@ -66,8 +66,6 @@ void Follower::load_individual(const Individual* ind) {
     // clean up
     this->lower_cost = 0.0;
     this->num_routes = 0;
-    const int route_cap = preprocessor->route_cap_;
-    const int node_cap  = instance->num_customer_;
     for (int i = 0; i < route_cap; ++i) {
         memset(this->lower_routes[i], 0, sizeof(int) * node_cap);
     }
@@ -466,7 +464,7 @@ std::ostream& operator<<(std::ostream& os, const Follower& follower) {
     os << "Lower Cost: " << follower.lower_cost << "\n";
 
     os << "Number of Nodes per route (lower): ";
-    for (int i = 0; i < follower.preprocessor->route_cap_; ++i) {
+    for (int i = 0; i < follower.route_cap; ++i) {
         os << follower.lower_num_nodes_per_route[i] << " ";
     }
     os << "\n";
@@ -474,7 +472,7 @@ std::ostream& operator<<(std::ostream& os, const Follower& follower) {
     os << "Lower Routes: \n";
     for (int i = 0; i < follower.num_routes; ++i) {
         os << "Route " << i << ": ";
-        for (int j = 0; j < follower.instance->num_customer_; ++j) {
+        for (int j = 0; j < follower.node_cap; ++j) {
             os << follower.lower_routes[i][j] << " ";
         }
         os << "\n";

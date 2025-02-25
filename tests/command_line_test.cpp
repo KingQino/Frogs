@@ -11,11 +11,11 @@ TEST(CommandLine, ParseParameters) {
     int argc = 13;
     const char* argv[] = {
             "./frogs",
-            "-algorithm", "Lahc",
-            "-instance", "large.evrp",
-            "-enable_logging", "1",
-            "-stop_criteria", "0",
-            "-enable_multithreading", "0",
+            "-alg", "Lahc",
+            "-ins", "large.evrp",
+            "-log", "1",
+            "-stp", "0",
+            "-mth", "0",
             "-nb_granular", "25"
     };
 
