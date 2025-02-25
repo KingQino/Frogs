@@ -10,7 +10,7 @@
 
 using namespace std;
 
-enum class Algorithm { Cbma, Lahc };
+enum class Algorithm { CBMA, LAHC};
 
 struct Parameters {
     // Running parameters
@@ -30,7 +30,7 @@ struct Parameters {
 
     // Constructor: Initializes default values
     Parameters() :
-            algorithm(Algorithm::Lahc),
+            algorithm(Algorithm::LAHC),
             instance("E-n22-k4.evrp"),
             enable_logging(false),
             stop_criteria(0),

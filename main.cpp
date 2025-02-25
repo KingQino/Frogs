@@ -16,12 +16,12 @@ void run_algorithm(const int run, const Parameters* params, vector<double>& perf
     auto* preprocessor = new Preprocessor(*instance, *params);
 
     switch (params->algorithm) {
-        case Algorithm::Cbma: {
+        case Algorithm::CBMA: {
             // TODO: Implement CBMA
             break;
         }
 
-        case Algorithm::Lahc: {
+        case Algorithm::LAHC: {
             Lahc* lahc = new Lahc(run, instance, preprocessor);
             lahc->run();
             perf_of_trials[run - 1] = lahc->global_best->lower_cost;
