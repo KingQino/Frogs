@@ -1,4 +1,5 @@
 #include <thread>
+#include <mutex>
 #include "parameters.hpp"
 #include "command_line.hpp"
 #include "case.hpp"
@@ -11,7 +12,9 @@ using namespace magic_enum;
 
 #define MAX_TRIALS 10
 
-void run_algorithm(const int run, const Parameters* params, vector<double>& perf_of_trials) {
+std::mutex perf_mutex;
+
+void run_algorithm(int run, const Parameters* params, vector<double>& perf_of_trials) {
     Case* instance = new Case(params->instance);
     auto* preprocessor = new Preprocessor(*instance, *params);
 
@@ -24,7 +27,10 @@ void run_algorithm(const int run, const Parameters* params, vector<double>& perf
         case Algorithm::LAHC: {
             Lahc* lahc = new Lahc(run, instance, preprocessor);
             lahc->run();
-            perf_of_trials[run - 1] = lahc->global_best->lower_cost;
+            {
+                std::lock_guard<std::mutex> lock(perf_mutex);
+                perf_of_trials[run - 1] = lahc->global_best->lower_cost;
+            }
             delete lahc;
             break;
         }
@@ -41,9 +47,9 @@ int main(int argc, char *argv[])
     CommandLine cmd(argc, argv);
     cmd.parse_parameters(params);
 
-    vector<double> perf_of_trials(MAX_TRIALS);
+    vector<double> perf_of_trials(MAX_TRIALS, 0.0);
     if (!params.enable_multithreading){
-        run_algorithm(params.seed, &params, perf_of_trials);
+        run_algorithm(1, &params, perf_of_trials);
     } else {
         std::vector<std::thread> threads;
 

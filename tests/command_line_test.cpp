@@ -24,7 +24,7 @@ TEST(CommandLine, ParseParameters) {
     Parameters params;
     cmd.parse_parameters(params);
 
-    EXPECT_EQ(params.algorithm, Algorithm::Lahc);
+    EXPECT_EQ(params.algorithm, Algorithm::LAHC);
     EXPECT_EQ(params.instance, "large.evrp");
     EXPECT_EQ(params.enable_logging, true);
     EXPECT_EQ(params.stop_criteria, 0);
