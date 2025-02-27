@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
 
     vector<double> perf_of_trials(MAX_TRIALS, 0.0);
     if (!params.enable_multithreading){
-        run_algorithm(1, &params, perf_of_trials);
+        run_algorithm(1, &params, std::ref(perf_of_trials));
     } else {
         std::vector<std::thread> threads;
 
