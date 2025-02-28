@@ -6,41 +6,65 @@
 #include "Split.h"
 #include "leader_lahc.hpp"
 #include <random>
+#include <memory>  // Include for smart pointers
 
 using namespace ::testing;
 
 class LeaderLahcTest : public Test {
 protected:
     void SetUp() override {
-        string file_name = "E-n22-k4.evrp";
-        instance = new Case(file_name);
-        params = new Parameters();
-        preprocessor = new Preprocessor(*instance, *params);
-        split = new Split(params->seed, instance, preprocessor);
-        leader = new LeaderLahc(params->seed, instance, preprocessor);
-        random_engine = std::default_random_engine(params->seed);
+        std::string file_name = "E-n22-k4.evrp";
+
+        instance = std::make_unique<Case>(file_name);
+        if (!instance) {
+            FAIL() << "Error: Failed to initialize Case instance!";
+        }
+
+        params = std::make_unique<Parameters>();
+        preprocessor = std::make_unique<Preprocessor>(*instance, *params);
+        split = std::make_unique<Split>(params->seed, instance.get(), preprocessor.get());
+        leader = std::make_unique<LeaderLahc>(params->seed, instance.get(), preprocessor.get());
+
+        // Initialize random engine properly
+        random_engine.seed(params->seed);
+
+//        string file_name = "E-n22-k4.evrp";
+//        instance = new Case(file_name);
+//        params = new Parameters();
+//        preprocessor = new Preprocessor(*instance, *params);
+//        split = new Split(params->seed, instance, preprocessor);
+//        leader = new LeaderLahc(params->seed, instance, preprocessor);
+//        random_engine = std::default_random_engine(params->seed);
     }
 
     void TearDown() override {
-        delete instance;
-        delete params;
-        delete preprocessor;
-        delete split;
-        delete leader;
+//        delete instance;
+//        delete params;
+//        delete preprocessor;
+//        delete split;
+//        delete leader;
     }
 
-    Case* instance{};
-    Parameters* params{};
-    Preprocessor* preprocessor{};
-    Split* split{};
-    LeaderLahc* leader{};
+    // Use std::unique_ptr instead of raw pointers
+    std::unique_ptr<Case> instance;
+    std::unique_ptr<Parameters> params;
+    std::unique_ptr<Preprocessor> preprocessor;
+    std::unique_ptr<Split> split;
+    std::unique_ptr<LeaderLahc> leader;
     std::default_random_engine random_engine;
+
+//    Case* instance{};
+//    Parameters* params{};
+//    Preprocessor* preprocessor{};
+//    Split* split{};
+//    LeaderLahc* leader{};
+//    std::default_random_engine random_engine;
 };
 
 TEST_F(LeaderLahcTest, Run) {
     vector<int> chromT(preprocessor->customer_ids_);
     std::shuffle(chromT.begin(), chromT.end(), random_engine);
-    Individual ind(instance, preprocessor, chromT);
+    Individual ind(instance.get(), preprocessor.get(), chromT);
     split->generalSplit(&ind, preprocessor->route_cap_);
 
     UpperCost upper_cost_prev = ind.upper_cost;
@@ -58,7 +82,7 @@ TEST_F(LeaderLahcTest, Run) {
 TEST_F(LeaderLahcTest, IntraRouteMoves) {
     vector<int> chromT(preprocessor->customer_ids_);
     std::shuffle(chromT.begin(), chromT.end(), random_engine);
-    Individual ind(instance, preprocessor, chromT);
+    Individual ind(instance.get(), preprocessor.get(), chromT);
     split->generalSplit(&ind, preprocessor->route_cap_);
 
     EXPECT_DOUBLE_EQ(ind.upper_cost.penalised_cost, instance->calculate_total_dist(ind.chromR));
@@ -92,7 +116,7 @@ TEST_F(LeaderLahcTest, IntraRouteMoves) {
 TEST_F(LeaderLahcTest, InterRouteMoves) {
     vector<int> chromT(preprocessor->customer_ids_);
     std::shuffle(chromT.begin(), chromT.end(), random_engine);
-    Individual ind(instance, preprocessor, chromT);
+    Individual ind(instance.get(), preprocessor.get(), chromT);
     split->generalSplit(&ind, preprocessor->route_cap_);
 
     EXPECT_DOUBLE_EQ(ind.upper_cost.penalised_cost, instance->calculate_total_dist(ind.chromR));
@@ -127,7 +151,7 @@ TEST_F(LeaderLahcTest, InterRouteMoves) {
 TEST_F(LeaderLahcTest, NeighbourExplore) {
     vector<int> chromT(preprocessor->customer_ids_);
     std::shuffle(chromT.begin(), chromT.end(), random_engine);
-    Individual ind(instance, preprocessor, chromT);
+    Individual ind(instance.get(), preprocessor.get(), chromT);
     split->generalSplit(&ind, preprocessor->route_cap_);
 
     EXPECT_DOUBLE_EQ(ind.upper_cost.penalised_cost, instance->calculate_total_dist(ind.chromR));

@@ -675,6 +675,12 @@ bool LeaderLahc::move9_inter() {
 
     if (!isAccepted(change)) return false;
 
+    // 确保 routeU 和 routeV 里有节点
+    if (routeU->nbCustomers == 0 || routeV->nbCustomers == 0) {
+        std::cerr << "Error: move9_inter() - route is empty!\n";
+        return false;
+    }
+
     Node * depotU = routeU->depot;
     Node * depotV = routeV->depot;
     Node * depotUFin = depotU->prev;
