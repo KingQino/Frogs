@@ -40,6 +40,54 @@ struct Node
     double deltaRemoval;				// Difference of cost in the current route if the node is removed (used in SWAP*)
 };
 
+// Structure used in SWAP* to remember the three best insertion positions of a customer in a given route
+struct ThreeBestInsert
+{
+    int whenLastCalculated;
+    double bestCost[3];
+    Node * bestLocation[3];
+
+    void compareAndAdd(double costInsert, Node * placeInsert)
+    {
+        if (costInsert >= bestCost[2]) return;
+        else if (costInsert >= bestCost[1])
+        {
+            bestCost[2] = costInsert; bestLocation[2] = placeInsert;
+        }
+        else if (costInsert >= bestCost[0])
+        {
+            bestCost[2] = bestCost[1]; bestLocation[2] = bestLocation[1];
+            bestCost[1] = costInsert; bestLocation[1] = placeInsert;
+        }
+        else
+        {
+            bestCost[2] = bestCost[1]; bestLocation[2] = bestLocation[1];
+            bestCost[1] = bestCost[0]; bestLocation[1] = bestLocation[0];
+            bestCost[0] = costInsert; bestLocation[0] = placeInsert;
+        }
+    }
+
+    // Resets the structure (no insertion calculated)
+    void reset()
+    {
+        bestCost[0] = 1.e30; bestLocation[0] = NULL;
+        bestCost[1] = 1.e30; bestLocation[1] = NULL;
+        bestCost[2] = 1.e30; bestLocation[2] = NULL;
+    }
+
+    ThreeBestInsert() { reset(); };
+};
+
+// Structured used to keep track of the best SWAP* move
+struct SwapStarElement
+{
+    double moveCost = 1.e30 ;
+    Node * U = NULL ;
+    Node * bestPositionU = NULL;
+    Node * V = NULL;
+    Node * bestPositionV = NULL;
+};
+
 // Main local search structure
 class LeaderLahc
 {
@@ -58,6 +106,7 @@ public:
     bool searchCompleted;						// Tells whether all moves have been evaluated without success
     int nbMoves;								// Total number of moves (RI and SWAP*) applied during the local search. Attention: this is not only a simple counter, it is also used to avoid repeating move evaluations
     std::vector < int > orderNodes;				// Randomized order for checking the nodes in the RI local search
+    std::vector < int > orderRoutes;			// Randomized order for checking the routes in the SWAP* local search
     std::set < int > emptyRoutes;				// indices of all empty routes
     int loopID;									// Current loop index
 
@@ -66,6 +115,8 @@ public:
     std::vector < Node > depots;				// Elements representing depots
     std::vector < Node > depotsEnd;				// Duplicate of the depots to mark the end of the routes
     std::vector < Route > routes;				// Elements representing routes
+    std::vector < std::vector < ThreeBestInsert > > bestInsertClient;   // (SWAP*) For each route and node, storing the cheapest insertion cost
+
 
     /* TEMPORARY VARIABLES USED IN THE LOCAL SEARCH LOOPS */
     // nodeUPrev -> nodeU -> nodeX -> nodeXNext
@@ -87,7 +138,7 @@ public:
 
     // Functions in charge of excess load and duration penalty calculations
     // #define penaltyExcessDuration(x) _penaltyExcessDuration(x)
-#define penaltyExcessDuration(x) 0. // <--- Use this line instead of the previous one to save some CPU time if your problem does not include duration constraints
+    #define penaltyExcessDuration(x) 0. // <--- Use this line instead of the previous one to save some CPU time if your problem does not include duration constraints
     inline double _penaltyExcessDuration(double myDuration) {return std::max<double>(0., myDuration - instance->max_service_time_)*penaltyDurationLS;}
     inline double penaltyExcessLoad(double myLoad) {return std::max<double>(0., myLoad - instance->max_vehicle_capa_)*penaltyCapacityLS;}
 
@@ -113,6 +164,11 @@ public:
     bool move7 (); // If route(U) == route(V), replace (U,X) and (V,Y) by (U,V) and (X,Y)
     bool move8 (); // If route(U) != route(V), replace (U,X) and (V,Y) by (U,V) and (X,Y)
     bool move9 (); // If route(U) != route(V), replace (U,X) and (V,Y) by (U,Y) and (V,X)
+
+    /* SUB-ROUTINES FOR EFFICIENT SWAP* EVALUATIONS */
+    bool swapStar(); // Calculates all SWAP* between routeU and routeV and apply the best improving move
+    double getCheapestInsertSimultRemoval(Node * U, Node * V, Node *& bestPosition); // Calculates the insertion cost and position in the route of V, where V is omitted
+    void preprocessInsertions(Route * R1, Route * R2); // Preprocess all insertion costs of nodes of route R1 in route R2
 
     /* ROUTINES TO UPDATE THE SOLUTIONS */
     static void insertNode(Node * U, Node * V);		// Solution update: Insert U after V

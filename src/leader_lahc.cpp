@@ -768,6 +768,149 @@ bool LeaderLahc::move9()
     return true;
 }
 
+bool LeaderLahc::swapStar()
+{
+    SwapStarElement myBestSwapStar;
+
+    // Preprocessing insertion costs
+    preprocessInsertions(routeU, routeV);
+    preprocessInsertions(routeV, routeU);
+
+    // Evaluating the moves
+    for (nodeU = routeU->depot->next; !nodeU->isDepot; nodeU = nodeU->next)
+    {
+        for (nodeV = routeV->depot->next; !nodeV->isDepot; nodeV = nodeV->next)
+        {
+            double deltaPenRouteU = penaltyExcessLoad(routeU->load + preprocessor->customers_[nodeV->cour].demand - preprocessor->customers_[nodeU->cour].demand) - routeU->penalty;
+            double deltaPenRouteV = penaltyExcessLoad(routeV->load + preprocessor->customers_[nodeU->cour].demand - preprocessor->customers_[nodeV->cour].demand) - routeV->penalty;
+
+            // Quick filter: possibly early elimination of many SWAP* due to the capacity constraints/penalties and bounds on insertion costs
+            if (deltaPenRouteU + nodeU->deltaRemoval + deltaPenRouteV + nodeV->deltaRemoval <= 0)
+            {
+                SwapStarElement mySwapStar;
+                mySwapStar.U = nodeU;
+                mySwapStar.V = nodeV;
+
+                // Evaluate best reinsertion cost of U in the route of V where V has been removed
+                double extraV = getCheapestInsertSimultRemoval(nodeU, nodeV, mySwapStar.bestPositionU);
+
+                // Evaluate best reinsertion cost of V in the route of U where U has been removed
+                double extraU = getCheapestInsertSimultRemoval(nodeV, nodeU, mySwapStar.bestPositionV);
+
+                // Evaluating final cost
+                mySwapStar.moveCost = deltaPenRouteU + nodeU->deltaRemoval + extraU + deltaPenRouteV + nodeV->deltaRemoval + extraV
+                                      + penaltyExcessDuration(routeU->duration + nodeU->deltaRemoval + extraU + preprocessor->customers_[nodeV->cour].service_duration - preprocessor->customers_[nodeU->cour].service_duration)
+                                      + penaltyExcessDuration(routeV->duration + nodeV->deltaRemoval + extraV - preprocessor->customers_[nodeV->cour].service_duration + preprocessor->customers_[nodeU->cour].service_duration);
+
+                if (mySwapStar.moveCost < myBestSwapStar.moveCost)
+                    myBestSwapStar = mySwapStar;
+            }
+        }
+    }
+
+    // Including RELOCATE from nodeU towards routeV (costs nothing to include in the evaluation at this step since we already have the best insertion location)
+    // Moreover, since the granularity criterion is different, this can lead to different improving moves
+    for (nodeU = routeU->depot->next; !nodeU->isDepot; nodeU = nodeU->next)
+    {
+        SwapStarElement mySwapStar;
+        mySwapStar.U = nodeU;
+        mySwapStar.bestPositionU = bestInsertClient[routeV->cour][nodeU->cour].bestLocation[0];
+        double deltaDistRouteU = instance->get_distance(nodeU->prev->cour, nodeU->next->cour) - instance->get_distance(nodeU->prev->cour, nodeU->cour) - instance->get_distance(nodeU->cour, nodeU->next->cour);
+        double deltaDistRouteV = bestInsertClient[routeV->cour][nodeU->cour].bestCost[0];
+        mySwapStar.moveCost = deltaDistRouteU + deltaDistRouteV
+                              + penaltyExcessLoad(routeU->load - preprocessor->customers_[nodeU->cour].demand) - routeU->penalty
+                              + penaltyExcessLoad(routeV->load + preprocessor->customers_[nodeU->cour].demand) - routeV->penalty
+                              + penaltyExcessDuration(routeU->duration + deltaDistRouteU - preprocessor->customers_[nodeU->cour].service_duration)
+                              + penaltyExcessDuration(routeV->duration + deltaDistRouteV + preprocessor->customers_[nodeU->cour].service_duration);
+
+        if (mySwapStar.moveCost < myBestSwapStar.moveCost)
+            myBestSwapStar = mySwapStar;
+    }
+
+    // Including RELOCATE from nodeV towards routeU
+    for (nodeV = routeV->depot->next; !nodeV->isDepot; nodeV = nodeV->next)
+    {
+        SwapStarElement mySwapStar;
+        mySwapStar.V = nodeV;
+        mySwapStar.bestPositionV = bestInsertClient[routeU->cour][nodeV->cour].bestLocation[0];
+        double deltaDistRouteU = bestInsertClient[routeU->cour][nodeV->cour].bestCost[0];
+        double deltaDistRouteV = instance->get_distance(nodeV->prev->cour, nodeV->next->cour) - instance->get_distance(nodeV->prev->cour, nodeV->cour) - instance->get_distance(nodeV->cour, nodeV->next->cour);
+        mySwapStar.moveCost = deltaDistRouteU + deltaDistRouteV
+                              + penaltyExcessLoad(routeU->load + preprocessor->customers_[nodeV->cour].demand) - routeU->penalty
+                              + penaltyExcessLoad(routeV->load - preprocessor->customers_[nodeV->cour].demand) - routeV->penalty
+                              + penaltyExcessDuration(routeU->duration + deltaDistRouteU + preprocessor->customers_[nodeV->cour].service_duration)
+                              + penaltyExcessDuration(routeV->duration + deltaDistRouteV - preprocessor->customers_[nodeV->cour].service_duration);
+
+        if (mySwapStar.moveCost < myBestSwapStar.moveCost)
+            myBestSwapStar = mySwapStar;
+    }
+
+    if (myBestSwapStar.moveCost > -MY_EPSILON) return false;
+
+    // Applying the best move in case of improvement
+    if (myBestSwapStar.bestPositionU != NULL) insertNode(myBestSwapStar.U, myBestSwapStar.bestPositionU);
+    if (myBestSwapStar.bestPositionV != NULL) insertNode(myBestSwapStar.V, myBestSwapStar.bestPositionV);
+    nbMoves++; // Increment move counter before updating route data
+    searchCompleted = false;
+    updateRouteData(routeU);
+    updateRouteData(routeV);
+    return true;
+}
+
+double LeaderLahc::getCheapestInsertSimultRemoval(Node * U, Node * V, Node *& bestPosition)
+{
+    ThreeBestInsert * myBestInsert = &bestInsertClient[V->route->cour][U->cour];
+    bool found = false;
+
+    // Find best insertion in the route such that V is not next or pred (can only belong to the top three locations)
+    bestPosition = myBestInsert->bestLocation[0];
+    double bestCost = myBestInsert->bestCost[0];
+    found = (bestPosition != V && bestPosition->next != V);
+    if (!found && myBestInsert->bestLocation[1] != NULL)
+    {
+        bestPosition = myBestInsert->bestLocation[1];
+        bestCost = myBestInsert->bestCost[1];
+        found = (bestPosition != V && bestPosition->next != V);
+        if (!found && myBestInsert->bestLocation[2] != NULL)
+        {
+            bestPosition = myBestInsert->bestLocation[2];
+            bestCost = myBestInsert->bestCost[2];
+            found = true;
+        }
+    }
+
+    // Compute insertion in the place of V
+    double deltaCost = instance->get_distance(V->prev->cour, U->cour) + instance->get_distance(U->cour, V->next->cour) - instance->get_distance(V->prev->cour, V->next->cour);
+    if (!found || deltaCost < bestCost)
+    {
+        bestPosition = V->prev;
+        bestCost = deltaCost;
+    }
+
+    return bestCost;
+}
+
+void LeaderLahc::preprocessInsertions(Route * R1, Route * R2)
+{
+    for (Node * U = R1->depot->next; !U->isDepot; U = U->next)
+    {
+        // Performs the preprocessing
+        U->deltaRemoval = instance->get_distance(U->prev->cour, U->next->cour) - instance->get_distance(U->prev->cour, U->cour) - instance->get_distance(U->cour, U->next->cour);
+        if (R2->whenLastModified > bestInsertClient[R2->cour][U->cour].whenLastCalculated)
+        {
+            bestInsertClient[R2->cour][U->cour].reset();
+            bestInsertClient[R2->cour][U->cour].whenLastCalculated = nbMoves;
+            bestInsertClient[R2->cour][U->cour].bestCost[0] = instance->get_distance(0, U->cour) + instance->get_distance(U->cour, R2->depot->next->cour) - instance->get_distance(0, R2->depot->next->cour);
+            bestInsertClient[R2->cour][U->cour].bestLocation[0] = R2->depot;
+            for (Node * V = R2->depot->next; !V->isDepot; V = V->next)
+            {
+                double deltaCost = instance->get_distance(V->cour, U->cour) + instance->get_distance(U->cour, V->next->cour) - instance->get_distance(V->cour, V->next->cour);
+                bestInsertClient[R2->cour][U->cour].compareAndAdd(deltaCost, V);
+            }
+        }
+    }
+}
+
 void LeaderLahc::insertNode(Node * U, Node * V)
 {
     U->prev->next = U->next;
@@ -876,7 +1019,7 @@ void LeaderLahc::loadIndividual(Individual * indiv)
             myClient->route = myRoute;
             myClient->prev = myDepot;
             myDepot->next = myClient;
-            for (int i = 1; i < (int)indiv->chromR[r].size(); i++)
+            for (int i = 1; i < static_cast<int>(indiv->chromR[r].size()); i++)
             {
                 Node * myClientPred = myClient;
                 myClient = &clients[indiv->chromR[r][i]];
@@ -894,6 +1037,8 @@ void LeaderLahc::loadIndividual(Individual * indiv)
         }
         updateRouteData(&routes[r]);
         routes[r].whenLastTestedSWAPStar = -1;
+        for (int i = 1; i <= instance->num_customer_; i++) // Initializing memory structures
+            bestInsertClient[r][i].whenLastCalculated = -1;
     }
 
     for (int i = 1; i <= instance->num_customer_; i++) // Initializing memory structures
@@ -970,6 +1115,7 @@ LeaderLahc::LeaderLahc(int seed, Case* instance, Preprocessor* preprocessor) : i
     routes = std::vector < Route >(preprocessor->route_cap_);
     depots = std::vector < Node >(preprocessor->route_cap_);
     depotsEnd = std::vector < Node >(preprocessor->route_cap_);
+    bestInsertClient = std::vector < std::vector <ThreeBestInsert> >(preprocessor->route_cap_, std::vector <ThreeBestInsert>(instance->num_customer_ + 1));
 
     for (int i = 0; i <= instance->num_customer_; i++)
     {
@@ -988,6 +1134,7 @@ LeaderLahc::LeaderLahc(int seed, Case* instance, Preprocessor* preprocessor) : i
         depotsEnd[i].route = &routes[i];
     }
     for (int i = 1 ; i <= instance->num_customer_ ; i++) orderNodes.push_back(i);
+    for (int r = 0 ; r < preprocessor->route_cap_ ; r++) orderRoutes.push_back(r);
 
     random_engine = std::default_random_engine(seed);
     uniformIntDis = std::uniform_int_distribution<int>(0, 8); // 9 moves
