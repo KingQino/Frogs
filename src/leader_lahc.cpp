@@ -656,6 +656,18 @@ bool LeaderLahc::move8()
 }
 
 bool LeaderLahc::move9_inter() {
+    // 检查指针是否为空，防止访问未初始化的值
+    if (!nodeU || !nodeV || !routeU || !routeV) {
+        std::cerr << "Error: move9_inter() - Uninitialized pointers detected!\n";
+        return false;
+    }
+
+    // 检查索引是否有效
+    if (nodeUIndex < 0 || nodeYIndex < 0 || nodeVIndex < 0 || nodeXIndex < 0) {
+        std::cerr << "Error: move9_inter() - Invalid node indices!\n";
+        return false;
+    }
+
     if (nodeU->cumulatedLoad + routeV->load - nodeV->cumulatedLoad > instance->max_vehicle_capa_ ||
         nodeV->cumulatedLoad + routeU->load - nodeU->cumulatedLoad > instance->max_vehicle_capa_) return false;
 
@@ -667,6 +679,12 @@ bool LeaderLahc::move9_inter() {
     Node * depotV = routeV->depot;
     Node * depotUFin = depotU->prev;
     Node * depotVFin = depotV->prev;
+
+    // 检查 depotUFin 是否有前驱
+    if (!depotUFin || !depotVFin || !depotUFin->prev) {
+        std::cerr << "Error: move9_inter() - depotUFin or depotVFin is NULL!\n";
+        return false;
+    }
     Node * depotUpred = depotUFin->prev;
 
     Node * count = nodeY;
@@ -704,6 +722,11 @@ bool LeaderLahc::move9_inter() {
     }
 
     nbMoves++; // Increment move counter before updating route data
+    // 确保更新路由数据时不访问空指针
+    if (!routeU || !routeV) {
+        std::cerr << "Error: move9_inter() - Null route detected!\n";
+        return false;
+    }
     updateRouteData(routeU);
     updateRouteData(routeV);
     upperCost += change;
