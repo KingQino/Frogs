@@ -43,9 +43,9 @@ struct Node
 // Structure used in SWAP* to remember the three best insertion positions of a customer in a given route
 struct ThreeBestInsert
 {
-    int whenLastCalculated;
-    double bestCost[3];
-    Node * bestLocation[3];
+    int whenLastCalculated{};
+    double bestCost[3]{};
+    Node * bestLocation[3]{};
 
     void compareAndAdd(double costInsert, Node * placeInsert)
     {
@@ -70,9 +70,9 @@ struct ThreeBestInsert
     // Resets the structure (no insertion calculated)
     void reset()
     {
-        bestCost[0] = 1.e30; bestLocation[0] = NULL;
-        bestCost[1] = 1.e30; bestLocation[1] = NULL;
-        bestCost[2] = 1.e30; bestLocation[2] = NULL;
+        bestCost[0] = 1.e30; bestLocation[0] = nullptr;
+        bestCost[1] = 1.e30; bestLocation[1] = nullptr;
+        bestCost[2] = 1.e30; bestLocation[2] = nullptr;
     }
 
     ThreeBestInsert() { reset(); };
@@ -82,10 +82,10 @@ struct ThreeBestInsert
 struct SwapStarElement
 {
     double moveCost = 1.e30 ;
-    Node * U = NULL ;
-    Node * bestPositionU = NULL;
-    Node * V = NULL;
-    Node * bestPositionV = NULL;
+    Node * U = nullptr ;
+    Node * bestPositionU = nullptr;
+    Node * V = nullptr;
+    Node * bestPositionV = nullptr;
 };
 
 // Main local search structure
@@ -131,7 +131,7 @@ public:
     int nodeVPrevIndex{}, nodeVIndex{}, nodeYIndex{}, nodeYNextIndex{} ;
     double loadU{}, loadX{}, loadV{}, loadY{};
     double serviceU{}, serviceX{}, serviceV{}, serviceY{};
-    double penaltyCapacityLS, penaltyDurationLS ;
+    double penaltyCapacityLS{}, penaltyDurationLS{};
 
     void setLocalVariablesRouteU(); // Initializes some local variables and distances associated to routeU to avoid always querying the same values in the distance matrix
     void setLocalVariablesRouteV(); // Initializes some local variables and distances associated to routeV to avoid always querying the same values in the distance matrix
@@ -140,7 +140,7 @@ public:
     // #define penaltyExcessDuration(x) _penaltyExcessDuration(x)
     #define penaltyExcessDuration(x) 0. // <--- Use this line instead of the previous one to save some CPU time if your problem does not include duration constraints
     inline double _penaltyExcessDuration(double myDuration) {return std::max<double>(0., myDuration - instance->max_service_time_)*penaltyDurationLS;}
-    inline double penaltyExcessLoad(double myLoad) {return std::max<double>(0., myLoad - instance->max_vehicle_capa_)*penaltyCapacityLS;}
+    inline double penaltyExcessLoad(double myLoad) const {return std::max<double>(0., myLoad - instance->max_vehicle_capa_)*penaltyCapacityLS;}
 
     /* RELOCATE MOVES */
     // (Legacy notations: move1...move9 from Prins 2004)

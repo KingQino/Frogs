@@ -656,18 +656,6 @@ bool LeaderLahc::move8()
 }
 
 bool LeaderLahc::move9_inter() {
-    // 检查指针是否为空，防止访问未初始化的值
-    if (!nodeU || !nodeV || !routeU || !routeV) {
-        std::cerr << "Error: move9_inter() - Uninitialized pointers detected!\n";
-        return false;
-    }
-
-    // 检查索引是否有效
-    if (nodeUIndex < 0 || nodeYIndex < 0 || nodeVIndex < 0 || nodeXIndex < 0) {
-        std::cerr << "Error: move9_inter() - Invalid node indices!\n";
-        return false;
-    }
-
     if (nodeU->cumulatedLoad + routeV->load - nodeV->cumulatedLoad > instance->max_vehicle_capa_ ||
         nodeV->cumulatedLoad + routeU->load - nodeU->cumulatedLoad > instance->max_vehicle_capa_) return false;
 
@@ -675,22 +663,10 @@ bool LeaderLahc::move9_inter() {
 
     if (!isAccepted(change)) return false;
 
-    // 确保 routeU 和 routeV 里有节点
-    if (routeU->nbCustomers == 0 || routeV->nbCustomers == 0) {
-        std::cerr << "Error: move9_inter() - route is empty!\n";
-        return false;
-    }
-
     Node * depotU = routeU->depot;
     Node * depotV = routeV->depot;
     Node * depotUFin = depotU->prev;
     Node * depotVFin = depotV->prev;
-
-    // 检查 depotUFin 是否有前驱
-    if (!depotUFin || !depotVFin || !depotUFin->prev) {
-        std::cerr << "Error: move9_inter() - depotUFin or depotVFin is NULL!\n";
-        return false;
-    }
     Node * depotUpred = depotUFin->prev;
 
     Node * count = nodeY;
@@ -728,11 +704,6 @@ bool LeaderLahc::move9_inter() {
     }
 
     nbMoves++; // Increment move counter before updating route data
-    // 确保更新路由数据时不访问空指针
-    if (!routeU || !routeV) {
-        std::cerr << "Error: move9_inter() - Null route detected!\n";
-        return false;
-    }
     updateRouteData(routeU);
     updateRouteData(routeV);
     upperCost += change;
@@ -877,8 +848,8 @@ bool LeaderLahc::swapStar()
     if (myBestSwapStar.moveCost > -MY_EPSILON) return false;
 
     // Applying the best move in case of improvement
-    if (myBestSwapStar.bestPositionU != NULL) insertNode(myBestSwapStar.U, myBestSwapStar.bestPositionU);
-    if (myBestSwapStar.bestPositionV != NULL) insertNode(myBestSwapStar.V, myBestSwapStar.bestPositionV);
+    if (myBestSwapStar.bestPositionU != nullptr) insertNode(myBestSwapStar.U, myBestSwapStar.bestPositionU);
+    if (myBestSwapStar.bestPositionV != nullptr) insertNode(myBestSwapStar.V, myBestSwapStar.bestPositionV);
     nbMoves++; // Increment move counter before updating route data
     searchCompleted = false;
     updateRouteData(routeU);
@@ -895,12 +866,12 @@ double LeaderLahc::getCheapestInsertSimultRemoval(Node * U, Node * V, Node *& be
     bestPosition = myBestInsert->bestLocation[0];
     double bestCost = myBestInsert->bestCost[0];
     found = (bestPosition != V && bestPosition->next != V);
-    if (!found && myBestInsert->bestLocation[1] != NULL)
+    if (!found && myBestInsert->bestLocation[1] != nullptr)
     {
         bestPosition = myBestInsert->bestLocation[1];
         bestCost = myBestInsert->bestCost[1];
         found = (bestPosition != V && bestPosition->next != V);
-        if (!found && myBestInsert->bestLocation[2] != NULL)
+        if (!found && myBestInsert->bestLocation[2] != nullptr)
         {
             bestPosition = myBestInsert->bestLocation[2];
             bestCost = myBestInsert->bestCost[2];
@@ -1177,7 +1148,5 @@ LeaderLahc::LeaderLahc(int seed, Case* instance, Preprocessor* preprocessor) : i
     searchCompleted = false;
     nbMoves = 0;
     loopID = 0;
-
-
 }
 
