@@ -86,37 +86,31 @@ void Follower::export_individual(Individual* ind) const {
 
 double Follower::insert_station_by_simple_enum(int* repaired_route, int& repaired_length) {
     const int length = repaired_length;
+    int* route = new int[length];
+    memcpy(route, repaired_route, sizeof(int) * length);
 
-    // Create a safe copy of route using std::vector (no memory leaks)
-    std::vector<int> route(repaired_route, repaired_route + length);
-    std::vector<double> accumulated_distance(length, 0);
-
-    // Compute accumulated distance
+    vector<double> accumulated_distance(length, 0);
     for (int i = 1; i < length; i++) {
         accumulated_distance[i] = accumulated_distance[i - 1] + instance->get_distance(route[i], route[i - 1]);
     }
     if (accumulated_distance.back() <= preprocessor->max_cruise_distance_) {
+        delete[] route;
         return accumulated_distance.back();
     }
 
-    // Define bounds for the number of charging stations
-    const int upper_bound = static_cast<int>(accumulated_distance.back() / preprocessor->max_cruise_distance_ + 1);
-    const int lower_bound = static_cast<int>(accumulated_distance.back() / preprocessor->max_cruise_distance_);
-
-    // Safe memory management using std::vector instead of new[]
-    std::vector<int> chosen_pos(length, 0);
-    std::vector<int> best_chosen_pos(length, 0);
-    double final_cost = std::numeric_limits<double>::max();
-    double best_cost = final_cost;
-
+    int upper_bound = (int)(accumulated_distance.back() / preprocessor->max_cruise_distance_ + 1);
+    int lower_bound = (int)(accumulated_distance.back() / preprocessor->max_cruise_distance_);
+    int* chosen_pos = new int[length];
+    int* best_chosen_pos = new int[length]; // customized variable
+    double final_cost = numeric_limits<double>::max();
+    double best_cost = final_cost; // customized variable
     for (int i = lower_bound; i <= upper_bound; i++) {
-        recursive_charging_placement(0, i, chosen_pos.data(), best_chosen_pos.data(), final_cost, i, route.data(), length, accumulated_distance);
+        recursive_charging_placement(0, i, chosen_pos, best_chosen_pos, final_cost, i, route, length, accumulated_distance);
 
         if (final_cost < best_cost) {
-            // Reset repaired_route
+            memset(repaired_route, 0, sizeof(int) * repaired_length);
             int currentIndex = 0;
             int idx = 0;
-
             for (int j = 0; j < i; ++j) {
                 int from = route[best_chosen_pos[j]];
                 int to = route[best_chosen_pos[j] + 1];
@@ -126,6 +120,7 @@ double Follower::insert_station_by_simple_enum(int* repaired_route, int& repaire
                 memcpy(&repaired_route[currentIndex], &route[idx], numElementsToCopy * sizeof(int));
 
                 currentIndex += numElementsToCopy;
+
                 repaired_route[currentIndex++] = station;
                 idx = best_chosen_pos[j] + 1;
             }
@@ -137,7 +132,9 @@ double Follower::insert_station_by_simple_enum(int* repaired_route, int& repaire
             best_cost = final_cost;
         }
     }
-
+    delete[] chosen_pos;
+    delete[] best_chosen_pos;
+    delete[] route;
     return (final_cost != std::numeric_limits<double>::max()) ? final_cost : -1;
 }
 
