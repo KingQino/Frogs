@@ -1171,5 +1171,13 @@ LeaderLahc::LeaderLahc(int seed, Case* instance, Preprocessor* preprocessor) : i
     disInterMove = std::uniform_int_distribution<int>(0, 3); // 4 intra moves
     penaltyCapacityLS = preprocessor->penalty_capacity_;
     penaltyDurationLS = preprocessor->penalty_duration_;
+
+    upperCost = 0.;
+    historyCost = 0.;
+    searchCompleted = false;
+    nbMoves = 0;
+    loopID = 0;
+
+
 }
 

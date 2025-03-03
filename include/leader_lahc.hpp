@@ -121,16 +121,16 @@ public:
     /* TEMPORARY VARIABLES USED IN THE LOCAL SEARCH LOOPS */
     // nodeUPrev -> nodeU -> nodeX -> nodeXNext
     // nodeVPrev -> nodeV -> nodeY -> nodeYNext
-    Node * nodeU ;
-    Node * nodeX ;
-    Node * nodeV ;
-    Node * nodeY ;
-    Route * routeU ;
-    Route * routeV ;
-    int nodeUPrevIndex, nodeUIndex, nodeXIndex, nodeXNextIndex ;
-    int nodeVPrevIndex, nodeVIndex, nodeYIndex, nodeYNextIndex ;
-    double loadU, loadX, loadV, loadY;
-    double serviceU, serviceX, serviceV, serviceY;
+    Node * nodeU{} ;
+    Node * nodeX{} ;
+    Node * nodeV{} ;
+    Node * nodeY{} ;
+    Route * routeU{} ;
+    Route * routeV{} ;
+    int nodeUPrevIndex{}, nodeUIndex{}, nodeXIndex{}, nodeXNextIndex{} ;
+    int nodeVPrevIndex{}, nodeVIndex{}, nodeYIndex{}, nodeYNextIndex{} ;
+    double loadU{}, loadX{}, loadV{}, loadY{};
+    double serviceU{}, serviceX{}, serviceV{}, serviceY{};
     double penaltyCapacityLS, penaltyDurationLS ;
 
     void setLocalVariablesRouteU(); // Initializes some local variables and distances associated to routeU to avoid always querying the same values in the distance matrix
