@@ -39,7 +39,8 @@ public:
     std::ostringstream oss_row_evol;
     std::ofstream log_solution;
 
-    static Indicators calculate_statistical_indicators(const std::vector<double>& data) ;
+    static Indicators calculate_statistical_indicators(const std::vector<double>& datas);
+    static void calculate_statistical_indicators(const std::vector<double>& data, Indicators& indicators);
     static bool create_directories_if_not_exists(const std::string& directory_path);
     static void stats_for_multiple_trials(const std::string& file_path, const std::vector<double>& data); // open a file, save the statistical info, and then close it
     virtual void open_log_for_evolution() = 0; // open a file

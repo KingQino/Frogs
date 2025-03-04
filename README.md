@@ -11,7 +11,7 @@
 ## Debug
 
 ```sh
-qlogin -pe smp 2 -l h_vmem=16G -l h_rt=1:0:0 -l rocky 
+qlogin -pe smp 2 -l h_vmem=16G -l h_rt=2:0:0 -l rocky 
 ```
 
 ```sh
@@ -32,7 +32,9 @@ The longer it runs, the memory comsued more.
 > run 60 seconds:
 >
 > 1. 127,380,710 bytes allocated
-> 2. 
+> 2. 124,163,570 bytes allocated (20 seconds)
+> 3. 223,184,310 bytes allocated (60 seconds) -> 167,643,882 bytes
+> 4. 
 
 ## Usage
 

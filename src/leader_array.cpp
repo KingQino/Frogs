@@ -89,6 +89,7 @@ void LeaderArray::export_individual(Individual* ind) const {
     int index = 0;
     for (int i = 0; i < this->route_cap; ++i) {
         ind->chromR[i].clear();
+        ind->chromR[i].shrink_to_fit();
         for (int j = 1; j < this->num_nodes_per_route[i] - 1; ++j) {
             ind->chromR[i].push_back(this->routes[i][j]);
             ind->chromT[index++] = this->routes[i][j];
