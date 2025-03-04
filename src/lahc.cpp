@@ -60,7 +60,7 @@ void Lahc::run_heuristic() {
         history_list[v] = candidate_cost < history_cost ? candidate_cost : history_cost;
 
         if (v == 0L) {
-            StatsInterface::calculate_statistical_indicators(history_list, history_list_metrics);
+            history_list_metrics = StatsInterface::calculate_statistical_indicators(history_list);
             flush_row_into_evol_log();
         }
 
