@@ -25,7 +25,7 @@ public:
 
     long iter;                                  // Iteration counter I
     long idle_iter;                             // Idle iteration counter
-    int history_length;                         // LAHC history length Lh
+    long history_length;                        // LAHC history length Lh
     vector<double> history_list;                // Lahc history list L, it holds the objetive values
     std::unique_ptr<Individual> global_best;    // Global best solution found so far
     Indicators history_list_metrics;            // The statistical info of the history list

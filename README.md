@@ -8,7 +8,31 @@
 
 ## Programming Architecture
 
+## Debug
 
+```sh
+qlogin -pe smp 2 -l h_vmem=16G -l h_rt=1:0:0 -l rocky 
+```
+
+```sh
+ml cmake intel valgrind/3.20.0-intel-oneapi-mpi-2021.12.1-oneapi-2024.1.0
+```
+
+```sh
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make valgrind_run
+```
+
+
+
+phenomenon: 
+
+The longer it runs, the memory comsued more.  
+
+> run 60 seconds:
+>
+> 1. 127,380,710 bytes allocated
+> 2. 
 
 ## Usage
 

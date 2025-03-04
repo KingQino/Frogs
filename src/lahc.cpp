@@ -10,9 +10,9 @@ Lahc::Lahc(int seed_val, Case* instance, Preprocessor* preprocessor) : Heuristic
     enable_logging = preprocessor->params.enable_logging;
     stop_criteria = preprocessor->params.stop_criteria;
 
-    iter = 0;
-    idle_iter = 0;
-    history_length = preprocessor->params.history_length;
+    iter = 0L;
+    idle_iter = 0L;
+    history_length = static_cast<long>(preprocessor->params.history_length);
     history_list = vector<double>(history_length);
     current = nullptr;
     global_best = make_unique<Individual>();
@@ -31,13 +31,13 @@ Lahc::~Lahc() {
 }
 
 void Lahc::initialize_heuristic() {
+    delete current;
     current = new Individual(instance, preprocessor);
 
     split->initIndividualWithHienClustering(current);
-    for(int i = 0; i < history_length; ++i)
-        history_list[i] = current->upper_cost.penalised_cost;
-    this->iter = 0;
-    this->idle_iter = 0;
+    history_list.assign(history_length, current->upper_cost.penalised_cost);
+    this->iter = 0L;
+    this->idle_iter = 0L;
 }
 
 void Lahc::run_heuristic() {
@@ -59,7 +59,7 @@ void Lahc::run_heuristic() {
         // update the history list
         history_list[v] = candidate_cost < history_cost ? candidate_cost : history_cost;
 
-        if (v == 0) {
+        if (v == 0L) {
             history_list_metrics = StatsInterface::calculate_statistical_indicators(history_list);
             flush_row_into_evol_log();
         }
@@ -71,7 +71,7 @@ void Lahc::run_heuristic() {
             global_best = std::move(make_unique<Individual>(*current));
         }
 
-    } while (iter < 100'000L || idle_iter < static_cast<long>(static_cast<double>(iter) * 0.2));
+    } while (iter < 100'000L || idle_iter < iter / 5);
 }
 
 void Lahc::run() {
@@ -83,26 +83,19 @@ void Lahc::run() {
         open_log_for_evolution();  // Open log if logging is enabled
     }
 
-    initialize_heuristic();
 
     switch (stop_criteria) {
         case 0:
             while (!stop_criteria_max_evals()) {
+                initialize_heuristic();
                 run_heuristic();
-
-                if (enable_logging) {
-                    flush_row_into_evol_log();
-                }
             }
             break;
         case 1:
             while (!stop_criteria_max_exec_time(duration)) {
+                initialize_heuristic();
                 run_heuristic();
                 duration = std::chrono::high_resolution_clock::now() - start;
-
-                if (enable_logging) {
-                    flush_row_into_evol_log();
-                }
             }
             break;
 
@@ -112,6 +105,7 @@ void Lahc::run() {
     }
 
     if (enable_logging) {
+        flush_row_into_evol_log();
         close_log_for_evolution();  // Close log if logging is enabled
         save_log_for_solution();    // Save the log if logging is enabled
     }
