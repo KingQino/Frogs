@@ -114,3 +114,33 @@ TEST_F(FollowerTest, ConsecutiveRun) {
 //        << instance->calculate_total_dist_follower(follower->lower_routes, follower->num_routes, follower->lower_num_nodes_per_route) << endl;
     }
 }
+
+TEST_F(FollowerTest, SpecialCase_En23k3) {
+    string file_name = "E-n23-k3.evrp";
+    Case instance_E23(file_name);
+    Preprocessor preprocessor_E23(instance_E23, *params);
+    Split split_E23(params->seed, &instance_E23, &preprocessor_E23);
+    LeaderLahc leader_E23(params->seed, &instance_E23, &preprocessor_E23);
+    Follower follower_E23(&instance_E23, &preprocessor_E23);
+
+
+    vector<int> chromT = vector<int>{12, 8, 5, 21, 15, 2, 19, 18, 7, 6, 1, 3, 16, 20, 22, 17, 14, 11, 13, 9, 4, 10};
+
+    Individual ind(&instance_E23, &preprocessor_E23, chromT);
+    ind.chromR[0] = {12, 8, 5, 21, 15, 2, 19, 18, 7, 6, 1, 3, 16, 20, 22, 17, 14, 11};
+    ind.chromR[1] = {13, 9, 4};
+    ind.chromR[2] = {10};
+
+    double upper_cost = instance_E23.calculate_total_dist(ind.chromR);
+//    cout << ind << endl;
+//    cout << upper_cost << endl;
+//    cout << "Max vehicle capacity: " << instance_E23.max_vehicle_capa_ << endl;
+//    cout << instance_E23.calculate_demand_sum(ind.chromR[0]) << endl;
+//    cout << instance_E23.calculate_demand_sum(ind.chromR[1]) << endl;
+//    cout << instance_E23.calculate_demand_sum(ind.chromR[2]) << endl;
+
+    EXPECT_NEAR(upper_cost, 935.405, 0.001);
+    EXPECT_LT(instance_E23.calculate_demand_sum(ind.chromR[0]), instance_E23.max_vehicle_capa_);
+    EXPECT_LT(instance_E23.calculate_demand_sum(ind.chromR[1]), instance_E23.max_vehicle_capa_);
+    EXPECT_LT(instance_E23.calculate_demand_sum(ind.chromR[2]), instance_E23.max_vehicle_capa_);
+}

@@ -33,8 +33,12 @@ The longer it runs, the memory comsued more.
 >
 > 1. 127,380,710 bytes allocated
 > 2. 124,163,570 bytes allocated (20 seconds)
-> 3. 223,184,310 bytes allocated (60 seconds) -> 167,643,882 bytes -> 167,643,882 bytes allocated
+> 3. 223,184,310 bytes allocated (60 seconds) -> 167,643,882 bytes -> 167,643,882 bytes allocated -> 167,623,449 bytes allocated (turn off logging)
 > 4. 
+
+E-n23-k3 is a special case, 只有一个顾客的需求量特别大(4100)几乎达到汽车容量的上限（4500）,然而其他顾客的需求量都比较小。
+
+
 
 ## Usage
 
