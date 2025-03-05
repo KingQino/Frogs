@@ -2,41 +2,68 @@
 
 
 
-## Intro
+## Debug & Obvservation
 
+1. open an interactive job, login in a specific node
 
+   ```sh
+   qlogin -pe smp 2 -l h_vmem=16G -l h_rt=1:0:0 -l rocky 
+   ```
 
-## Programming Architecture
+   ```sh
+   ml cmake intel valgrind/3.20.0-intel-oneapi-mpi-2021.12.1-oneapi-2024.1.0
+   ```
 
-## Debug
+2. make some changes at  `CMakeLists.txt` and `preprocessor.cpp`
 
-```sh
-qlogin -pe smp 2 -l h_vmem=16G -l h_rt=2:0:0 -l rocky 
-```
+   ```cmake
+   # Custom target to run Valgrind with algorithm arguments
+   add_custom_target(valgrind_run
+           COMMAND valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 --log-file=valgrind_run.log
+           ./Run -alg lahc -ins X-n916-k207.evrp -log 1 -stp 1 -mth 0
+           DEPENDS Run
+           COMMENT "Running Valgrind on executable Run with algorithm parameters..."
+   )
+   ```
 
-```sh
-ml cmake intel valgrind/3.20.0-intel-oneapi-mpi-2021.12.1-oneapi-2024.1.0
-```
+   ```c++
+   max_exec_time_ = 20; // 20 seconds
+   ```
 
-```sh
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make valgrind_run
-```
+3. run __valgrind__
 
+   ```sh
+   cmake -DCMAKE_BUILD_TYPE=Release ..
+   make valgrind_run
+   ```
 
+4. check memory usage
 
-phenomenon: 
+   ```sh
+   # Apocrita
+   jobstats
+   
+   # Sulis
+   sacct -j 1087552 --format=JobID,JobName,Partition,AllocCPUs,MaxRSS,ReqMem,Elapsed,State
+   ```
 
-The longer it runs, the memory comsued more.  
+   
 
-> run 60 seconds:
+Bug-fix log:
+
+> memory leak and explosion have been solved.
 >
-> 1. 127,380,710 bytes allocated
-> 2. 124,163,570 bytes allocated (20 seconds)
-> 3. 223,184,310 bytes allocated (60 seconds) -> 167,643,882 bytes -> 167,643,882 bytes allocated -> 167,623,449 bytes allocated (turn off logging)
-> 4. 
-
-E-n23-k3 is a special case, 只有一个顾客的需求量特别大(4100)几乎达到汽车容量的上限（4500）,然而其他顾客的需求量都比较小。
+> Case 1: The longer the algorithm runs, the memory it comsumes more.  => memory leak and explosion
+>
+> - run 20 seconds
+>
+>   124,163,570 bytes allocated
+>
+> - run 60 seconds
+>
+>   223,184,310 bytes allocated -> 167,643,882 bytes (vector shrink_to_fit)  -> 167,643,882 bytes allocated () -> 167,623,449 bytes allocated (turn off logging)
+>
+> - `E-n23-k3` is a special instance where a single customer has an exceptionally high demand (4100), nearly reaching the vehicle’s capacity limit (4500), while the demands of all other customers remain relatively low.
 
 
 
@@ -45,18 +72,14 @@ E-n23-k3 is a special case, 只有一个顾客的需求量特别大(4100)几乎�
 1. First step - compile
 
    ```sh
-   git clone -b main git@github.com:KingQino/Frogs.git
+   git clone -b main git@github.com:KingQino/Frogs.git main
    ```
 
-   Apocrita:
-
    ```sh
-   ml load cmake/3.23.1 gcc/12.1.0 openmpi/4.1.4-gcc
-   ```
-
-   Sulis:
-
-   ```sh
+   # Apocrita
+   ml load cmake gcc openmpi
+   
+   # Sulis
    ml load CMake/3.18.4 GCC/13.2.0
    ```
 
@@ -65,14 +88,28 @@ E-n23-k3 is a special case, 只有一个顾客的需求量特别大(4100)几乎�
    cmake -DCMAKE_BUILD_TYPE=Release ..
    make
    ```
-
+   
 2. Second step - run
 
    ```shell
-   ./Run 1 E-n22-k4.evrp 1 0
+   ./Run -alg lahc -ins E-n22-k4.evrp -log 1 -stp 1 -mth 1
    
-   # Explanation
-   # ./Run <algorithm: 0 for CBMA, 1 for LAHC> <problem_instance_filename> <stop_criteria: 0 for max-evals, 1 for max-time> <multithreading: 0 for yes>
+   '
+   -------------------------------------------------- Parameters Instruction  --------------------------------------------------
+   Usage: ./Run [options]
+   Options:
+     -alg [enum]                  : Algorithm name (e.g., Cbma, Lahc)
+     -ins [filename]              : Problem instance filename
+     -log [0|1]                   : Enable logging (default: 0)
+     -stp [0|1|2]                 : Stopping criteria, 0: max-evals, 1: max-time, 2: obj-converge (default: 0)
+     -mth [0|1]                   : Enable multi-threading (default: 1)
+     -seed [int]                  : Random seed (default: 0)
+     -nb_granular [int]           : Granular search parameter (default: 20)
+     -is_hard_constraint [0|1]    : Whether to use hard constraint (default: 1)
+     -is_duration_constraint [0|1]: Whether to consider duration constraint (default: 0)
+     -history_length [int]        : LAHC history length (default: 5000)
+   -----------------------------------------------------------------------------------------------------------------------------
+   '
    ```
 
 3. Hpc - run
@@ -324,4 +361,117 @@ E-n23-k3 is a special case, 只有一个顾客的需求量特别大(4100)几乎�
 
    
 
-   
+
+## Programming Architecture
+
+- Data Handling Layer
+
+  - `Case`: Stores **raw CEVRP instance data**
+  - `Preprocessor`: Computes **preprocessed data**, used in the optimisation process
+  - `Individual`: Stores **solutions** (routes for vehicles).
+
+- Optimisation Layer
+
+  - `Split`: Transfer chromsome into upper-level subsolution
+
+  - `Leader`: Optimizes **route structures**, ensuring **vehicle capacity feasibility** but **ignores charging decisions**, i.e., `Localsearch`
+  - `Follower`: Makes **charging decisions**, ensuring **route feasibility for electric vehicles** while maintaining the given path.
+
+- Heuristic Algorithm Layer
+
+  - `HeuristicInterface`: Abstract class defining the structure for **heuristic algorithms**.
+  - `Ma`: evolutionary optimisation
+  - `Lahc`: single-point based algorithm
+
+- Statistical Analysis Layer
+
+  - `StatsInterface`: Provides methods for **tracking algorithm performance**, recording iteration details, and analyzing convergence.
+
+- Command-Line Interface
+
+  - `CommandLine`: Parses **runtime parameters** (e.g., `-nbGranular 20`, `-maxIter 1000`, `-algorithm Ma`).
+  - `Parameters`: parse arguments from command line to the parameters. 
+
+---
+
+- How does `Individual`  interact with <u>Optimisation Layer</u>?
+
+  `Individual` contains members:
+
+  - chromosome (`chromT`)
+
+  - upper solution (`chromR`)
+
+  - CostSol (penalisedCost, nbRoutes, distance, capacityExcess, durationExcess)
+
+  - Lower_cost
+
+    > `Lahc` only use the above 5 members, but `Ma` will use all these members
+
+  - successors
+
+  - predecessors
+
+  - indivsPerProximity
+
+  - isFeasible
+
+  - biasedFitness
+
+  > Initiased `Individual` => contains chromT
+  >
+  > - `Split` => chromR and CostSol
+  > - `LocalSearch` => chromT, chromR, CostSol
+  >   - Linked list
+  >   - Import and export
+  >   - export to `Follower` data structure
+  > - `Follower` => lower_cost
+  >   - int** lower_routes;
+  >   - import and export
+
+- how to advoid some moves that have been already tested without improvement?
+
+  - In `Lahc`, temporarily ignore it.
+  - In `Ma`, we can consider to use it!
+
+- how to make the lower-level optimisation?
+
+  - In `Follower`, load individual to its data structure, then optimising. in the end, the updated cost is exported to the `Inidivual`
+    - int ** lower_routes;
+    - int * lower_num_nodes_per_routes;
+    - double lower_cost;
+  - To output the final result, we just need to make the lower-level optimisation to the `Individual` upper-level solution again, and then we can get the exactly same solution. 
+
+- In `Lahc`, it's very resource-comsuing for making charging decision, so maybe we can remove some unnecessary lower-level optimisation. 
+
+  - No lower-level optimisation in the first $n * L_h$ iterations, based on the assumption that the solution  has not converge enough, and the upper-level soluton is positively related to the lower-level solution. 
+  - if current solution upper cost ($\mathbf{x}^u$) is less than $\eta$ multiplied by the best upper cost so far ($\eta \cdot \mathbf{x}^u_g$) , then make the lower-level optimisation. 
+
+- In `Lahc`, how to make moves and update the current solution?
+
+  - we don't need to copy current solution and make the lower-level optimisation, what we need is just make updates on the current solution itself.
+
+---
+
+- `Leader` implementation details
+
+  1. randomly select node U
+  2. randomly select node V from the correlated vertices of U
+  3. randomly select a move from the 9 moves
+     - if `routU` = `routeV`, then M1-7. 
+       - No need to check vehicle capacity constraints
+       - Or to be consisent with the current Lahc, only M1, M4, M7
+     - if `routeU` != `routeV`, then M1-6, M8, M9
+       - Or to be consistent with the current Lahc, only M1, M4, M8, M9
+       - If not satisfy the vehicle capacity constraint, then don't move
+     - If consective 10 times, no improvement, then finished 
+  4. apply the move, change the acceptance criteria
+
+  > - For each move, the cost change should be tracked
+  > - For each move, it should have two outputs:
+  >   - only the objective cost (upper-cost), just taken from the `Leader`
+  >   - Indvidual (especially `chromR`) , so we can apply the lower-level optimisation
+  > - When there are some empty routes, set node V as the depot of the empty route, then M1, 2, 3 and 9 can be applied. In this case, a route will be created.
+  > - If node V is depot,  then we can apply M1, 2, 3, 8, 9. 
+
+  

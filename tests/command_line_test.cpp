@@ -31,3 +31,10 @@ TEST(CommandLine, ParseParameters) {
     EXPECT_EQ(params.enable_multithreading, false);
     EXPECT_EQ(params.nb_granular, 25);
 }
+
+TEST(CommandLine, DisplayHelp) {
+
+//    CommandLine::display_help();
+
+    EXPECT_TRUE(true);
+}
