@@ -34,7 +34,7 @@ void Lahc::initialize_heuristic() {
     delete current;
     current = new Individual(instance, preprocessor);
 
-    split->initIndividualWithHienClustering(current);
+    split->initIndividualWithDirectEncoding(current);
     history_list.assign(history_length, current->upper_cost.penalised_cost);
     this->iter = 0L;
     this->idle_iter = 0L;
