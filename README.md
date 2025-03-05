@@ -264,7 +264,8 @@ Bug-fix log:
      #!/bin/bash
      
      # Slurm job options (job-name, compute nodes, job time)
-     #SBATCH --job-name=Lahc-$dir                             # Job name set to the parent directory name
+     #SBATCH --partition=compute                            # Use compute partition - all CPU nodes are the same
+     #SBATCH --job-name=L-$dir                              # Job name set to the parent directory name
      #SBATCH --output=$(pwd)/$log_dir/slurm-%A_%a.out       # Output log file path in the log folder
      #SBATCH --time=48:0:0                                  # Request 48 hours of compute time
      #SBATCH --nodes=1                                      # Request 1 node
