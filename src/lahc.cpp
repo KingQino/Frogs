@@ -32,9 +32,10 @@ Lahc::~Lahc() {
 
 void Lahc::initialize_heuristic() {
     delete current;
-    current = new Individual(instance, preprocessor);
-
-    split->initIndividualWithHienClustering(current);
+    vector<int> chromT(preprocessor->customer_ids_);
+    std::shuffle(chromT.begin(), chromT.end(), random_engine);
+    current = new Individual(instance, preprocessor, chromT);
+    split->generalSplit(current, preprocessor->route_cap_);
     history_list.assign(history_length, current->upper_cost.penalised_cost);
     this->iter = 0L;
     this->idle_iter = 0L;

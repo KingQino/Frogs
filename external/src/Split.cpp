@@ -89,12 +89,12 @@ int Split::splitSimple(Individual * indiv)
     if (potential[0][instance->num_customer_] > 1.e29)
         throw std::string("ERROR : no Split solution has been propagated until the last node");
 
-    // Filling the chromR structure
-    for (int k = preprocessor->route_cap_ - 1; k >= maxVehicles; k--)
+    // Clear unnecessary routes
+    for (int k = maxVehicles; k < preprocessor->route_cap_; ++k)
         indiv->chromR[k].clear();
 
     int end = instance->num_customer_;
-    for (int k = maxVehicles - 1; k >= 0; k--)
+    for (int k = 0; k < maxVehicles; ++k)  // Change from descending to ascending
     {
         indiv->chromR[k].clear();
         int begin = pred[0][end];
