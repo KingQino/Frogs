@@ -104,6 +104,7 @@ bool LeaderArray::is_accepted(const double &change) const {
     return upper_cost + change < history_cost || change <= -MY_EPSILON;
 }
 
+
 bool LeaderArray::two_opt_for_single_route(int* route, int length) {
     if (length < 5) return false;
 
@@ -111,20 +112,22 @@ bool LeaderArray::two_opt_for_single_route(int* route, int length) {
 
     std::uniform_int_distribution<int> distI(1, length - 3);
     int i = distI(random_engine);
-    std::uniform_int_distribution<int> distJ(i + 1, length - 2);
-    int j = distJ(random_engine);
 
-    // Calculate the cost difference between the old route and the new route obtained by swapping arcs
-    double original_cost = instance->get_distance(route[i - 1], route[i]) + instance->get_distance(route[j], route[j + 1]);
-    double modified_cost = instance->get_distance(route[i - 1], route[j]) + instance->get_distance(route[i], route[j + 1]);
+    double original_cost, modified_cost;
+    for (int j = i + 1; j < length - 1; ++j) {
+        // Calculate the cost difference between the old route and the new route obtained by swapping arcs
+        original_cost = instance->get_distance(route[i - 1], route[i]) + instance->get_distance(route[j], route[j + 1]);
+        modified_cost = instance->get_distance(route[i - 1], route[j]) + instance->get_distance(route[i], route[j + 1]);
 
-    double change = modified_cost - original_cost; // negative represents the cost reduction
-    if (is_accepted(change)) {
-        // update current solution
-        reverse(route + i, route + j + 1);
-        upper_cost += change;
+        double change = modified_cost - original_cost; // negative represents the cost reduction
+        if (is_accepted(change)) {
+            // update current solution
+            reverse(route + i, route + j + 1);
+            upper_cost += change;
 
-        isAccept = true;
+            isAccept = true;
+            break;
+        }
     }
 
     return isAccept;
@@ -295,38 +298,35 @@ bool LeaderArray::node_relocation_for_single_route(int *route, int length) {
 
     std::uniform_int_distribution<int> dist(1, length - 2);
     int i = dist(random_engine);
-    bool isDiffNode = false;
-    int j;
-    while (!isDiffNode) {
-        j = dist(random_engine);
-        if (i != j) {
-            isDiffNode = true;
-        }
-    }
 
     double original_cost, modified_cost;
-    if (i < j) {
-        original_cost = instance->get_distance(route[i - 1], route[i]) +
-                        instance->get_distance(route[i], route[i + 1]) +
-                        instance->get_distance(route[j], route[j + 1]);
-        modified_cost = instance->get_distance(route[i - 1], route[i + 1]) +
-                        instance->get_distance(route[j], route[i]) +
-                        instance->get_distance(route[i], route[j + 1]);
-    } else {
-        original_cost = instance->get_distance(route[i - 1], route[i]) +
-                        instance->get_distance(route[i], route[i + 1]) +
-                        instance->get_distance(route[j - 1], route[j]);
-        modified_cost = instance->get_distance(route[j - 1], route[i]) +
-                        instance->get_distance(route[i], route[j]) +
-                        instance->get_distance(route[i - 1], route[i + 1]);
-    }
+    for (int j = 1; j < length - 1; j++) {
+        if (i == j) continue;
 
-    double change = modified_cost - original_cost;
-    if (is_accepted(change)) {
-        moveItoJ(route, i, j);
-        upper_cost += change;
+        if (i < j) {
+            original_cost = instance->get_distance(route[i - 1], route[i]) +
+                            instance->get_distance(route[i], route[i + 1]) +
+                            instance->get_distance(route[j], route[j + 1]);
+            modified_cost = instance->get_distance(route[i - 1], route[i + 1]) +
+                            instance->get_distance(route[j], route[i]) +
+                            instance->get_distance(route[i], route[j + 1]);
+        } else {
+            original_cost = instance->get_distance(route[i - 1], route[i]) +
+                            instance->get_distance(route[i], route[i + 1]) +
+                            instance->get_distance(route[j - 1], route[j]);
+            modified_cost = instance->get_distance(route[j - 1], route[i]) +
+                            instance->get_distance(route[i], route[j]) +
+                            instance->get_distance(route[i - 1], route[i + 1]);
+        }
 
-        isAccept = true;
+        double change = modified_cost - original_cost;
+        if (is_accepted(change)) {
+            moveItoJ(route, i, j);
+            upper_cost += change;
+
+            isAccept = true;
+            break;
+        }
     }
 
     return isAccept;
