@@ -8,6 +8,7 @@
 #include "case.hpp"
 #include "preprocessor.hpp"
 #include "individual.hpp"
+#include "solution.hpp"
 
 class LeaderArray {
 public:
@@ -26,10 +27,13 @@ public:
     double upper_cost;
     double history_cost;
 
+    void clean();
     void run(Individual* ind);
     void neighbour_explore(const double& history_val);
     void load_individual(Individual* ind);
     void export_individual(Individual* ind) const;
+    void load_solution(Solution* sol);
+    void export_solution(Solution* sol) const;
     LeaderArray(int seed_val, Case* instance, Preprocessor* preprocessor);
     ~LeaderArray();
 

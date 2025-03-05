@@ -39,6 +39,10 @@ set(DEPENDENCIES
         external/include/magic_enum.hpp
         include/leader_array.hpp
         src/leader_array.cpp
+        include/solution.hpp
+        src/solution.cpp
+        include/initializer.hpp
+        src/initializer.cpp
 )
 
 add_executable(Run main.cpp ${DEPENDENCIES})

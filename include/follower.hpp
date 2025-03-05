@@ -8,6 +8,7 @@
 #include "case.hpp"
 #include "preprocessor.hpp"
 #include "individual.hpp"
+#include "solution.hpp"
 #include <list>
 #include <stack>
 
@@ -48,10 +49,14 @@ public:
                                                    int cur_upper_bound, int* route, int length, vector<double>& accumulated_distance) const;
 
 
+    void clean();
     void refine(Individual* ind);
     void run(Individual* ind);
     void load_individual(const Individual* ind);
     void export_individual(Individual* ind) const;
+    void run(Solution* sol);
+    void load_solution(const Solution* sol);
+    void export_solution(Solution* sol) const;
     Follower(Case* instance, Preprocessor* preprocessor);
     ~Follower();
 

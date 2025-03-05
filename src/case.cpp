@@ -198,6 +198,19 @@ double Case::compute_total_distance(const vector<int> &route) const {
     return tour_length;
 }
 
+vector<int> Case::compute_demand_sum_per_route(const vector<vector<int>> &routes) const {
+    vector<int> demand_sum_per_route;
+    for (auto & route : routes) {
+        int temp = 0;
+        for (const int node : route) {
+            temp += get_customer_demand_(node);
+        }
+        demand_sum_per_route.push_back(temp);
+    }
+
+    return demand_sum_per_route;
+}
+
 bool Case::is_charging_station(const int node) const {
     bool flag;
     if (node == depot_ || ( node >= num_depot_ + num_customer_ && node < problem_size_))

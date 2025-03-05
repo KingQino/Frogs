@@ -18,7 +18,6 @@ LeaderArray::LeaderArray(int seed_val, Case *instance, Preprocessor *preprocesso
         this->routes[i] = new int[node_cap];
         memset(this->routes[i], 0, sizeof(int) * node_cap);
     }
-    this->num_routes = 0;
     this->num_nodes_per_route = new int[route_cap];
     memset(this->num_nodes_per_route, 0, sizeof(int) * route_cap);
     this->demand_sum_per_route = new int [route_cap];
@@ -32,6 +31,18 @@ LeaderArray::~LeaderArray() {
     delete[] routes;
     delete[] num_nodes_per_route;
     delete[] demand_sum_per_route;
+}
+
+void LeaderArray::clean() {
+    this->num_routes = 0;
+    this->upper_cost = 0.;
+    this->history_cost = 0.;
+
+    memset(this->num_nodes_per_route, 0, sizeof(int) * this->route_cap);
+    memset(this->demand_sum_per_route, 0, sizeof(int) * this->route_cap);
+    for (int i = 0; i < this->route_cap; ++i) {
+        memset(this->routes[i], 0, sizeof(int) * this->node_cap);
+    }
 }
 
 void LeaderArray::run(Individual* ind) {
@@ -63,12 +74,30 @@ void LeaderArray::neighbour_explore(const double& history_val) {
     }
 }
 
-void LeaderArray::load_individual(Individual* ind) {
-    memset(this->num_nodes_per_route, 0, sizeof(int) * this->route_cap);
-    memset(this->demand_sum_per_route, 0, sizeof(int) * this->route_cap);
-    for (int i = 0; i < this->route_cap; ++i) {
-        memset(this->routes[i], 0, sizeof(int) * this->node_cap);
+void LeaderArray::load_solution(Solution* sol) {
+    clean();
+
+    this->upper_cost = sol->upper_cost;;
+    this->num_routes = sol->num_routes;
+    memcpy(this->num_nodes_per_route, sol->num_nodes_per_route, sizeof(int) * sol->route_cap);
+    memcpy(this->demand_sum_per_route, sol->demand_sum_per_route, sizeof(int) * sol->route_cap);
+    for (int i = 0; i < sol->route_cap; ++i) {
+        memcpy(this->routes[i], sol->routes[i], sizeof(int) * sol->node_cap);
     }
+}
+
+void LeaderArray::export_solution(Solution* sol) const {
+    sol->upper_cost = this->upper_cost;
+    sol->num_routes = this->num_routes;
+    memcpy(sol->num_nodes_per_route, this->num_nodes_per_route, sizeof(int) * this->route_cap);
+    memcpy(sol->demand_sum_per_route, this->demand_sum_per_route, sizeof(int) * this->route_cap);
+    for (int i = 0; i < this->route_cap; ++i) {
+        memcpy(sol->routes[i], this->routes[i], sizeof(int) * this->node_cap);
+    }
+}
+
+void LeaderArray::load_individual(Individual* ind) {
+    clean();
 
     // The individual loaded should have several consecutive routes from index 0 to num_routes - 1
     this->upper_cost = ind->upper_cost.penalised_cost;
