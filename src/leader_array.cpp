@@ -41,26 +41,47 @@ void LeaderArray::run(Individual* ind) {
 void LeaderArray::neighbour_explore(const double& history_val) {
     history_cost = history_val;
 
-    switch (uniform_int_dis(random_engine)) {
-        case 0:
-            two_opt_intra_for_individual();
-            break;
-        case 1:
-            two_opt_inter_for_individual();
-            break;
-        case 2:
-            node_relocation_intra_for_individual();
-            break;
-        case 3:
-            node_relocation_inter_for_individual();
-            break;
-        case 4:
-            node_exchange_intra_for_individual();
-            break;
-        case 5:
-            node_exchange_inter_for_individual();
-            break;
+    uniform_int_distribution<int> route1_dis = std::uniform_int_distribution<int>(0, num_routes - 1); // all possible non-empty routes
+    uniform_int_distribution<int> route2_dis = std::uniform_int_distribution<int>(0, num_routes);     // possibly involve empty route
+
+    int r1 = route1_dis(random_engine);
+    int r2 = route2_dis(random_engine);
+    if (r1 == r2) {
+        // intra-route move
+        // M1, M4, M7
+
+    } else {
+        // inter-route move
+
+        if (num_nodes_per_route[r2] != 0) {
+            // if the route 2 is not empty, we can do the normal inter-route move
+        } else {
+            // if the route 2 is empty, then the inter-route move involves the empty route
+
+        }
     }
+
+
+//    switch (uniform_int_dis(random_engine)) {
+//        case 0:
+//            two_opt_intra_for_individual();
+//            break;
+//        case 1:
+//            two_opt_inter_for_individual();
+//            break;
+//        case 2:
+//            node_relocation_intra_for_individual();
+//            break;
+//        case 3:
+//            node_relocation_inter_for_individual();
+//            break;
+//        case 4:
+//            node_exchange_intra_for_individual();
+//            break;
+//        case 5:
+//            node_exchange_inter_for_individual();
+//            break;
+//    }
 }
 
 void LeaderArray::load_individual(Individual* ind) {
@@ -102,6 +123,81 @@ void LeaderArray::export_individual(Individual* ind) const {
 
 bool LeaderArray::is_accepted(const double &change) const {
     return upper_cost + change < history_cost || change <= -MY_EPSILON;
+}
+
+bool LeaderArray::move1_intra(int* route, int length) {
+    if (length <= 4) return false;
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> dist(1, length - 2);
+    int i = dist(random_engine);
+
+    double original_cost, modified_cost;
+    for (int j = 1; j < length - 1; j++) {
+        if (i == j) continue;
+
+        if (i < j) {
+            original_cost = instance->get_distance(route[i - 1], route[i]) +
+                            instance->get_distance(route[i], route[i + 1]) +
+                            instance->get_distance(route[j], route[j + 1]);
+            modified_cost = instance->get_distance(route[i - 1], route[i + 1]) +
+                            instance->get_distance(route[j], route[i]) +
+                            instance->get_distance(route[i], route[j + 1]);
+        } else {
+            original_cost = instance->get_distance(route[i - 1], route[i]) +
+                            instance->get_distance(route[i], route[i + 1]) +
+                            instance->get_distance(route[j - 1], route[j]);
+            modified_cost = instance->get_distance(route[j - 1], route[i]) +
+                            instance->get_distance(route[i], route[j]) +
+                            instance->get_distance(route[i - 1], route[i + 1]);
+        }
+
+        double change = modified_cost - original_cost;
+        if (is_accepted(change)) {
+            moveItoJ(route, i, j);
+            upper_cost += change;
+
+            has_moved = true;
+            break;
+        }
+    }
+
+    return has_moved;
+}
+
+bool LeaderArray::move4_intra(int* route, int length) {
+    if (length < 5) return false;
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> distI(1, length - 3);
+    int i = distI(random_engine);
+    double original_cost, modified_cost, change;
+    for (int j = i + 1; j < length - 1; ++j) {
+        if (j == i + 1) {
+            original_cost = instance->get_distance(route[i - 1], route[i]) + instance->get_distance(route[j], route[j + 1]);
+            modified_cost = instance->get_distance(route[i - 1], route[j]) + instance->get_distance(route[i], route[j + 1]);
+            change = modified_cost - original_cost;
+        } else {
+            original_cost = instance->get_distance(route[i - 1], route[i]) + instance->get_distance(route[i], route[i + 1])
+                            + instance->get_distance(route[j - 1], route[j]) + instance->get_distance(route[j], route[j + 1]);
+            modified_cost = instance->get_distance(route[i - 1], route[j]) + instance->get_distance(route[j], route[i + 1])
+                            + instance->get_distance(route[j - 1], route[i]) + instance->get_distance(route[i], route[j + 1]);
+
+            change = modified_cost - original_cost;
+        }
+
+        if (is_accepted(change)) {
+            swap(route[i], route[j]);
+            upper_cost += change;
+
+            has_moved = true;
+            break;
+        }
+    }
+
+    return has_moved;
 }
 
 bool LeaderArray::two_opt_for_single_route(int* route, int length) {
