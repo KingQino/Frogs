@@ -1,6 +1,13 @@
 # Frogs
 
+- runtime environment:
 
+  > Calculations were performed using the __Sulis__ Tier 2 HPC platform hosted by the Scientific Computing Research Technology Platform at the University of Warwick. Sulis is funded by EPSRC Grant EP/T022108/1 and the HPC Midlands+ consortium.
+
+  - CPU: AMD EPYC 7742 (Rome) 2.25 GHz
+  - Memory request: 350MB (instance X-n916 - 314424K - LAHC)
+
+- a
 
 ## Debug & Obvservation
 
