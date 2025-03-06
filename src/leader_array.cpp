@@ -462,32 +462,37 @@ bool LeaderArray::node_relocation_inter_for_individual() {
 }
 
 bool LeaderArray::node_exchange_for_single_route(int *route, int length) {
-    if (length < 6) return false;
+    if (length < 5) return false;
 
-    bool isAccept = false;
+    bool isAccepted = false;
 
-    std::uniform_int_distribution<int> distI(1, length - 4);
+    std::uniform_int_distribution<int> distI(1, length - 3);
     int i = distI(random_engine);
-    double original_cost, modified_cost;
-    // TODO: 考虑去掉这个for loop
-    for (int j = i + 2; j < length - 1; ++j) {
-        original_cost = instance->get_distance(route[i - 1], route[i]) + instance->get_distance(route[i], route[i + 1])
-                        + instance->get_distance(route[j - 1], route[j]) + instance->get_distance(route[j], route[j + 1]);
-        modified_cost = instance->get_distance(route[i - 1], route[j]) + instance->get_distance(route[j], route[i + 1])
-                        + instance->get_distance(route[j - 1], route[i]) + instance->get_distance(route[i], route[j + 1]);
+    double original_cost, modified_cost, change;
+    for (int j = i + 1; j < length - 1; ++j) {
+        if (j == i + 1) {
+            original_cost = instance->get_distance(route[i - 1], route[i]) + instance->get_distance(route[j], route[j + 1]);
+            modified_cost = instance->get_distance(route[i - 1], route[j]) + instance->get_distance(route[i], route[j + 1]);
+            change = modified_cost - original_cost;
+        } else {
+            original_cost = instance->get_distance(route[i - 1], route[i]) + instance->get_distance(route[i], route[i + 1])
+                            + instance->get_distance(route[j - 1], route[j]) + instance->get_distance(route[j], route[j + 1]);
+            modified_cost = instance->get_distance(route[i - 1], route[j]) + instance->get_distance(route[j], route[i + 1])
+                            + instance->get_distance(route[j - 1], route[i]) + instance->get_distance(route[i], route[j + 1]);
 
-        double change = modified_cost - original_cost;
+            change = modified_cost - original_cost;
+        }
+
         if (is_accepted(change)) {
             swap(route[i], route[j]);
             upper_cost += change;
 
-            isAccept = true;
+            isAccepted = true;
             break;
         }
-
     }
 
-    return isAccept;
+    return isAccepted;
 }
 
 bool LeaderArray::node_exchange_intra_for_individual() {
