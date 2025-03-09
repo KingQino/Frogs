@@ -71,6 +71,54 @@ Bug-fix log:
 >   223,184,310 bytes allocated -> 167,643,882 bytes (vector shrink_to_fit)  -> 167,643,882 bytes allocated () -> 167,623,449 bytes allocated (turn off logging)
 >
 > - `E-n23-k3` is a special instance where a single customer has an exceptionally high demand (4100), nearly reaching the vehicle’s capacity limit (4500), while the demands of all other customers remain relatively low.
+>
+> Case 2: Init with Direct Encoding in instance `E-n30-k3` got wrong solutions (3 days)
+>
+> - 345.95 -> much lower than the BKS -> but for all other instances, perform normally 
+>
+> - Try to locate the bug, in the process of following `Leader` -> num_routes is not match with the real routes
+>
+>   ```
+>   Route Capacity: 12
+>   Node Capacity: 58
+>   Number of Routes: 3
+>   Upper Cost: 1750.83
+>   Number of Nodes per route (upper): 10 15 2 0 0 0 0 0 0 0 0 0
+>   Demand sum per route: 4475 4425 0 0 0 0 0 0 0 0 0 0
+>   Upper Routes:
+>   Route 0: 0 2 5 3 15 17 14 22 13 0 0 0 0 0 0...
+>   Route 1: 0 16 6 23 9 27 26 12 21 8 4 18 1 24 0 0...
+>   Route 2: 0 0 0 0 0...
+>   Route 3: 0 0 0 0 0...
+>   ...
+>   Route 11: 0 0 0 0 0...
+>   ```
+>
+> - In the `Lahc`, try to check the initialisation with direct encoding in the` initialize_heuristic()` function
+>
+>   ```
+>   ChromT: 2 5 3 15 17 14 22 13 16 6 23 9 27 26 12 21 8 4 18 1 24 11 29 28 7 20 10 19 25 
+>   ChromR: 
+>     Route 0: 2 5 3 15 17 14 22 13 
+>     Route 1: 16 6 23 9 27 26 12 21 8 4 18 1 24 
+>     Route 2: 
+>     Route 3: 11 29 28 7 20 10 19 25 
+>     Route 4: 
+>     ...
+>     Route 11:
+>   Upper Cost: 
+>     Penalised Cost: 1750.83
+>     Number of Routes: 3
+>     Distance: 1750.83
+>     Capacity Excess: 0
+>     Duration Excess: 0
+>   Is Upper Feasible: 1
+>   Lower Cost: 0
+>   ```
+>
+> - Locate the issue in the `Split->initIndividualWithHienClustering`, fix it.
+>
+> 
 
 
 
