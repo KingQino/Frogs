@@ -488,6 +488,8 @@ bool LeaderArray::move8_inter(int* route1, int* route2, int& length1, int& lengt
     // Case when length2 > 0, i.e., length2 >= 3, i.e., route2 is not empty
     int partial_dem_r2 = 0;
     for (int n2 = 0; n2 < length2 - 1; ++n2) {
+        if (n1 == 0 && n2 == 0) continue; // n1 == 0 && n2 == 0, two routes no need to swap
+
         partial_dem_r2 += instance->get_customer_demand_(route2[n2]);
 
         if (partial_dem_r1 + loading2 - partial_dem_r2 > instance->max_vehicle_capa_ || partial_dem_r2 + loading1 - partial_dem_r1 > instance->max_vehicle_capa_) continue;
