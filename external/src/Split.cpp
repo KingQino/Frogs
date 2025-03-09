@@ -371,6 +371,7 @@ void Split::initIndividualWithDirectEncoding(Individual* ind) {
         route.push_back(next);
 
         if (next == instance->depot_) {
+            if (cur == instance->depot_) continue; // fix-bug
             all_routes.push_back(route);
             vehicle_idx += 1;
             route = {0};
