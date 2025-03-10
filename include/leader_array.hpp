@@ -40,7 +40,8 @@ public:
 
     void clean_empty_routes(int r1, int r2); // clean possible empty routes after move
     bool perform_intra_move(const std::function<bool(int*, int)>& move_func, int* route, int length) const;
-    bool perform_inter_move(const std::function<bool(int*, int*, int&, int&, int&, int&)>& move_func, int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool perform_inter_move(const std::function<bool(int*, int*, int&, int&, int&, int&)>& move_func,
+                            int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2, int r1, int r2);
 
     static void moveItoJ(int* route, int a, int b);
     [[nodiscard]] bool is_accepted(const double& change) const;

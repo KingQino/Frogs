@@ -75,22 +75,22 @@ void LeaderArray::neighbour_explore(const double& history_val) {
                 case 0:
                     perform_inter_move([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
                         return move1_inter(route1, route2, length1, length2, loading1, loading2);
-                    }, routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2], demand_sum_per_route[r1], demand_sum_per_route[r2]);
+                    }, routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2], demand_sum_per_route[r1], demand_sum_per_route[r2], r1, r2);
                     return;
                 case 1:
                     perform_inter_move([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
                         return move4_inter(route1, route2, length1, length2, loading1, loading2);
-                    }, routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2], demand_sum_per_route[r1], demand_sum_per_route[r2]);
+                    }, routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2], demand_sum_per_route[r1], demand_sum_per_route[r2], r1, r2);
                     return;
                 case 2:
                     perform_inter_move([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
                         return move8_inter(route1, route2, length1, length2, loading1, loading2);
-                    }, routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2], demand_sum_per_route[r1], demand_sum_per_route[r2]);
+                    }, routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2], demand_sum_per_route[r1], demand_sum_per_route[r2], r1, r2);
                     return;
                 case 3:
                     perform_inter_move([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
                         return move9_inter(route1, route2, length1, length2, loading1, loading2);
-                    }, routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2], demand_sum_per_route[r1], demand_sum_per_route[r2]);
+                    }, routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2], demand_sum_per_route[r1], demand_sum_per_route[r2], r1, r2);
                     return;
             }
         } else {
@@ -100,17 +100,17 @@ void LeaderArray::neighbour_explore(const double& history_val) {
                 case 0:
                     perform_inter_move([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
                         return move1_inter(route1, route2, length1, length2, loading1, loading2);
-                    }, routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2], demand_sum_per_route[r1], demand_sum_per_route[r2]);
+                    }, routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2], demand_sum_per_route[r1], demand_sum_per_route[r2], r1, r2);
                     return;
                 case 1:
                     perform_inter_move([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
                         return move8_inter(route1, route2, length1, length2, loading1, loading2);
-                    }, routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2], demand_sum_per_route[r1], demand_sum_per_route[r2]);
+                    }, routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2], demand_sum_per_route[r1], demand_sum_per_route[r2], r1, r2);
                     return;
                 case 2:
                     perform_inter_move([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
                         return move9_inter(route1, route2, length1, length2, loading1, loading2);
-                    }, routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2], demand_sum_per_route[r1], demand_sum_per_route[r2]);
+                    }, routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2], demand_sum_per_route[r1], demand_sum_per_route[r2], r1, r2);
                     return;
             }
         }
@@ -186,28 +186,14 @@ bool LeaderArray::perform_intra_move(const std::function<bool(int *, int)>& move
 }
 
 bool LeaderArray::perform_inter_move(const std::function<bool(int *, int *, int &, int &, int &, int &)>& move_func,
-                                     int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-    if (num_routes == 1) return false;
-
+                                     int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2,
+                                     int r1, int r2) {
     bool is_moved = false;
     int search_depth = 0;
 
     while (!is_moved && search_depth < max_search_depth) {
-        std::uniform_int_distribution<int> dist(0, num_routes - 1);
-        int r1 = dist(random_engine);
-        bool is_diff_route = false;
-        int r2;
-        while (!is_diff_route) {
-            r2 = dist(random_engine);
-            if (r1 != r2) {
-                is_diff_route = true;
-            }
-        }
-
-        is_moved = move_func(routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2],demand_sum_per_route[r1], demand_sum_per_route[r2]);
-
-        clean_empty_routes(r1, r2);
-
+        is_moved = move_func(route1, route2, length1, length2, loading1, loading2);
+        clean_empty_routes(r1, r2);  // ✅ Now r1 and r2 are correctly passed
         search_depth++;
     }
 
