@@ -537,11 +537,11 @@ bool LeaderArray::move8_inter_with_empty_route(int *route1, int *route2, int &le
         loading1 = new_dem_sum_1;
         loading2 = new_dem_sum_2;
 
-
-        delete[] temp_r1;
-        delete[] temp_r2;
         has_moved = true;
     }
+
+    delete[] temp_r1;
+    delete[] temp_r2;
 
     return has_moved;
 }
