@@ -717,6 +717,7 @@ bool LeaderArray::two_opt_star_between_two_routes(int *route1, int *route2, int 
         partial_dem_r2 += instance->get_customer_demand_(route2[n2]);
 
         if (partial_dem_r1 + loading2 - partial_dem_r2 <= instance->max_vehicle_capa_ && partial_dem_r2 + loading1 - partial_dem_r1 <= instance->max_vehicle_capa_) {
+            if (n1 == 0 && n2 == 0) continue; // n1 == 0  && n2 == 0, no need to swap
             double old_cost = instance->get_distance(route1[n1], route1[n1 + 1]) + instance->get_distance(route2[n2], route2[n2 + 1]);
             double new_cost = instance->get_distance(route1[n1], route2[n2 + 1]) + instance->get_distance(route2[n2], route1[n1 + 1]);
 
