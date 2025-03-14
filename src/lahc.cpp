@@ -47,28 +47,29 @@ void Lahc::run_heuristic() {
 
         double current_cost = leader->upper_cost;
 
-        auto v = iter % history_length;
+        auto v = iter++ % history_length;
         double history_cost = history_list[v];
 
-        leader->neighbour_explore(history_cost);
-        // TODO: if neighbour_explore is successful, then we should update the current solution, otherwise, we should keep the current solution
-        leader->export_solution(current);
+        bool has_moved = leader->neighbour_explore(history_cost);
+        if (has_moved) {
+            leader->export_solution(current);
+        }
         double candidate_cost = leader->upper_cost;
 
         // idle judgement and counting
         idle_iter = candidate_cost >= current_cost ? idle_iter + 1 : 0;
         // update the history list
-        history_list[v] = candidate_cost < history_cost ? candidate_cost : history_cost;
+        history_list[v] = std::min(candidate_cost, history_cost);
 
         if (v == 0L) {
             history_list_metrics = StatsInterface::calculate_statistical_indicators(history_list);
             flush_row_into_evol_log();
         }
 
-        iter++; // TODO: can be integrated into the v variable calculation
 
-        // TODO: if neighbour_explore is successful, then we should make the follower decision, we should keep the current solution
-        follower->run(current);
+        if (has_moved) {
+            follower->run(current);
+        }
         if (current->lower_cost < global_best->lower_cost) {
             global_best = std::move(make_unique<Solution>(*current));
         }

@@ -135,8 +135,8 @@ double Follower::insert_station_by_simple_enum(int* repaired_route, int& repaire
         return accumulated_distance.back();
     }
 
-    int upper_bound = (int)(accumulated_distance.back() / preprocessor->max_cruise_distance_ + 1); //TODO: (int) ->
-    int lower_bound = (int)(accumulated_distance.back() / preprocessor->max_cruise_distance_);
+    int upper_bound = static_cast<int>((accumulated_distance.back() / preprocessor->max_cruise_distance_ + 1));
+    int lower_bound = static_cast<int>((accumulated_distance.back() / preprocessor->max_cruise_distance_));
     int* chosen_pos = new int[length];
     int* best_chosen_pos = new int[length]; // customized variable
     double final_cost = numeric_limits<double>::max();

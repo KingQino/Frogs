@@ -30,7 +30,7 @@ public:
 
     void clean();
     void run(Individual* ind);
-    void neighbour_explore(const double& history_val);
+    bool neighbour_explore(const double& history_val);
     void load_individual(Individual* ind);
     void export_individual(Individual* ind) const;
     void load_solution(Solution* sol);

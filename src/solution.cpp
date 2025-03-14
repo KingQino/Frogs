@@ -59,6 +59,8 @@ Solution::Solution(Case* instance, Preprocessor* preprocessor, const vector<vect
     for (int i = 0; i < demand_sum_per_route.size(); ++i) {
         this->demand_sum_per_route[i] = demand_sum_per_route[i];
     }
+
+    this->lower_cost = numeric_limits<double>::max();
 }
 
 Solution::~Solution() {
