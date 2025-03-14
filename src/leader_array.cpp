@@ -101,7 +101,7 @@ void LeaderArray::export_individual(Individual* ind) const {
 }
 
 bool LeaderArray::is_accepted(const double &change) const {
-    return upper_cost + change < history_cost || change <= -MY_EPSILON;
+    return upper_cost + change < history_cost || change <= -MY_EPSILON;  // Original: 1e-8, but -MY_EPSILON is -1e-5
 }
 
 bool LeaderArray::two_opt_for_single_route(int* route, int length) {
@@ -280,7 +280,7 @@ bool LeaderArray::two_opt_inter_for_individual() {
             demand_sum_per_route[i] = 0;
         }
 
-        searchDepth++;
+        searchDepth++;  // Original - NO THIS LINE
     }
 
     delete[] temp_r1;

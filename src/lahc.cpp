@@ -51,6 +51,7 @@ void Lahc::run_heuristic() {
         double history_cost = history_list[v];
 
         leader->neighbour_explore(history_cost);
+        // TODO: if neighbour_explore is successful, then we should update the current solution, otherwise, we should keep the current solution
         leader->export_individual(current);
         double candidate_cost = leader->upper_cost;
 
@@ -64,8 +65,9 @@ void Lahc::run_heuristic() {
             flush_row_into_evol_log();
         }
 
-        iter++;
+        iter++; // TODO: can be integrated into the v variable calculation
 
+        // TODO: if neighbour_explore is successful, then we should make the follower decision, we should keep the current solution
         follower->run(current);
         if (current->lower_cost < global_best->lower_cost) {
             global_best = std::move(make_unique<Individual>(*current));
