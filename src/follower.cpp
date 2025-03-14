@@ -30,6 +30,15 @@ Follower::~Follower() {
     delete[] this->lower_num_nodes_per_route;
 }
 
+void Follower::clean() {
+    this->num_routes = 0;
+    this->lower_cost = 0.;
+    for (int i = 0; i < route_cap; ++i) {
+        memset(this->lower_routes[i], 0, sizeof(int) * node_cap);
+    }
+    memset(this->lower_num_nodes_per_route, 0, sizeof(int) * route_cap);
+}
+
 void Follower::refine(Individual* ind) {
     load_individual(ind);
 
@@ -62,15 +71,43 @@ void Follower::run(Individual *ind) {
     export_individual(ind);
 }
 
-void Follower::load_individual(const Individual* ind) {
-    // clean up
-    this->lower_cost = 0.0;
-    this->num_routes = 0;
-    for (int i = 0; i < route_cap; ++i) {
-        memset(this->lower_routes[i], 0, sizeof(int) * node_cap);
-    }
-    memset(this->lower_num_nodes_per_route, 0, sizeof(int) * route_cap);
+void Follower::run(Solution* sol) {
+    load_solution(sol);
 
+    for (int i = 0; i < num_routes; ++i) {
+        double cost_SE = insert_station_by_simple_enum( lower_routes[i], lower_num_nodes_per_route[i]);
+
+        if (cost_SE == -1) {
+            double cost_RE = insert_station_by_remove_enum( lower_routes[i], lower_num_nodes_per_route[i]);
+            if (cost_RE == -1) {
+                lower_cost += INFEASIBLE;
+            } else {
+                lower_cost += cost_RE;
+            }
+        } else {
+            lower_cost += cost_SE;
+        }
+    }
+
+    export_solution(sol);
+}
+
+void Follower::load_solution(const Solution* sol) {
+    clean();
+
+    this->num_routes = sol->num_routes;
+    for (int i = 0; i < num_routes; ++i) {
+        this->lower_num_nodes_per_route[i] = sol->num_nodes_per_route[i];
+        memcpy(this->lower_routes[i], sol->routes[i], sizeof(int) * node_cap);
+    }
+}
+
+void Follower::export_solution(Solution* sol) const {
+    sol->lower_cost = this->lower_cost;
+}
+
+void Follower::load_individual(const Individual* ind) {
+    clean();
 
     this->num_routes = ind->upper_cost.nb_routes;
     for (int i = 0; i < num_routes; ++i) {

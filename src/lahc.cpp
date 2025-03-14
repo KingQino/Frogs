@@ -15,16 +15,16 @@ Lahc::Lahc(int seed_val, Case* instance, Preprocessor* preprocessor) : Heuristic
     history_length = static_cast<long>(preprocessor->params.history_length);
     history_list = vector<double>(history_length);
     current = nullptr;
-    global_best = make_unique<Individual>();
+    global_best = make_unique<Solution>();
 
-    split = new Split(seed_val, instance, preprocessor);
+    initializer = new Initializer(seed_val, instance, preprocessor);
 //    leader = new LeaderLahc(seed_val, instance, preprocessor);
     leader = new LeaderArray(seed_val, instance, preprocessor);
     follower = new Follower(instance, preprocessor);
 }
 
 Lahc::~Lahc() {
-    delete split;
+    delete initializer;
     delete leader;
     delete follower;
     delete current;
@@ -32,16 +32,16 @@ Lahc::~Lahc() {
 
 void Lahc::initialize_heuristic() {
     delete current;
-    current = new Individual(instance, preprocessor);
+    vector<vector<int>> routes = initializer->routes_constructor_with_hien_method();
+    current = new Solution(instance, preprocessor, routes, instance->compute_total_distance(routes), instance->compute_demand_sum_per_route(routes));
 
-    split->initIndividualWithHienClustering(current);
-    history_list.assign(history_length, current->upper_cost.penalised_cost);
+    history_list.assign(history_length, current->upper_cost);
     this->iter = 0L;
     this->idle_iter = 0L;
 }
 
 void Lahc::run_heuristic() {
-    leader->load_individual(current);
+    leader->load_solution(current);
 
     do {
 
@@ -52,7 +52,7 @@ void Lahc::run_heuristic() {
 
         leader->neighbour_explore(history_cost);
         // TODO: if neighbour_explore is successful, then we should update the current solution, otherwise, we should keep the current solution
-        leader->export_individual(current);
+        leader->export_solution(current);
         double candidate_cost = leader->upper_cost;
 
         // idle judgement and counting
@@ -70,7 +70,7 @@ void Lahc::run_heuristic() {
         // TODO: if neighbour_explore is successful, then we should make the follower decision, we should keep the current solution
         follower->run(current);
         if (current->lower_cost < global_best->lower_cost) {
-            global_best = std::move(make_unique<Individual>(*current));
+            global_best = std::move(make_unique<Solution>(*current));
         }
 
     } while (iter < 100'000L || idle_iter < iter / 5);

@@ -37,10 +37,11 @@ public:
     [[nodiscard]] double get_distance(int from, int to);				                // returns the distance
     [[nodiscard]] double get_evals() const;									            // returns the number of evaluations
     [[nodiscard]] double calculate_total_dist(const vector<vector<int>>& chromR) const; // return the total distance of the upper solution
-    [[nodiscard]] double compute_total_distance(const vector<vector<int>>& routes);     // return the total distance of the given routes
-    [[nodiscard]] double compute_total_distance(const vector<int>& route) const;
     [[nodiscard]] double calculate_total_dist_follower(int** routes, int num_routes, const int* num_nodes_per_route) const;
     [[nodiscard]] int calculate_demand_sum(const vector<int>& route) const;             // return the demand sum of the given route.
+    [[nodiscard]] double compute_total_distance(const vector<vector<int>>& routes);     // return the total distance of the given routes
+    [[nodiscard]] double compute_total_distance(const vector<int>& route) const;        // return the total distance of the given route
+    [[nodiscard]] vector<int> compute_demand_sum_per_route(const vector<vector<int>>& routes) const;
 
 
     string file_name_;

@@ -8,6 +8,7 @@
 #include "case.hpp"
 #include "preprocessor.hpp"
 #include "individual.hpp"
+#include "solution.hpp"
 #include <functional>  // For std::function
 
 class LeaderArray {
@@ -16,7 +17,6 @@ public:
     Preprocessor* preprocessor;
     std::default_random_engine random_engine;   // Random number generator
     uniform_int_distribution<int> uniform_int_dis;// Uniform distribution for random integers
-
 
     int route_cap;
     int node_cap;
@@ -28,10 +28,13 @@ public:
     double upper_cost;
     double history_cost;
 
+    void clean();
     void run(Individual* ind);
     void neighbour_explore(const double& history_val);
     void load_individual(Individual* ind);
     void export_individual(Individual* ind) const;
+    void load_solution(Solution* sol);
+    void export_solution(Solution* sol) const;
     LeaderArray(int seed_val, Case* instance, Preprocessor* preprocessor);
     ~LeaderArray();
 
