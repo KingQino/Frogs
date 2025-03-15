@@ -23,7 +23,7 @@ public:
     int route_cap{};
     int node_cap{};
 
-    int** routes;
+    int** routes;                     // the CVRP solution
     int num_routes{};                 // the number of routes for the solution
     int* num_nodes_per_route{};       // the node number of each route
     int* demand_sum_per_route{};      // the demand sum of all customers of each route

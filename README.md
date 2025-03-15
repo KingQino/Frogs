@@ -1,70 +1,126 @@
 # Frogs
 
+- runtime environment:
+
+  > Calculations were performed using the **Sulis** Tier 2 HPC platform hosted by the Scientific Computing Research Technology Platform at the University of Warwick. Sulis is funded by EPSRC Grant EP/T022108/1 and the HPC Midlands+ consortium.
+
+  - CPU: AMD EPYC 7742 (Rome) 2.25 GHz
+  - Memory request: To be evaluated 
+
+- **Table of Contents**
+
+  1. [Architecture](#Architecture)
+  2. [Usage](#Usage)
+  3. [Debug & Memory Evaluation](#Debug & Memory Evaluation)
 
 
-## Debug & Obvservation
 
-1. open an interactive job, login in a specific node
+## Architecture
 
-   ```sh
-   qlogin -pe smp 2 -l h_vmem=16G -l h_rt=1:0:0 -l rocky 
-   ```
+- Data Handling Layer
 
-   ```sh
-   ml cmake intel valgrind/3.20.0-intel-oneapi-mpi-2021.12.1-oneapi-2024.1.0
-   ```
+  - `Case`: Stores **raw CEVRP instance data**
+  - `Preprocessor`: Computes **preprocessed data**, used in the optimisation process
+  - `Individual`: Stores **solutions** (routes for vehicles) - for `MA`
+  - `Solution`: Stores solutions (for `Lahc`)
 
-2. make some changes at  `CMakeLists.txt` and `preprocessor.cpp`
+- Optimisation Layer
 
-   ```cmake
-   # Custom target to run Valgrind with algorithm arguments
-   add_custom_target(valgrind_run
-           COMMAND valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 --log-file=valgrind_run.log
-           ./Run -alg lahc -ins X-n916-k207.evrp -log 1 -stp 1 -mth 0
-           DEPENDS Run
-           COMMENT "Running Valgrind on executable Run with algorithm parameters..."
-   )
-   ```
+  - `Split`: Transfer chromsome into upper-level subsolution
 
-   ```c++
-   max_exec_time_ = 20; // 20 seconds
-   ```
+  - `Initializer`: Solution initialisation methods
 
-3. run __valgrind__
+  - `Leader`: Optimizes **route structures**, ensuring **vehicle capacity feasibility** but **ignores charging decisions**, i.e., `Localsearch`
+  - `Follower`: Makes **charging decisions**, ensuring **route feasibility for electric vehicles** while maintaining the given path.
 
-   ```sh
-   cmake -DCMAKE_BUILD_TYPE=Release ..
-   make valgrind_run
-   ```
+- Heuristic Algorithm Layer
 
-4. check memory usage
+  - `HeuristicInterface`: Abstract class defining the structure for **heuristic algorithms**.
+  - `Ma`: population-based algorithm
+  - `Lahc`: single-point algorithm
 
-   ```sh
-   # Apocrita
-   jobstats
-   
-   # Sulis
-   sacct -j 1087552 --format=JobID,JobName,Partition,AllocCPUs,MaxRSS,ReqMem,Elapsed,State
-   ```
+- Statistical Analysis Layer
 
-   
+  - `StatsInterface`: Provides methods for **tracking algorithm performance**, recording iteration details, and analyzing convergence.
 
-Bug-fix log:
+- Command-Line Interface
 
-> memory leak and explosion have been solved.
->
-> Case 1: The longer the algorithm runs, the memory it comsumes more.  => memory leak and explosion
->
-> - run 20 seconds
->
->   124,163,570 bytes allocated
->
-> - run 60 seconds
->
->   223,184,310 bytes allocated -> 167,643,882 bytes (vector shrink_to_fit)  -> 167,643,882 bytes allocated () -> 167,623,449 bytes allocated (turn off logging)
->
-> - `E-n23-k3` is a special instance where a single customer has an exceptionally high demand (4100), nearly reaching the vehicle’s capacity limit (4500), while the demands of all other customers remain relatively low.
+  - `CommandLine`: Parses **runtime parameters** (e.g., `-nbGranular 20`, `-maxIter 1000`, `-algorithm Ma`).
+  - `Parameters`: parse arguments from command line to the parameters.
 
+---
+
+- How does `Solution` interact with <u>Optimisation Layer</u>?
+
+  `Solution` includes 6 members:
+
+  - int** routes;
+  - int num_routes;
+  - int* num_nodes_per_route;
+  - int* demand_sum_per_route;
+  - double upper_cost;
+  - double lower_cost;
+
+  > Interact with
+  >
+  > - `Initializer` => using Solution constructor
+  >
+  > - `Leader` => using function `load_solution` and `export_solution`, and all upper-level optimisation are compeleted in the `leader`
+  >   - routes
+  >   - num_routes
+  >   - num_nodes_per_route
+  >   - demand_sum_per_route
+  >   - upper_cost
+  >
+  > - `Follower` => using function `load_solution` and `export_solution`, and all upper-level optimisation are compeleted in the `follower`
+  >   - lower_cost
+
+- Is it possible for us to advoid some repetitive moves that have been already tested without improvement?
+
+  - In `Lahc`, ignore it
+  - In `Ma`, we can consider to use it
+
+- how to make moves (<u>upper-level optimisation</u>) and update the current solution?
+
+  - we don't need to load a `solution` into the `leader` every time before making a move => too redundant
+  - Instead, in the entire optimisation process, we load it once at the start of the optimisation, the `leader` then directly makes moves and updates the solution in place
+
+- how to make the <u>lower-level optimisation</u>?
+
+  - In `Follower`, load `solution` to its data structure, then optimising. In the end, the updated cost is exported to the `solution`
+    - int ** lower_routes;
+    - int * lower_num_nodes_per_routes;
+    - double lower_cost;
+  - To output the final result, we just need to make the lower-level optimisation to the `Solution` upper-level solution again, and then we can get the exactly same solution. 
+
+- In `Lahc`, it's very resource-comsuing for making charging decision, so maybe we can remove some unnecessary lower-level optimisation. 
+
+  - No lower-level optimisation in the first $n * L_h$ iterations, based on the assumption that the solution  has not converge enough, and the upper-level soluton is positively related to the lower-level solution. 
+  - if current solution upper cost ($\mathbf{x}^u$) is less than $\eta$ multiplied by the best upper cost so far ($\eta \cdot \mathbf{x}^u_g$) , then make the lower-level optimisation.  :white_check_mark: => experiments have proved it's useful
+
+- How to design the `Individual` in `Ma`?
+
+  - chromosome (`chromT`)
+
+  - upper solution (`chromR`)
+
+  - CostSol (penalisedCost, nbRoutes, distance, capacityExcess, durationExcess)
+
+  - Lower_cost
+
+    > Can be extened to use the penalised objective function in the future by allowing infeasible solutions
+
+  - successors
+
+  - predecessors
+
+  - indivsPerProximity
+
+  - isFeasible
+
+  - biasedFitness
+
+    > Measure the population diversity on based broken-pairs distance to help us explore the search space more thoroughly
 
 
 ## Usage
@@ -77,10 +133,10 @@ Bug-fix log:
 
    ```sh
    # Apocrita
-   ml load cmake gcc openmpi
+   ml cmake gcc openmpi
    
    # Sulis
-   ml load CMake/3.18.4 GCC/13.2.0
+   ml CMake/3.18.4 GCC/13.2.0
    ```
 
    ```shell
@@ -302,7 +358,7 @@ Bug-fix log:
 
 4. Statistics
 
-   `objective.sh`
+   `./stats/[Algorithm]/objective.sh`
 
    ```sh
    #!/bin/bash
@@ -359,119 +415,112 @@ Bug-fix log:
    rm -f "$output_file"
    ```
 
+
+## Debug & Memory Evaluation
+
+1. open an interactive job, login in a specific node
+
+   ```sh
+   qlogin -pe smp 2 -l h_vmem=16G -l h_rt=1:0:0 -l rocky 
+   ```
+
+   ```sh
+   ml cmake intel valgrind/3.20.0-intel-oneapi-mpi-2021.12.1-oneapi-2024.1.0
+   ```
+
+2. make some changes at  `CMakeLists.txt` and `preprocessor.cpp`
+
+   ```cmake
+   # Custom target to run Valgrind with algorithm arguments
+   add_custom_target(valgrind_run
+           COMMAND valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 --log-file=valgrind_run.log
+           ./Run -alg lahc -ins E-n23-k3.evrp -log 1 -stp 1 -mth 0
+           DEPENDS Run
+           COMMENT "Running Valgrind on executable Run with algorithm parameters..."
+   )
+   ```
+
+   ```c++
+   max_exec_time_ = 20; // 20 seconds
+   ```
+
+3. run __valgrind__
+
+   ```sh
+   cmake -DCMAKE_BUILD_TYPE=Release ..
+   make valgrind_run
+   ```
+
+4. check memory usage
+
+   ```sh
+   # Apocrita
+   jobstats
+   
+   # Sulis
+   sacct -j 1087552 --format=JobID,JobName,Partition,AllocCPUs,MaxRSS,ReqMem,Elapsed,State
+   ```
+
    
 
+Bug-fix log:
 
-## Programming Architecture
+> Case 1: The longer the algorithm runs, the memory it comsumes more.  => memory leak and explosion
+>
+> - run 20 seconds
+>
+>   124,163,570 bytes allocated
+>
+> - run 60 seconds
+>
+>   223,184,310 bytes allocated -> 167,643,882 bytes (vector shrink_to_fit)  -> 167,643,882 bytes allocated () -> 167,623,449 bytes allocated (turn off logging)
+>
+> - `E-n23-k3` is a special instance where a single customer has an exceptionally high demand (4100), nearly reaching the vehicle’s capacity limit (4500), while the demands of all other customers remain relatively low.
+>
+>
+> Case 2: Init with Direct Encoding in instance `E-n30-k3` got wrong solutions (Stop 3 days)
+>
+> - 345.95 -> much lower than the BKS -> but for all other instances, perform normally
+>
+> - Try to locate the bug, in the process of following `Leader` -> num_routes is not match with the real route
+>
+>   ```
+>   Route Capacity: 12
+>   Node Capacity: 58
+>   Number of Routes: 3
+>   Upper Cost: 1750.83
+>   Number of Nodes per route (upper): 10 15 2 0 0 0 0 0 0 0 0 0
+>   Demand sum per route: 4475 4425 0 0 0 0 0 0 0 0 0 0
+>   Upper Routes:
+>   Route 0: 0 2 5 3 15 17 14 22 13 0 0 0 0 0 0...
+>   Route 1: 0 16 6 23 9 27 26 12 21 8 4 18 1 24 0 0...
+>   Route 2: 0 0 0 0 0...
+>   Route 3: 0 0 0 0 0...
+>   ...
+>   Route 11: 0 0 0 0 0...
+>   ```
+>
+> - In the `Lahc`, try to check the initialisation with direct encoding in the` initialize_heuristic()` function
+>
+>   ```
+>   ChromT: 2 5 3 15 17 14 22 13 16 6 23 9 27 26 12 21 8 4 18 1 24 11 29 28 7 20 10 19 25 
+>   ChromR: 
+>     Route 0: 2 5 3 15 17 14 22 13 
+>     Route 1: 16 6 23 9 27 26 12 21 8 4 18 1 24 
+>     Route 2: 
+>     Route 3: 11 29 28 7 20 10 19 25 
+>     Route 4: 
+>     ...
+>     Route 11:
+>   Upper Cost: 
+>     Penalised Cost: 1750.83
+>     Number of Routes: 3
+>     Distance: 1750.83
+>     Capacity Excess: 0
+>     Duration Excess: 0
+>   Is Upper Feasible: 1
+>   Lower Cost: 0
+>   ```
+>
+> - Locate the issue in the `Split->initIndividualWithHienClustering`, fix it.
 
-- Data Handling Layer
-
-  - `Case`: Stores **raw CEVRP instance data**
-  - `Preprocessor`: Computes **preprocessed data**, used in the optimisation process
-  - `Individual`: Stores **solutions** (routes for vehicles).
-
-- Optimisation Layer
-
-  - `Split`: Transfer chromsome into upper-level subsolution
-
-  - `Leader`: Optimizes **route structures**, ensuring **vehicle capacity feasibility** but **ignores charging decisions**, i.e., `Localsearch`
-  - `Follower`: Makes **charging decisions**, ensuring **route feasibility for electric vehicles** while maintaining the given path.
-
-- Heuristic Algorithm Layer
-
-  - `HeuristicInterface`: Abstract class defining the structure for **heuristic algorithms**.
-  - `Ma`: evolutionary optimisation
-  - `Lahc`: single-point based algorithm
-
-- Statistical Analysis Layer
-
-  - `StatsInterface`: Provides methods for **tracking algorithm performance**, recording iteration details, and analyzing convergence.
-
-- Command-Line Interface
-
-  - `CommandLine`: Parses **runtime parameters** (e.g., `-nbGranular 20`, `-maxIter 1000`, `-algorithm Ma`).
-  - `Parameters`: parse arguments from command line to the parameters. 
-
----
-
-- How does `Individual`  interact with <u>Optimisation Layer</u>?
-
-  `Individual` contains members:
-
-  - chromosome (`chromT`)
-
-  - upper solution (`chromR`)
-
-  - CostSol (penalisedCost, nbRoutes, distance, capacityExcess, durationExcess)
-
-  - Lower_cost
-
-    > `Lahc` only use the above 5 members, but `Ma` will use all these members
-
-  - successors
-
-  - predecessors
-
-  - indivsPerProximity
-
-  - isFeasible
-
-  - biasedFitness
-
-  > Initiased `Individual` => contains chromT
-  >
-  > - `Split` => chromR and CostSol
-  > - `LocalSearch` => chromT, chromR, CostSol
-  >   - Linked list
-  >   - Import and export
-  >   - export to `Follower` data structure
-  > - `Follower` => lower_cost
-  >   - int** lower_routes;
-  >   - import and export
-
-- how to advoid some moves that have been already tested without improvement?
-
-  - In `Lahc`, temporarily ignore it.
-  - In `Ma`, we can consider to use it!
-
-- how to make the lower-level optimisation?
-
-  - In `Follower`, load individual to its data structure, then optimising. in the end, the updated cost is exported to the `Inidivual`
-    - int ** lower_routes;
-    - int * lower_num_nodes_per_routes;
-    - double lower_cost;
-  - To output the final result, we just need to make the lower-level optimisation to the `Individual` upper-level solution again, and then we can get the exactly same solution. 
-
-- In `Lahc`, it's very resource-comsuing for making charging decision, so maybe we can remove some unnecessary lower-level optimisation. 
-
-  - No lower-level optimisation in the first $n * L_h$ iterations, based on the assumption that the solution  has not converge enough, and the upper-level soluton is positively related to the lower-level solution. 
-  - if current solution upper cost ($\mathbf{x}^u$) is less than $\eta$ multiplied by the best upper cost so far ($\eta \cdot \mathbf{x}^u_g$) , then make the lower-level optimisation. 
-
-- In `Lahc`, how to make moves and update the current solution?
-
-  - we don't need to copy current solution and make the lower-level optimisation, what we need is just make updates on the current solution itself.
-
----
-
-- `Leader` implementation details
-
-  1. randomly select node U
-  2. randomly select node V from the correlated vertices of U
-  3. randomly select a move from the 9 moves
-     - if `routU` = `routeV`, then M1-7. 
-       - No need to check vehicle capacity constraints
-       - Or to be consisent with the current Lahc, only M1, M4, M7
-     - if `routeU` != `routeV`, then M1-6, M8, M9
-       - Or to be consistent with the current Lahc, only M1, M4, M8, M9
-       - If not satisfy the vehicle capacity constraint, then don't move
-     - If consective 10 times, no improvement, then finished 
-  4. apply the move, change the acceptance criteria
-
-  > - For each move, the cost change should be tracked
-  > - For each move, it should have two outputs:
-  >   - only the objective cost (upper-cost), just taken from the `Leader`
-  >   - Indvidual (especially `chromR`) , so we can apply the lower-level optimisation
-  > - When there are some empty routes, set node V as the depot of the empty route, then M1, 2, 3 and 9 can be applied. In this case, a route will be created.
-  > - If node V is depot,  then we can apply M1, 2, 3, 8, 9. 
-
-  
