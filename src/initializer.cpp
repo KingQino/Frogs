@@ -63,50 +63,40 @@ vector<vector<int>> Initializer::prins_split(const vector<int>& chromosome) cons
 
 // Hien et al., "A greedy search based evolutionary algorithm for electric vehicle routing problem", 2023.
 vector<vector<int>> Initializer::hien_clustering() {
-    vector<int> customers_(preprocessor->customer_ids_);
+    vector<int> chromosome = preprocessor->customer_ids_;
 
-    std::shuffle(customers_.begin(), customers_.end(), random_engine);
-
-    vector<vector<int>> tours;
-
-    vector<int> tour;
-    while (!customers_.empty()) {
-        tour.clear();
-
-        int anchor = customers_.front();
-        customers_.erase(customers_.begin());
-        tour.push_back(anchor);
+    // Clustering
+    std::shuffle(chromosome.begin(), chromosome.end(), random_engine);
+    vector<vector<int>> routes;
+    while (!chromosome.empty()) {
+        vector<int> route;
+        int anchor = chromosome.front();
+        chromosome.erase(chromosome.begin());
+        route.push_back(anchor);
         int cap = instance->get_customer_demand_(anchor);
 
-        vector<int> nearby_customers = preprocessor->sorted_nearby_customers_[anchor];
-        int length = instance->num_customer_ - 1; // the size of nearby_customers
+        // Using remove_if for efficient erasing
+        chromosome.erase(std::remove_if(chromosome.begin(), chromosome.end(),
+                                        [&](int node) {
+                                            if (cap + instance->get_customer_demand_(node) > instance->max_vehicle_capa_) {
+                                                return false;  // Skip this customer
+                                            }
+                                            route.push_back(node);
+                                            cap += instance->get_customer_demand_(node);
+                                            return true;  // Remove from chromosome
+                                        }),
+                         chromosome.end());
 
-        for (int i = 0; i < length; ++i) {
-            int node = nearby_customers[i];
-            auto it = find(customers_.begin(), customers_.end(), node);
-            if (it == customers_.end()) {
-                continue;
-            }
-            if (cap + instance->get_customer_demand_(node) <= instance->max_vehicle_capa_) {
-                tour.push_back(node);
-                cap += instance->get_customer_demand_(node);
-                customers_.erase(it);
-            } else {
-                tours.push_back(tour);
-                break;
-            }
-        }
+        routes.push_back(std::move(route));  // Move route to avoid unnecessary copying
     }
 
-    tours.push_back(tour);
-
-    return std::move(tours);
+    return std::move(routes);
 }
 
 void Initializer::hien_balancing(vector<vector<int>>& routes) {
     vector<int>& lastRoute = routes.back();
 
-    uniform_int_distribution<> distribution(0, static_cast<int >(lastRoute.size() -1) );
+    uniform_int_distribution<int> distribution(0, static_cast<int>(lastRoute.size() - 1));
     int customer = lastRoute[distribution(random_engine)];  // Randomly choose a customer from the last route
 
     int cap1 = 0;
@@ -127,22 +117,24 @@ void Initializer::hien_balancing(vector<vector<int>>& routes) {
             return find(route.begin(), route.end(), x) != route.end();
         });
 
-        if (route2It != routes.end()) {
-            vector<int>& route2 = *route2It;
-            int cap2 = 0;
-            for (int node : route2) {
-                cap2 += instance->get_customer_demand_(node);
-            }
+        if (route2It == routes.end()) {
+            continue;  // x is not in any route
+        }
 
-            int demand_X = instance->get_customer_demand_(x);
+        vector<int>& route2 = *route2It;
+        int cap2 = 0;
+        for (int node : route2) {
+            cap2 += instance->get_customer_demand_(node);
+        }
 
-            if (demand_X + cap1 <= instance->max_vehicle_capa_ && abs((cap1 + demand_X) - (cap2 - demand_X)) < abs(cap1 - cap2)) {
-                route2.erase(remove(route2.begin(), route2.end(), x), route2.end());
-                lastRoute.push_back(x);
-                cap1 += demand_X;
-            } else {
-                break;
-            }
+        int demand_X = instance->get_customer_demand_(x);
+
+        if (demand_X + cap1 <= instance->max_vehicle_capa_ && abs((cap1 + demand_X) - (cap2 - demand_X)) < abs(cap1 - cap2)) {
+            route2.erase(remove(route2.begin(), route2.end(), x), route2.end());
+            lastRoute.push_back(x);
+            cap1 += demand_X;
+        } else {
+            break;
         }
     }
 }

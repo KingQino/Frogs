@@ -47,7 +47,7 @@ void Lahc::run_heuristic() {
 
         double current_cost = leader->upper_cost;
 
-        auto v = iter++ % history_length;
+        auto v = iter % history_length;
         double history_cost = history_list[v];
 
         bool has_moved = leader->neighbour_explore(history_cost);
@@ -66,6 +66,7 @@ void Lahc::run_heuristic() {
             flush_row_into_evol_log();
         }
 
+        iter++;
 
         if (has_moved) {
             follower->run(current);
