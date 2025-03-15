@@ -11,7 +11,7 @@
 
   1. [Architecture](#Architecture)
   2. [Usage](#Usage)
-  3. [Debug & Memory Evaluation](#Debug & Memory Evaluation)
+  3. [Debug](#Debug)
 
 
 
@@ -416,7 +416,7 @@
    ```
 
 
-## Debug & Memory Evaluation
+## Debug
 
 1. open an interactive job, login in a specific node
 
