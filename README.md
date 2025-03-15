@@ -523,4 +523,19 @@ Bug-fix log:
 >   ```
 >
 > - Locate the issue in the `Split->initIndividualWithHienClustering`, fix it.
+>
+>
+> Case 3: Segmentation fault   (core dumped) - memory explosion
+>
+> phenomonen: no memory leak,  `E-n51-k5` - run 10 seconds - 2,391,700,642 bytes allocated ~= 2.22GB 
+>
+> - `E-n23-k3` - run 10 seconds - 372,021,174 bytes  
+>
+>  - run longer - run 20s: 372,021,174 bytes  => same
+>
+>  - add Individual Destructor - 10s: 372,021,174 bytes => same
+>
+> - ==> route_cap = 10 * num_vehicles
+>
+> - Need to set up a route_cap of sufficient size, i.e., assume enough vehicles to support optimise
 
