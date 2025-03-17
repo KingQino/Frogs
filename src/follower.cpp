@@ -309,6 +309,12 @@ double Follower::insert_station_by_remove_enum(int* repaired_route, int& repaire
 }
 
 void Follower::recursive_charging_placement(int m_len, int n_len, int* chosen_pos, int* best_chosen_pos, double& final_cost, int cur_upper_bound, int* route, int length, vector<double>& accumulated_distance) const {
+    struct State {
+        int m_len;
+        int n_len;
+        int i;
+    };
+
     stack<State> stk;
     stk.push({m_len, n_len, m_len});
 
@@ -339,14 +345,16 @@ void Follower::recursive_charging_placement(int m_len, int n_len, int* chosen_po
             if (cur_upper_bound == s.n_len) {
                 double one_dis = instance->get_distance(route[s.i], preprocessor->best_station_[route[s.i]][route[s.i + 1]]);
                 if (accumulated_distance[s.i] + one_dis > preprocessor->max_cruise_distance_) {
-                    break;
+                    stk.pop();
+                    continue;
                 }
             } else {
                 int last_pos = chosen_pos[cur_upper_bound - s.n_len - 1];
                 double one_dis = instance->get_distance(route[last_pos + 1], preprocessor->best_station_[route[last_pos]][route[last_pos + 1]]);
                 double two_dis = instance->get_distance(route[s.i], preprocessor->best_station_[route[s.i]][route[s.i + 1]]);
                 if (accumulated_distance[s.i] - accumulated_distance[last_pos + 1] + one_dis + two_dis > preprocessor->max_cruise_distance_) {
-                    break;
+                    stk.pop();
+                    continue;
                 }
             }
             if (s.n_len == 1) {

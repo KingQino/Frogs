@@ -471,6 +471,7 @@ RAM Optimisation:
 > - 322,662,962 bytes allocated
 > - release vector in initialize_heuristic() => 322,661,497 bytes allocated
 > - change StatsInterface::calculate_statistical_indicators => 322,661,497 bytes allocated  => :negative_squared_cross_mark:
+> - change the `recursive_charging_placement` => stack-based implementation => 956,288,525 bytes allocated => a little modification => 948,573,049 bytes allocated  => using the State within the function 939,879,833 bytes allocated
 > - 
 
 
