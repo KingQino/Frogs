@@ -55,6 +55,14 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 target_link_libraries(Run PRIVATE Threads::Threads)
 
+# Custom target to run Valgrind with algorithm arguments
+add_custom_target(valgrind_run
+        COMMAND valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 --log-file=valgrind_run.log
+        ./Run -alg lahc -ins E-n22-k4.evrp -log 1 -stp 1 -mth 0
+        DEPENDS Run
+        COMMENT "Running Valgrind on executable Run with algorithm parameters..."
+)
+
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_subdirectory(external/googletest) # Use pre-existing GoogleTest
     include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})

@@ -461,7 +461,19 @@
    sacct -j 1087552 --format=JobID,JobName,Partition,AllocCPUs,MaxRSS,ReqMem,Elapsed,State
    ```
 
-   
+
+RAM Optimisation:
+
+> The max memory consumption is 863M on the instance `X-n916-k207`
+>
+> run 10 seconds, `E-n22-k4.evrp`
+>
+> - 322,662,962 bytes allocated
+> - release vector in initialize_heuristic() => 322,661,497 bytes allocated
+> - change StatsInterface::calculate_statistical_indicators => 322,661,497 bytes allocated  => :negative_squared_cross_mark:
+> - 
+
+
 
 Bug-fix log:
 
