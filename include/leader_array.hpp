@@ -47,8 +47,16 @@ public:
     bool move1_intra(int* route, int length); // if U is ahead of V, then move U to the behind of V; otherwise, move U to the ahead of V
     bool move1_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
     bool move1_inter_with_empty_route(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move2_intra(int* route, int length);
+    bool move2_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move3_intra(int* route, int length);
+    bool move3_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
     bool move4_intra(int* route, int length);
     bool move4_inter(int* route1, int* route2, int length1, int length2, int& loading1, int& loading2);
+    bool move5_intra(int* route, int length);
+    bool move5_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move6_intra(int* route, int length);
+    bool move6_inter(int* route1, int* route2, int length1, int length2, int& loading1, int& loading2);
     bool move7_intra(int* route, int length);
     bool move8_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
     bool move8_inter_with_empty_route(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);

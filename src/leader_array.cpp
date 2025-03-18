@@ -5,7 +5,7 @@
 
 LeaderArray::LeaderArray(int seed_val, Case *instance, Preprocessor *preprocessor) : instance(instance), preprocessor(preprocessor) {
     this->random_engine = std::default_random_engine(seed_val);
-    this->uniform_int_dis = std::uniform_int_distribution<int>(0, 9); // 10 moves
+    this->uniform_int_dis = std::uniform_int_distribution<int>(0, 17); // 10 moves
 
     this->max_search_depth = 10;
     this->route_cap = preprocessor->route_cap_;
@@ -90,6 +90,34 @@ bool LeaderArray::neighbour_explore(const double& history_val) {
         case 9:
             has_moved = perform_inter_move_with_empty_route([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2)
                     {return move9_inter_with_empty_route(route1, route2, length1, length2, loading1, loading2);});
+            break;
+        case 10:
+            has_moved = perform_intra_move([this](int* route, int length) { return move2_intra(route, length); });
+            break;
+        case 11:
+            has_moved = perform_inter_move([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2)
+                    {return move2_inter(route1, route2, length1, length2, loading1, loading2);});
+            break;
+        case 12:
+            has_moved = perform_intra_move([this](int* route, int length) { return move3_intra(route, length); });
+            break;
+        case 13:
+            has_moved = perform_inter_move([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2)
+                    {return move3_inter(route1, route2, length1, length2, loading1, loading2);});
+            break;
+        case 14:
+            has_moved = perform_intra_move([this](int* route, int length) { return move5_intra(route, length); });
+            break;
+        case 15:
+            has_moved = perform_inter_move([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2)
+                    {return move5_inter(route1, route2, length1, length2, loading1, loading2);});
+            break;
+        case 16:
+            has_moved = perform_intra_move([this](int* route, int length) { return move6_intra(route, length); });
+            break;
+        case 17:
+            has_moved = perform_inter_move([this](int* route1, int* route2, int length1, int length2, int& loading1, int& loading2)
+                    {return move6_inter(route1, route2, length1, length2, loading1, loading2);});
             break;
     }
 
@@ -362,6 +390,224 @@ bool LeaderArray::move1_inter_with_empty_route(int *route1, int *route2, int &le
     return has_moved;
 }
 
+bool LeaderArray::move2_intra(int* route, int length) {
+    if (length <= 4) return false;
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> dist(1, length - 3);
+    int i = dist(random_engine);
+
+    double original_cost, modified_cost;
+    for (int j = 0; j < length - 1; j++) {
+        if (j == i - 1 || j == i || j == i + 1) continue;
+
+        if (i < j) {
+            original_cost = instance->get_distance(route[i - 1], route[i]) +
+                            instance->get_distance(route[i + 1], route[i + 2]) +
+                            instance->get_distance(route[j], route[j + 1]);
+            modified_cost = instance->get_distance(route[i - 1], route[i + 2]) +
+                            instance->get_distance(route[j], route[i]) +
+                            instance->get_distance(route[i + 1], route[j + 1]);
+        } else {
+            original_cost = instance->get_distance(route[i - 1], route[i]) +
+                            instance->get_distance(route[i + 1], route[i + 2]) +
+                            instance->get_distance(route[j], route[j + 1]);
+            modified_cost = instance->get_distance(route[j], route[i]) +
+                            instance->get_distance(route[i + 1], route[j + 1]) +
+                            instance->get_distance(route[i - 1], route[i + 2]);
+        }
+
+        double change = modified_cost - original_cost;
+        if (is_accepted(change)) {
+            int u = route[i];
+            int x = route[i + 1];
+            if (i < j) {
+                for (int k = i; k < j - 1; k++) {
+                    route[k] = route[k + 2];
+                }
+                route[j - 1] = u;
+                route[j] = x;
+            }
+            else if (i > j) {
+                for (int k = i + 1; k > j + 2; k--) {
+                    route[k] = route[k - 2];
+                }
+                route[j + 1] = u;
+                route[j + 2] = x;
+            }
+            upper_cost += change;
+
+            has_moved = true;
+            break;
+        }
+    }
+
+    return has_moved;
+}
+
+bool LeaderArray::move2_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+    if (length1 < 4 || length2 < 3) return false;
+
+    bool has_moved = false;
+
+    std::vector<int> candidates;
+    for (int i = 1; i < length1 - 2; ++i) {
+        if (loading2 + instance->get_customer_demand_(route1[i]) + instance->get_customer_demand_(route1[ i + 1]) <= instance->max_vehicle_capa_) {
+            candidates.push_back(i);
+        }
+    }
+    if (candidates.empty()) return false;
+    std::shuffle(candidates.begin(), candidates.end(), random_engine);  // Shuffle to pick one randomly
+    int i = candidates.front();  // Pick the first after shuffling
+
+    double original_cost, modified_cost, change;
+    for (int j = 0; j < length2 - 1; ++j) {
+        original_cost = instance->get_distance(route1[i - 1], route1[i]) +
+                        instance->get_distance(route1[i + 1], route1[i + 2]) +
+                        instance->get_distance(route2[j], route2[j + 1]);
+        modified_cost = instance->get_distance(route1[i - 1], route1[i + 2]) +
+                        instance->get_distance(route2[j], route1[i]) +
+                        instance->get_distance(route1[i + 1], route2[j + 1]);
+
+        change = modified_cost - original_cost;
+        if (is_accepted(change)) {
+            int u = route1[i];
+            int x = route1[i + 1];
+            for (int p = i; p < length1 - 2; ++p) {
+                route1[p] = route1[p + 2];
+            }
+            length1 -= 2;
+            loading1 -= instance->get_customer_demand_(u);
+            loading1 -= instance->get_customer_demand_(x);
+
+            for (int q = length2 + 1; q > j + 2; q--) {
+                route2[q] = route2[q - 2];
+            }
+            route2[j + 1] = u;
+            route2[j + 2] = x;
+            length2 += 2;
+            loading2 += instance->get_customer_demand_(u);
+            loading2 += instance->get_customer_demand_(x);
+            upper_cost += change;
+
+            has_moved = true;
+            break;
+        }
+    }
+
+    return has_moved;
+}
+
+bool LeaderArray::move3_intra(int* route, int length) {
+    if (length <= 4) return false;
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> dist(1, length - 3);
+    int i = dist(random_engine);
+
+    double original_cost, modified_cost;
+    for (int j = 0; j < length - 1; j++) {
+        if (j == i - 1 || j == i || j == i + 1) continue;
+
+        if (i < j) {
+            original_cost = instance->get_distance(route[i - 1], route[i]) +
+                            instance->get_distance(route[i + 1], route[i + 2]) +
+                            instance->get_distance(route[j], route[j + 1]);
+            modified_cost = instance->get_distance(route[i - 1], route[i + 2]) +
+                            instance->get_distance(route[j], route[i + 1]) +
+                            instance->get_distance(route[i], route[j + 1]);
+        } else {
+            original_cost = instance->get_distance(route[i - 1], route[i]) +
+                            instance->get_distance(route[i + 1], route[i + 2]) +
+                            instance->get_distance(route[j], route[j + 1]);
+            modified_cost = instance->get_distance(route[j], route[i + 1]) +
+                            instance->get_distance(route[i], route[j + 1]) +
+                            instance->get_distance(route[i - 1], route[i + 2]);
+        }
+
+        double change = modified_cost - original_cost;
+        if (is_accepted(change)) {
+            int u = route[i];
+            int x = route[i + 1];
+            if (i < j) {
+                for (int k = i; k < j - 1; k++) {
+                    route[k] = route[k + 2];
+                }
+                route[j - 1] = x;
+                route[j] = u;
+            }
+            else if (i > j) {
+                for (int k = i + 1; k > j + 2; k--) {
+                    route[k] = route[k - 2];
+                }
+                route[j + 1] = x;
+                route[j + 2] = u;
+            }
+            upper_cost += change;
+
+            has_moved = true;
+            break;
+        }
+    }
+
+    return has_moved;
+}
+
+bool LeaderArray::move3_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+    if (length1 < 4 || length2 < 3) return false;
+
+    bool has_moved = false;
+
+    std::vector<int> candidates;
+    for (int i = 1; i < length1 - 2; ++i) {
+        if (loading2 + instance->get_customer_demand_(route1[i]) + instance->get_customer_demand_(route1[ i + 1]) <= instance->max_vehicle_capa_) {
+            candidates.push_back(i);
+        }
+    }
+    if (candidates.empty()) return false;
+    std::shuffle(candidates.begin(), candidates.end(), random_engine);  // Shuffle to pick one randomly
+    int i = candidates.front();  // Pick the first after shuffling
+
+    double original_cost, modified_cost, change;
+    for (int j = 0; j < length2 - 1; ++j) {
+        original_cost = instance->get_distance(route1[i - 1], route1[i]) +
+                        instance->get_distance(route1[i + 1], route1[i + 2]) +
+                        instance->get_distance(route2[j], route2[j + 1]);
+        modified_cost = instance->get_distance(route1[i - 1], route1[i + 2]) +
+                        instance->get_distance(route2[j], route1[i + 1]) +
+                        instance->get_distance(route1[i], route2[j + 1]);
+
+        change = modified_cost - original_cost;
+        if (is_accepted(change)) {
+            int u = route1[i];
+            int x = route1[i + 1];
+            for (int p = i; p < length1 - 2; ++p) {
+                route1[p] = route1[p + 2];
+            }
+            length1 -= 2;
+            loading1 -= instance->get_customer_demand_(u);
+            loading1 -= instance->get_customer_demand_(x);
+
+            for (int q = length2 + 1; q > j + 2; q--) {
+                route2[q] = route2[q - 2];
+            }
+            route2[j + 1] = x;
+            route2[j + 2] = u;
+            length2 += 2;
+            loading2 += instance->get_customer_demand_(u);
+            loading2 += instance->get_customer_demand_(x);
+            upper_cost += change;
+
+            has_moved = true;
+            break;
+        }
+    }
+
+    return has_moved;
+}
+
 bool LeaderArray::move4_intra(int* route, int length) {
     if (length < 5) return false;
 
@@ -424,6 +670,184 @@ bool LeaderArray::move4_inter(int *route1, int *route2, int length1, int length2
                 break;
             }
 
+        }
+    }
+
+    return has_moved;
+}
+
+bool LeaderArray::move5_intra(int* route, int length) {
+    if (length < 5) return false;
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> distI(1, length - 4);
+    int i = distI(random_engine);
+    double original_cost, modified_cost, change;
+    for (int j = i + 2; j < length - 1; ++j) {
+        if (j == i + 2) {
+            original_cost = instance->get_distance(route[i - 1], route[i]) +
+                            instance->get_distance(route[i + 1], route[j]) +
+                            instance->get_distance(route[j], route[j + 1]);
+            modified_cost = instance->get_distance(route[i - 1], route[j]) +
+                            instance->get_distance(route[j], route[i]) +
+                            instance->get_distance(route[i + 1], route[j + 1]);
+        } else {
+            original_cost = instance->get_distance(route[i - 1], route[i]) +
+                            instance->get_distance(route[i + 1], route[i + 2]) +
+                            instance->get_distance(route[j - 1], route[j]) +
+                            instance->get_distance(route[j], route[j + 1]);
+            modified_cost = instance->get_distance(route[i - 1], route[j]) +
+                            instance->get_distance(route[j], route[i + 2]) +
+                            instance->get_distance(route[j - 1], route[i]) +
+                            instance->get_distance(route[i + 1], route[j + 1]);
+        }
+        change = modified_cost - original_cost;
+
+        if (is_accepted(change)) {
+            // node pair (route[i], route[i + 1]) will be changed with node route[j]
+            if (j == i + 2) {
+                std::swap(route[i], route[j]);
+                std::swap(route[i + 1], route[j]);
+            } else {
+                std::swap(route[i], route[j]);
+                int x = route[i + 1];
+                for (int k = i + 1; k < j; ++k) {
+                    route[k] = route[k + 1];
+                }
+                route[j] = x;
+            }
+
+            upper_cost += change;
+
+            has_moved = true;
+            break;
+        }
+    }
+
+    return has_moved;
+}
+
+bool LeaderArray::move5_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+    if (length1 < 4 || length2 < 3) return false;
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> distI(1, length1 - 3);
+    int i = distI(random_engine);
+    double original_cost, modified_cost, change;
+    for (int j = 1; j < length2 - 1; ++j) {
+        int demand_pair = instance->get_customer_demand_(route1[i]) + instance->get_customer_demand_(route1[i + 1]);
+        int demand_J = instance->get_customer_demand_(route2[j]);
+        if (loading1 - demand_pair + demand_J > instance->max_vehicle_capa_ || loading2 - demand_J + demand_pair > instance->max_vehicle_capa_) {
+            continue;
+        }
+
+        original_cost = instance->get_distance(route1[i - 1], route1[i]) + instance->get_distance(route1[i + 1], route1[i + 2]) +
+                        instance->get_distance(route2[j - 1], route2[j]) + instance->get_distance(route2[j], route2[j + 1]);
+        modified_cost = instance->get_distance(route1[i - 1], route2[j]) + instance->get_distance(route2[j], route1[i + 2]) +
+                        instance->get_distance(route2[j - 1], route1[i]) + instance->get_distance(route1[i + 1], route2[j + 1]);
+
+        change = modified_cost - original_cost;
+        if (is_accepted(change)) {
+            // node pair (route1[i], route1[i + 1]) will be changed with node route2[j]
+            int u = route1[i];
+            int x = route1[i + 1];
+            route1[i] = route2[j];
+            for (int p = i + 1; p < length1 - 1; ++p) {
+                route1[p] = route1[p + 1];
+            }
+            length1--;
+            loading1 = loading1 - demand_pair + demand_J;
+
+            for (int q = length2; q > j + 1; q--) {
+                route2[q] = route2[q - 1];
+            }
+            route2[j] = u;
+            route2[j + 1] = x;
+            length2++;
+            loading2 = loading2 - demand_J + demand_pair;
+
+            upper_cost += change;
+            has_moved = true;
+            break;
+        }
+    }
+
+    return has_moved;
+}
+
+bool LeaderArray::move6_intra(int* route, int length) {
+    if (length < 7) return false;
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> distI(1, length - 5);
+    int i = distI(random_engine);
+    double original_cost, modified_cost, change;
+    for (int j = i + 2; j < length - 2; ++j) {
+        if (j == i + 2) {
+            original_cost = instance->get_distance(route[i - 1], route[i]) +
+                            instance->get_distance(route[i + 1], route[j]) +
+                            instance->get_distance(route[j + 1], route[j + 2]);
+            modified_cost = instance->get_distance(route[i - 1], route[j]) +
+                            instance->get_distance(route[j + 1], route[i]) +
+                            instance->get_distance(route[i + 1], route[j + 2]);
+        } else {
+            original_cost = instance->get_distance(route[i - 1], route[i]) +
+                            instance->get_distance(route[i + 1], route[i + 2]) +
+                            instance->get_distance(route[j - 1], route[j]) +
+                            instance->get_distance(route[j + 1], route[j + 2]);
+            modified_cost = instance->get_distance(route[i - 1], route[j]) +
+                            instance->get_distance(route[j + 1], route[i + 2]) +
+                            instance->get_distance(route[j - 1], route[i]) +
+                            instance->get_distance(route[i + 1], route[j + 2]);
+        }
+        change = modified_cost - original_cost;
+
+        if (is_accepted(change)) {
+            swap(route[i], route[j]);
+            swap(route[i + 1], route[j + 1]);
+            upper_cost += change;
+
+            has_moved = true;
+            break;
+        }
+    }
+
+    return has_moved;
+}
+
+bool LeaderArray::move6_inter(int *route1, int *route2, int length1, int length2, int &loading1, int &loading2) {
+    if (length1 < 4 || length2 < 4 || (length1 == 4 && length2 == 4)) return false;
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> distI(1, length1 - 3);
+    int i = distI(random_engine);
+    double original_cost, modified_cost, change;
+    for (int j = 1; j < length2 - 2; ++j) {
+        int demand_I_pair = instance->get_customer_demand_(route1[i]) + instance->get_customer_demand_(route1[i + 1]);
+        int demand_J_pair = instance->get_customer_demand_(route2[j]) + instance->get_customer_demand_(route2[j + 1]);
+        if (loading1 - demand_I_pair + demand_J_pair > instance->max_vehicle_capa_ || loading2 - demand_J_pair + demand_I_pair > instance->max_vehicle_capa_) {
+            continue;
+        }
+
+        original_cost = instance->get_distance(route1[i - 1], route1[i]) + instance->get_distance(route1[i + 1], route1[i + 2]) +
+                        instance->get_distance(route2[j - 1], route2[j]) + instance->get_distance(route2[j + 1], route2[j + 2]);
+        modified_cost = instance->get_distance(route1[i - 1], route2[j]) + instance->get_distance(route2[j + 1], route1[i + 2]) +
+                        instance->get_distance(route2[j - 1], route1[i]) + instance->get_distance(route1[i + 1], route2[j + 2]);
+        change = modified_cost - original_cost;
+
+        if (is_accepted(change)) {
+            swap(route1[i], route2[j]);
+            swap(route1[i + 1], route2[j + 1]);
+            loading1 = loading1 - demand_I_pair + demand_J_pair;
+            loading2 = loading2 - demand_J_pair + demand_I_pair;
+            upper_cost += change;
+
+            has_moved = true;
+            break;
         }
     }
 
