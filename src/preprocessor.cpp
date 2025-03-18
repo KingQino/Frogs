@@ -17,7 +17,6 @@ Preprocessor::Preprocessor(const Case &c, const Parameters &params) : c(c), para
     } else {
         max_exec_time_ = static_cast<int>(3 * (c.problem_size_ / 100.0) * 60 * 60);
     }
-    max_exec_time_ = 10;
     this->max_no_improvement_count_ = 800; // adjust further  default: 20,000
 
     this->nb_granular_ = params.nb_granular;
