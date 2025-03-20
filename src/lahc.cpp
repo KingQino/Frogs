@@ -137,11 +137,25 @@ void Lahc::close_log_for_evolution() {
 }
 
 void Lahc::flush_row_into_evol_log() {
-    precision_stream << std::fixed << std::setprecision(3) << history_list_metrics.min << "," <<
-    history_list_metrics.max  <<"," << history_list_metrics.avg << "," << history_list_metrics.std << "," <<
-    num_moves_per_history / static_cast<double>(history_length);
+    oss_row_evol << iter << ",";
 
-    oss_row_evol << iter << "," << global_best->lower_cost << "," << precision_stream.str() <<"\n";
+    if (global_best->lower_cost > 1e6) {
+        oss_row_evol << std::scientific << std::setprecision(3) << global_best->lower_cost;
+    } else {
+        oss_row_evol << std::fixed << std::setprecision(3) << global_best->lower_cost;
+    }
+
+    // Reset to default float formatting
+    oss_row_evol << std::defaultfloat << ",";
+
+    // Ensure fixed precision for history metrics
+    oss_row_evol << std::fixed << std::setprecision(3)
+                 << history_list_metrics.min << ","
+                 << history_list_metrics.max << ","
+                 << history_list_metrics.avg << ","
+                 << history_list_metrics.std << ","
+                 << num_moves_per_history / static_cast<double>(history_length)
+                 << "\n";
 }
 
 void Lahc::save_log_for_solution() {

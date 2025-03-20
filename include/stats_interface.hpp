@@ -36,7 +36,6 @@ public:
     std::chrono::duration<double> duration;
 
     std::ofstream log_evolution;
-    std::ostringstream precision_stream;
     std::ostringstream oss_row_evol;
     std::ofstream log_solution;
 
