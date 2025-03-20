@@ -5,7 +5,7 @@
 
 LeaderArray::LeaderArray(int seed_val, Case *instance, Preprocessor *preprocessor) : instance(instance), preprocessor(preprocessor) {
     this->random_engine = std::default_random_engine(seed_val);
-    this->uniform_int_dis = std::uniform_int_distribution<int>(0, 17); // 10 moves
+    this->uniform_int_dis = std::uniform_int_distribution<int>(0, 17); // 18 moves
 
     this->max_search_depth = 10;
     this->route_cap = preprocessor->route_cap_;
