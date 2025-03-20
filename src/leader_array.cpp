@@ -729,7 +729,7 @@ bool LeaderArray::move5_intra(int* route, int length) {
 }
 
 bool LeaderArray::move5_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-    if (length1 < 4 || length2 < 3) return false;
+    if (length1 < 4 || length2 < 4) return false;
 
     bool has_moved = false;
 
@@ -778,7 +778,7 @@ bool LeaderArray::move5_inter(int* route1, int* route2, int& length1, int& lengt
 }
 
 bool LeaderArray::move6_intra(int* route, int length) {
-    if (length < 7) return false;
+    if (length < 6) return false;
 
     bool has_moved = false;
 
