@@ -26,6 +26,7 @@ public:
     long iter;                                  // Iteration counter I
     long idle_iter;                             // Idle iteration counter
     long history_length;                        // LAHC history length Lh
+    double num_moves_per_history;               // the number of algorithm moves per history length iteration
     vector<double> history_list;                // Lahc history list L, it holds the objetive values
     std::unique_ptr<Solution> global_best;      // Global best solution found so far
     Indicators history_list_metrics;            // The statistical info of the history list

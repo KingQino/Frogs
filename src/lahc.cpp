@@ -13,6 +13,7 @@ Lahc::Lahc(int seed_val, Case* instance, Preprocessor* preprocessor) : Heuristic
     iter = 0L;
     idle_iter = 0L;
     history_length = static_cast<long>(preprocessor->params.history_length);
+    num_moves_per_history = 0.;
     history_list = vector<double>(history_length);
     current = nullptr;
     global_best = make_unique<Solution>();
@@ -55,6 +56,7 @@ void Lahc::run_heuristic() {
         bool has_moved = leader->neighbour_explore(history_cost);
         if (has_moved) {
             leader->export_solution(current);
+            num_moves_per_history++;
         }
         double candidate_cost = leader->upper_cost;
 
@@ -66,6 +68,7 @@ void Lahc::run_heuristic() {
         if (v == 0L) {
             history_list_metrics = StatsInterface::calculate_statistical_indicators(history_list);
             flush_row_into_evol_log();
+            num_moves_per_history = 0.;
         }
 
         iter++;
@@ -124,7 +127,7 @@ void Lahc::open_log_for_evolution() {
 
     const string file_name = "evols." + instance->instance_name_ + ".csv";
     log_evolution.open(directory + "/" + file_name);
-    log_evolution << "iters,global_best,min,max,mean,std\n";
+    log_evolution << "iters,global_best,min,max,mean,std,ratio_moves\n";
 }
 
 void Lahc::close_log_for_evolution() {
@@ -134,8 +137,11 @@ void Lahc::close_log_for_evolution() {
 }
 
 void Lahc::flush_row_into_evol_log() {
-    oss_row_evol << iter << "," << global_best->lower_cost << "," << history_list_metrics.min << "," <<
-        history_list_metrics.max <<"," << history_list_metrics.avg << "," << history_list_metrics.std << "\n";
+    precision_stream << std::fixed << std::setprecision(3) << history_list_metrics.min << "," <<
+    history_list_metrics.max  <<"," << history_list_metrics.avg << "," << history_list_metrics.std << "," <<
+    num_moves_per_history / static_cast<double>(history_length);
+
+    oss_row_evol << iter << "," << global_best->lower_cost << "," << precision_stream.str() <<"\n";
 }
 
 void Lahc::save_log_for_solution() {
