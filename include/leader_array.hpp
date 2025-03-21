@@ -8,6 +8,8 @@
 #include "case.hpp"
 #include "preprocessor.hpp"
 #include "individual.hpp"
+#include "solution.hpp"
+#include <functional>  // For std::function
 
 class LeaderArray {
 public:
@@ -26,15 +28,21 @@ public:
     double upper_cost;
     double history_cost;
 
+    void clean();
     void run(Individual* ind);
-    void neighbour_explore(const double& history_val);
+    bool neighbour_explore(const double& history_val);
     void load_individual(Individual* ind);
     void export_individual(Individual* ind) const;
+    void load_solution(Solution* sol);
+    void export_solution(Solution* sol) const;
     LeaderArray(int seed_val, Case* instance, Preprocessor* preprocessor);
     ~LeaderArray();
 
+    void clean_empty_routes(int r1, int r2); // clean possible empty routes after move
+    bool perform_intra_move(const std::function<bool(int*, int)>& move_func);
+    bool perform_inter_move(const std::function<bool(int*, int*, int&, int&, int&, int&)>& move_func);
+    bool perform_inter_move_with_empty_route(const std::function<bool(int*, int*, int&, int&, int&, int&)>& move_func);
 
-    static void moveItoJ(int* route, int a, int b);
     [[nodiscard]] bool is_accepted(const double& change) const;
     bool two_opt_for_single_route(int* route, int length);
     bool two_opt_intra_for_individual();
@@ -48,6 +56,27 @@ public:
     bool node_exchange_intra_for_individual(); // four-arcs exchange, intra-route
     bool node_exchange_between_two_routes(int* route1, int* route2, int length1, int length2, int& loading1, int& loading2);
     bool node_exchange_inter_for_individual(); // four-arcs exchange, inter-route
+
+    bool move1_intra(int* route, int length); // if U is ahead of V, then move U to the behind of V; otherwise, move U to the ahead of V
+    bool move1_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move1_inter_with_empty_route(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move2_intra(int* route, int length);
+    bool move2_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move3_intra(int* route, int length);
+    bool move3_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move4_intra(int* route, int length);
+    bool move4_inter(int* route1, int* route2, int length1, int length2, int& loading1, int& loading2);
+    bool move5_intra(int* route, int length);
+    bool move5_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move6_intra(int* route, int length);
+    bool move6_inter(int* route1, int* route2, int length1, int length2, int& loading1, int& loading2);
+    bool move7_intra(int* route, int length);
+    bool move8_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move8_inter_with_empty_route(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move9_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move9_inter_with_empty_route(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+
+    static void moveItoJ(int* route, int a, int b);
 
     friend ostream& operator<<(ostream& os, const LeaderArray& leader);
 };
