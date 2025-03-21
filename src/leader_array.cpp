@@ -475,22 +475,6 @@ bool LeaderArray::node_relocation_intra_for_individual() {
     return isMoved;
 }
 
-void LeaderArray::moveItoJ(int* route, int a, int b) {
-    int x = route[a];
-    if (a < b) {
-        for (int i = a; i < b; i++) {
-            route[i] = route[i + 1];
-        }
-        route[b] = x;
-    }
-    else if (a > b) {
-        for (int i = a; i > b; i--) {
-            route[i] = route[i - 1];
-        }
-        route[b] = x;
-    }
-}
-
 bool LeaderArray::node_relocation_between_two_routes(int *route1, int *route2, int &length1, int &length2,
                                                      int &loading1, int &loading2) {
     if (length1 < 3 || length2 < 3) return false;
@@ -1535,6 +1519,22 @@ bool LeaderArray::move9_inter_with_empty_route(int *route1, int *route2, int &le
     delete[] temp_r1;
 
     return  has_moved;
+}
+
+void LeaderArray::moveItoJ(int* route, int a, int b) {
+    int x = route[a];
+    if (a < b) {
+        for (int i = a; i < b; i++) {
+            route[i] = route[i + 1];
+        }
+        route[b] = x;
+    }
+    else if (a > b) {
+        for (int i = a; i > b; i--) {
+            route[i] = route[i - 1];
+        }
+        route[b] = x;
+    }
 }
 
 std::ostream& operator<<(std::ostream& os, const LeaderArray& leader) {
