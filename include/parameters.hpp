@@ -27,6 +27,9 @@ struct Parameters {
     bool is_duration_constraint;// Whether to consider duration constraint
     int history_length;         // LAHC history length
 
+    // experimental parameters
+    int runtime_multiplier;     // Runtime multiplier
+
 
     // Constructor: Initializes default values
     Parameters() :
@@ -41,6 +44,7 @@ struct Parameters {
         is_hard_constraint = true;
         is_duration_constraint = false;
         history_length = 5'000;
+        runtime_multiplier = 1;
     }
 };
 

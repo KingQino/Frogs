@@ -30,10 +30,11 @@ void CommandLine::parse_parameters(Parameters& params) const {
         params.stop_criteria = get_int("stp", params.stop_criteria);
         params.enable_multithreading = get_bool("mth", params.enable_multithreading);
         params.seed = get_int("seed", params.seed);
+        params.history_length = get_int("his_len", params.history_length);
+        params.runtime_multiplier = get_int("rt_mul", params.runtime_multiplier);
         params.nb_granular = get_int("nb_granular", params.nb_granular);
         params.is_hard_constraint = get_bool("is_hard_constraint", params.is_hard_constraint);
         params.is_duration_constraint = get_bool("is_duration_constraint", params.is_duration_constraint);
-        params.history_length = get_int("history_length", params.history_length);
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         display_help();
@@ -52,10 +53,11 @@ void CommandLine::display_help() {
               << "  -stp [0|1|2]                 : Stopping criteria, 0: max-evals, 1: max-time, 2: obj-converge (default: 0)\n"
               << "  -mth [0|1]                   : Enable multi-threading (default: 1)\n"
               << "  -seed [int]                  : Random seed (default: 0)\n"
+              << "  -his_len [int]               : LAHC history length (default: 5000)\n"
+              << "  -rt_mul [int]                : Runtime multiplier (default: 1)\n"
               << "  -nb_granular [int]           : Granular search parameter (default: 20)\n"
               << "  -is_hard_constraint [0|1]    : Whether to use hard constraint (default: 1)\n"
-              << "  -is_duration_constraint [0|1]: Whether to consider duration constraint (default: 0)\n"
-              << "  -history_length [int]        : LAHC history length (default: 5000)\n";
+              << "  -is_duration_constraint [0|1]: Whether to consider duration constraint (default: 0)\n";
     std::cout << "-------------------------------------------------------------------------------------------------------------------------------" << std::endl;
 }
 
