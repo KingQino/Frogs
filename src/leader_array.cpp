@@ -11,8 +11,8 @@ LeaderArray::LeaderArray(int seed_val, Case *instance, Preprocessor *preprocesso
     this->route_cap = preprocessor->route_cap_;
     this->node_cap  = preprocessor->node_cap_;
     this->num_routes = 0;
-    this->upper_cost = 0;
-    this->history_cost = 0;
+    this->upper_cost = 0.;
+    this->history_cost = 0.;
     this->routes = new int *[route_cap];
     for (int i = 0; i < route_cap; ++i) {
         this->routes[i] = new int[node_cap];
@@ -88,7 +88,7 @@ void LeaderArray::load_solution(Solution* sol) {
     this->num_routes = sol->num_routes;
     memcpy(this->num_nodes_per_route, sol->num_nodes_per_route, sizeof(int) * sol->route_cap);
     memcpy(this->demand_sum_per_route, sol->demand_sum_per_route, sizeof(int) * sol->route_cap);
-    for (int i = 0; i < sol->route_cap; ++i) {
+    for (int i = 0; i < sol->num_routes; ++i) {
         memcpy(this->routes[i], sol->routes[i], sizeof(int) * sol->node_cap);
     }
 }
@@ -98,7 +98,7 @@ void LeaderArray::export_solution(Solution* sol) const {
     sol->num_routes = this->num_routes;
     memcpy(sol->num_nodes_per_route, this->num_nodes_per_route, sizeof(int) * this->route_cap);
     memcpy(sol->demand_sum_per_route, this->demand_sum_per_route, sizeof(int) * this->route_cap);
-    for (int i = 0; i < this->route_cap; ++i) {
+    for (int i = 0; i < this->num_routes; ++i) {
         memcpy(sol->routes[i], this->routes[i], sizeof(int) * this->node_cap);
     }
 }
@@ -149,6 +149,7 @@ void LeaderArray::clean_empty_routes(int r1, int r2) {
             std::swap(demand_sum_per_route[route], demand_sum_per_route[last]);
             std::swap(num_nodes_per_route[route], num_nodes_per_route[last]);
             memset(routes[last], 0, sizeof(int) * node_cap);
+            num_nodes_per_route[last] = 0;
             num_routes--;
         }
     };
