@@ -46,15 +46,13 @@ Solution::Solution(Case *instance, Preprocessor *preprocessor) {
     this->lower_cost = 0.;
 }
 
-Solution::Solution(Case* instance, Preprocessor* preprocessor, const vector<vector<int>> &routes, double upper_cost, const vector<int> &demand_sum_per_route)
+Solution::Solution(Case* instance, Preprocessor* preprocessor, const vector<vector<int>>& routes, double upper_cost, const vector<int>& demand_sum_per_route)
 : Solution(instance, preprocessor) {
     this->upper_cost = upper_cost;
     this->num_routes = static_cast<int>(routes.size());
     for (int i = 0; i < this->num_routes; ++i) {
         this->num_nodes_per_route[i] = static_cast<int>(routes[i].size());
-        for (int j = 0; j < this->num_nodes_per_route[i]; ++j) {
-            this->routes[i][j] = routes[i][j];
-        }
+        memcpy(this->routes[i], routes[i].data(), sizeof(int) * this->num_nodes_per_route[i]);
     }
     for (int i = 0; i < demand_sum_per_route.size(); ++i) {
         this->demand_sum_per_route[i] = demand_sum_per_route[i];
