@@ -160,10 +160,11 @@
      -stp [0|1|2]                 : Stopping criteria, 0: max-evals, 1: max-time, 2: obj-converge (default: 0)
      -mth [0|1]                   : Enable multi-threading (default: 1)
      -seed [int]                  : Random seed (default: 0)
+     -his_len [int]               : LAHC history length (default: 5000)
+     -rt_mul [int]                : Runtime multiplier (default: 1)
      -nb_granular [int]           : Granular search parameter (default: 20)
      -is_hard_constraint [0|1]    : Whether to use hard constraint (default: 1)
      -is_duration_constraint [0|1]: Whether to consider duration constraint (default: 0)
-     -history_length [int]        : LAHC history length (default: 5000)
    -----------------------------------------------------------------------------------------------------------------------------
    '
    ```
@@ -320,7 +321,7 @@
      #!/bin/bash
      
      # Slurm job options (job-name, compute nodes, job time)
-     #SBATCH --job-name=Lahc-$dir                             # Job name set to the parent directory name
+     #SBATCH --job-name=L-$dir                             # Job name set to the parent directory name
      #SBATCH --output=$(pwd)/$log_dir/slurm-%A_%a.out       # Output log file path in the log folder
      #SBATCH --time=48:0:0                                  # Request 48 hours of compute time
      #SBATCH --nodes=1                                      # Request 1 node
@@ -338,7 +339,7 @@
      CASE="\${cases[\$SLURM_ARRAY_TASK_ID]}"
      
      # Run the specified command with case argument
-     srun ./Run 1 "\$CASE" 1 0
+     srun ./Run -alg lahc -ins "\$CASE" -log 1 -stp 1 -mth 1 
      EOL
      
              echo "Generated 'script.slurm' in '$build_dir'."
