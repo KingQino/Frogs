@@ -1136,7 +1136,7 @@ LeaderLahc::LeaderLahc(int seed, Case* instance, Preprocessor* preprocessor) : i
     for (int i = 1 ; i <= instance->num_customer_ ; i++) orderNodes.push_back(i);
     for (int r = 0 ; r < preprocessor->route_cap_ ; r++) orderRoutes.push_back(r);
 
-    random_engine = std::default_random_engine(seed);
+    random_engine = std::mt19937(seed);
     uniformIntDis = std::uniform_int_distribution<int>(0, 8); // 9 moves
     disIntraMove = std::uniform_int_distribution<int>(0, 2); // 3 intra moves
     disInterMove = std::uniform_int_distribution<int>(0, 3); // 4 intra moves

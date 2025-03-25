@@ -3,9 +3,11 @@
 //
 #include "leader_array.hpp"
 
-LeaderArray::LeaderArray(int seed_val, Case *instance, Preprocessor *preprocessor) : instance(instance), preprocessor(preprocessor) {
-    this->random_engine = std::default_random_engine(seed_val);
-    this->uniform_int_dis = std::uniform_int_distribution<int>(0, 5); // 6 moves
+LeaderArray::LeaderArray(int seed_val, Case *instance, Preprocessor *preprocessor)
+    : instance(instance),
+      preprocessor(preprocessor),
+      random_engine(seed_val),
+      uniform_int_dis(0, 5) {
 
     this->max_search_depth = 10;
     this->route_cap = preprocessor->route_cap_;

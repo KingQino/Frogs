@@ -15,7 +15,7 @@ class LeaderArray {
 public:
     Case* instance;
     Preprocessor* preprocessor;
-    std::default_random_engine random_engine;   // Random number generator
+    std::mt19937 random_engine;   // Random number generator
     uniform_int_distribution<int> uniform_int_dis;// Uniform distribution for random integers
 
     int route_cap;

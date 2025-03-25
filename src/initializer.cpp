@@ -7,7 +7,7 @@
 Initializer::Initializer(int seed_val, Case *instance, Preprocessor *preprocessor) {
     this->instance = instance;
     this->preprocessor = preprocessor;
-    this->random_engine = default_random_engine(seed_val);
+    this->random_engine = std::mt19937(seed_val);
 }
 
 Initializer::~Initializer() = default;
