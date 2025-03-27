@@ -136,7 +136,7 @@
    ml cmake gcc openmpi
    
    # Sulis
-   ml CMake/3.18.4 GCC/12.3.0 OpenMPI/4.1.5
+   ml GCCcore/13.3.0 CMake/3.29.3 GCC/13.3.0 OpenMPI/5.0.3
    ```
 
    ```shell
@@ -332,7 +332,7 @@
      #SBATCH --array=0-16
      
      # Load necessary modules
-     module load GCC/13.2.0
+     module load GCCcore/13.3.0 GCC/13.3.0 OpenMPI/5.0.3
      
      # Load cases from parameters.txt
      mapfile -t cases < "parameters.txt"        # Load parameters.txt from the build directory
@@ -347,6 +347,7 @@
              # Navigate to build_dir, run cmake and make commands
              (
                  cd "$build_dir" || exit
+                 ml GCCcore/13.3.0 CMake/3.29.3 GCC/13.3.0 OpenMPI/5.0.3
                  cmake -DCMAKE_BUILD_TYPE=Release ..
                  make
                  sbatch script.slurm
