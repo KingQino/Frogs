@@ -33,7 +33,6 @@ public:
     Solution* current;                          // Current solution s
 
     Initializer* initializer;
-//    LeaderLahc* leader;
     LeaderArray* leader;
     Follower* follower;
 

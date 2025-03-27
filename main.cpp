@@ -1,5 +1,4 @@
-#include <thread>
-#include <mutex>
+#include <omp.h>  // OpenMP header
 #include "parameters.hpp"
 #include "command_line.hpp"
 #include "case.hpp"
@@ -11,8 +10,6 @@ using namespace std;
 using namespace magic_enum;
 
 #define MAX_TRIALS 10
-
-std::mutex perf_mutex;
 
 void run_algorithm(int run, const Parameters* params, vector<double>& perf_of_trials) {
     Case* instance = new Case(params->instance);
@@ -27,10 +24,13 @@ void run_algorithm(int run, const Parameters* params, vector<double>& perf_of_tr
         case Algorithm::LAHC: {
             Lahc* lahc = new Lahc(run, instance, preprocessor);
             lahc->run();
+
+            // Prevent race condition on shared vector
+            #pragma omp critical
             {
-                std::lock_guard<std::mutex> lock(perf_mutex);
                 perf_of_trials[run - 1] = lahc->global_best->lower_cost;
             }
+
             delete lahc;
             break;
         }
@@ -51,15 +51,10 @@ int main(int argc, char *argv[])
     if (!params.enable_multithreading){
         run_algorithm(1, &params, std::ref(perf_of_trials));
     } else {
-        std::vector<std::thread> threads;
-
-        for (int run = 2; run <= MAX_TRIALS; ++run) {
-            threads.emplace_back(run_algorithm, run, &params, std::ref(perf_of_trials));
-        }
-        run_algorithm(1, &params, std::ref(perf_of_trials));
-
-        for (auto& thread : threads) {
-            thread.join();
+        // OpenMP parallel loop
+        #pragma omp parallel for
+        for (int run = 1; run <= MAX_TRIALS; ++run) {
+            run_algorithm(run, &params, perf_of_trials);
         }
     }
 

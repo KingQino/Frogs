@@ -18,9 +18,8 @@ Lahc::Lahc(int seed_val, Case* instance, Preprocessor* preprocessor) : Heuristic
     current = nullptr;
     global_best = make_unique<Solution>();
 
-    initializer = new Initializer(seed_val, instance, preprocessor);
-//    leader = new LeaderLahc(seed_val, instance, preprocessor);
-    leader = new LeaderArray(seed_val, instance, preprocessor);
+    initializer = new Initializer(random_engine, instance, preprocessor);
+    leader = new LeaderArray(random_engine, instance, preprocessor);
     follower = new Follower(instance, preprocessor);
 }
 

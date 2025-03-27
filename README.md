@@ -136,7 +136,7 @@
    ml cmake gcc openmpi
    
    # Sulis
-   ml CMake/3.18.4 GCC/13.2.0
+   ml CMake/3.18.4 GCC/12.3.0 OpenMPI/4.1.5
    ```
 
    ```shell

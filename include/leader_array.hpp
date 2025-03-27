@@ -15,7 +15,7 @@ class LeaderArray {
 public:
     Case* instance;
     Preprocessor* preprocessor;
-    std::mt19937 random_engine;   // Random number generator
+    std::mt19937& random_engine;   // Random number generator
     uniform_int_distribution<int> uniform_int_dis;// Uniform distribution for random integers
 
     int route_cap;
@@ -35,7 +35,7 @@ public:
     void export_individual(Individual* ind) const;
     void load_solution(Solution* sol);
     void export_solution(Solution* sol) const;
-    LeaderArray(int seed_val, Case* instance, Preprocessor* preprocessor);
+    LeaderArray(std::mt19937& engine, Case* instance, Preprocessor* preprocessor);
     ~LeaderArray();
 
     void clean_empty_routes(int r1, int r2); // clean possible empty routes after move

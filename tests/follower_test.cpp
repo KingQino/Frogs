@@ -18,10 +18,10 @@ protected:
         instance = new Case(file_name);
         params = new Parameters();
         preprocessor = new Preprocessor(*instance, *params);
-        split = new Split(params->seed, instance, preprocessor);
-        leader = new LeaderLahc(params->seed, instance, preprocessor);
+        random_engine = std::mt19937(params->seed);
+        split = new Split(random_engine, instance, preprocessor);
+        leader = new LeaderLahc(random_engine, instance, preprocessor);
         follower = new Follower(instance, preprocessor);
-        random_engine = std::default_random_engine(params->seed);
     }
 
     void TearDown() override {
@@ -39,7 +39,7 @@ protected:
     Split* split{};
     LeaderLahc* leader{};
     Follower* follower{};
-    std::default_random_engine random_engine;
+    std::mt19937 random_engine;
 };
 
 TEST_F(FollowerTest, LoadIndividual) {
@@ -119,8 +119,8 @@ TEST_F(FollowerTest, SpecialCase_En23k3) {
     string file_name = "E-n23-k3.evrp";
     Case instance_E23(file_name);
     Preprocessor preprocessor_E23(instance_E23, *params);
-    Split split_E23(params->seed, &instance_E23, &preprocessor_E23);
-    LeaderLahc leader_E23(params->seed, &instance_E23, &preprocessor_E23);
+    Split split_E23(random_engine, &instance_E23, &preprocessor_E23);
+    LeaderLahc leader_E23(random_engine, &instance_E23, &preprocessor_E23);
     Follower follower_E23(&instance_E23, &preprocessor_E23);
 
 

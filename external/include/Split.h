@@ -77,7 +77,7 @@ private:
     Case* instance;
     Preprocessor* preprocessor;
     int maxVehicles{};
-    std::default_random_engine random_engine;
+    std::mt19937& random_engine;
 
     /* Auxiliary data structures to run the Linear Split algorithm */
     std::vector < ClientSplit > cliSplit;
@@ -130,7 +130,7 @@ public:
     void initIndividualWithDirectEncoding(Individual* ind);
 
     // Constructor
-    Split(int seed, Case* instance, Preprocessor* preprocessor);
+    Split(std::mt19937& engine, Case* instance, Preprocessor* preprocessor);
 
 };
 #endif

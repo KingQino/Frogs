@@ -4,11 +4,8 @@
 
 #include "initializer.hpp"
 
-Initializer::Initializer(int seed_val, Case *instance, Preprocessor *preprocessor) {
-    this->instance = instance;
-    this->preprocessor = preprocessor;
-    this->random_engine = std::mt19937(seed_val);
-}
+Initializer::Initializer(std::mt19937& engine, Case *instance, Preprocessor *preprocessor)
+    : random_engine(engine), instance(instance), preprocessor(preprocessor) {}
 
 Initializer::~Initializer() = default;
 

@@ -11,9 +11,9 @@ class Initializer {
 public:
     Case* instance{};
     Preprocessor* preprocessor{};
-    std::mt19937 random_engine;
+    std::mt19937& random_engine;
 
-    Initializer(int seed_val, Case* instance, Preprocessor* preprocessor);
+    Initializer(std::mt19937& engine, Case* instance, Preprocessor* preprocessor);
     ~Initializer();
 
     [[nodiscard]] vector<vector<int>> prins_split(const vector<int>& chromosome) const;

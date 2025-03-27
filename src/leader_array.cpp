@@ -3,10 +3,10 @@
 //
 #include "leader_array.hpp"
 
-LeaderArray::LeaderArray(int seed_val, Case *instance, Preprocessor *preprocessor)
+LeaderArray::LeaderArray(std::mt19937& engine, Case *instance, Preprocessor *preprocessor)
     : instance(instance),
       preprocessor(preprocessor),
-      random_engine(seed_val),
+      random_engine(engine),
       uniform_int_dis(0, 5) {
 
     this->max_search_depth = 10;

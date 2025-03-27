@@ -194,7 +194,7 @@ public:
     void exportIndividual(Individual * indiv);
 
     // Constructor
-    LeaderLahc(int seed, Case* instance, Preprocessor* preprocessor);
+    LeaderLahc(std::mt19937& engine, Case* instance, Preprocessor* preprocessor);
 };
 
 

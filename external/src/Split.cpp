@@ -403,8 +403,8 @@ void Split::initIndividualWithDirectEncoding(Individual* ind) {
 }
 
 
-Split::Split(int seed, Case* instance, Preprocessor* preprocessor): instance(instance), preprocessor(preprocessor)
-{
+Split::Split(std::mt19937& engine, Case* instance, Preprocessor* preprocessor)
+    : random_engine(engine), instance(instance), preprocessor(preprocessor) {
 	// Structures of the linear Split
 	cliSplit = std::vector <ClientSplit>(instance->num_customer_ + 1);
 	sumDistance = std::vector <double>(instance->num_customer_ + 1,0.);
@@ -412,5 +412,4 @@ Split::Split(int seed, Case* instance, Preprocessor* preprocessor): instance(ins
 	sumService = std::vector <double>(instance->num_customer_ + 1, 0.);
 	potential = std::vector<vector<double>>(preprocessor->route_cap_ + 1, std::vector<double>(instance->num_customer_ + 1,1.e30));
 	pred = std::vector < std::vector <int> >(preprocessor->route_cap_ + 1, std::vector<int>(instance->num_customer_ + 1, 0));
-    random_engine = std::default_random_engine(seed);
 }
