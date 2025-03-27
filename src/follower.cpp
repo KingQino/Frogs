@@ -121,7 +121,7 @@ void Follower::export_individual(Individual* ind) const {
     ind->lower_cost = this->lower_cost;
 }
 
-double Follower::insert_station_by_simple_enum(int* repaired_route, int& repaired_length) {
+double Follower::insert_station_by_simple_enum(int* repaired_route, int& repaired_length) const {
     const int length = repaired_length;
     int* route = new int[length];
     memcpy(route, repaired_route, sizeof(int) * length);
@@ -308,72 +308,34 @@ double Follower::insert_station_by_remove_enum(int* repaired_route, int& repaire
     return sum;
 }
 
-void Follower::recursive_charging_placement(int m_len, int n_len, int* chosen_pos, int* best_chosen_pos, double& final_cost, int cur_upper_bound, int* route, int length, vector<double>& accumulated_distance) {
-    for (int i = m_len; i <= length - 1 - n_len; i++) {
-        if (cur_upper_bound == n_len) {
-            double one_dis = instance->get_distance(route[i], preprocessor->best_station_[route[i]][route[i + 1]]);
-            if (accumulated_distance[i] + one_dis > preprocessor->max_cruise_distance_) {
-                break;
-            }
-        }
-        else {
-            int last_pos = chosen_pos[cur_upper_bound - n_len - 1];
-            double one_dis = instance->get_distance(route[last_pos + 1], preprocessor->best_station_[route[last_pos]][route[last_pos + 1]]);
-            double two_dis = instance->get_distance(route[i], preprocessor->best_station_[route[i]][route[i + 1]]);
-            if (accumulated_distance[i] - accumulated_distance[last_pos + 1] + one_dis + two_dis > preprocessor->max_cruise_distance_) {
-                break;
-            }
-        }
-        if (n_len == 1) {
-            double one_dis = accumulated_distance.back() - accumulated_distance[i + 1] + instance->get_distance(preprocessor->best_station_[route[i]][route[i + 1]], route[i + 1]);
-            if (one_dis > preprocessor->max_cruise_distance_) {
-                continue;
-            }
-        }
-
-        chosen_pos[cur_upper_bound - n_len] = i;
-        if (n_len > 1) {
-            recursive_charging_placement(i + 1, n_len - 1, chosen_pos,  best_chosen_pos, final_cost, cur_upper_bound, route, length, accumulated_distance);
-        }
-        else {
-            double dis_sum = accumulated_distance.back();
-            for (int j = 0; j < cur_upper_bound; j++) {
-                int first_node = route[chosen_pos[j]];
-                int second_node = route[chosen_pos[j] + 1];
-                int the_station = preprocessor->best_station_[first_node][second_node];
-                dis_sum -= instance->get_distance(first_node, second_node);
-                dis_sum += instance->get_distance(first_node, the_station);
-                dis_sum += instance->get_distance(second_node, the_station);
-            }
-            if (dis_sum < final_cost) {
-                final_cost = dis_sum;
-                for (int j = 0; j < length; ++j) {
-                    best_chosen_pos[j] = chosen_pos[j];
-                }
-            }
-        }
-    }
-}
-
-/*
- * This stack-based implementation consumes more memory than the recursive one in my experiments.
- * This probably due to the fact that the recursive one will be automatically optimised by the compiler, C++, machine.
- */
-//void Follower::recursive_charging_placement(int m_len, int n_len, int* chosen_pos, int* best_chosen_pos, double& final_cost, int cur_upper_bound, int* route, int length, vector<double>& accumulated_distance) const {
-//    struct State {
-//        int m_len;
-//        int n_len;
-//        int i;
-//    };
+//void Follower::recursive_charging_placement(int m_len, int n_len, int* chosen_pos, int* best_chosen_pos, double& final_cost, int cur_upper_bound, int* route, int length, vector<double>& accumulated_distance) {
+//    for (int i = m_len; i <= length - 1 - n_len; i++) {
+//        if (cur_upper_bound == n_len) {
+//            double one_dis = instance->get_distance(route[i], preprocessor->best_station_[route[i]][route[i + 1]]);
+//            if (accumulated_distance[i] + one_dis > preprocessor->max_cruise_distance_) {
+//                break;
+//            }
+//        }
+//        else {
+//            int last_pos = chosen_pos[cur_upper_bound - n_len - 1];
+//            double one_dis = instance->get_distance(route[last_pos + 1], preprocessor->best_station_[route[last_pos]][route[last_pos + 1]]);
+//            double two_dis = instance->get_distance(route[i], preprocessor->best_station_[route[i]][route[i + 1]]);
+//            if (accumulated_distance[i] - accumulated_distance[last_pos + 1] + one_dis + two_dis > preprocessor->max_cruise_distance_) {
+//                break;
+//            }
+//        }
+//        if (n_len == 1) {
+//            double one_dis = accumulated_distance.back() - accumulated_distance[i + 1] + instance->get_distance(preprocessor->best_station_[route[i]][route[i + 1]], route[i + 1]);
+//            if (one_dis > preprocessor->max_cruise_distance_) {
+//                continue;
+//            }
+//        }
 //
-//    stack<State> stk;
-//    stk.push({m_len, n_len, m_len});
-//
-//    while (!stk.empty()) {
-//        auto& s = stk.top();
-//
-//        if (s.n_len == 0) {
-//            stk.pop();
+//        chosen_pos[cur_upper_bound - n_len] = i;
+//        if (n_len > 1) {
+//            recursive_charging_placement(i + 1, n_len - 1, chosen_pos,  best_chosen_pos, final_cost, cur_upper_bound, route, length, accumulated_distance);
+//        }
+//        else {
 //            double dis_sum = accumulated_distance.back();
 //            for (int j = 0; j < cur_upper_bound; j++) {
 //                int first_node = route[chosen_pos[j]];
@@ -381,49 +343,88 @@ void Follower::recursive_charging_placement(int m_len, int n_len, int* chosen_po
 //                int the_station = preprocessor->best_station_[first_node][second_node];
 //                dis_sum -= instance->get_distance(first_node, second_node);
 //                dis_sum += instance->get_distance(first_node, the_station);
-//                dis_sum += instance->get_distance(the_station, second_node);
+//                dis_sum += instance->get_distance(second_node, the_station);
 //            }
 //            if (dis_sum < final_cost) {
 //                final_cost = dis_sum;
-//                for (int j = 0; j < cur_upper_bound; ++j) {
+//                for (int j = 0; j < length; ++j) {
 //                    best_chosen_pos[j] = chosen_pos[j];
 //                }
 //            }
-//            continue;
-//        }
-//
-//        if (s.i <= length - 1 - s.n_len) {
-//            if (cur_upper_bound == s.n_len) {
-//                double one_dis = instance->get_distance(route[s.i], preprocessor->best_station_[route[s.i]][route[s.i + 1]]);
-//                if (accumulated_distance[s.i] + one_dis > preprocessor->max_cruise_distance_) {
-//                    stk.pop();
-//                    continue;
-//                }
-//            } else {
-//                int last_pos = chosen_pos[cur_upper_bound - s.n_len - 1];
-//                double one_dis = instance->get_distance(route[last_pos + 1], preprocessor->best_station_[route[last_pos]][route[last_pos + 1]]);
-//                double two_dis = instance->get_distance(route[s.i], preprocessor->best_station_[route[s.i]][route[s.i + 1]]);
-//                if (accumulated_distance[s.i] - accumulated_distance[last_pos + 1] + one_dis + two_dis > preprocessor->max_cruise_distance_) {
-//                    stk.pop();
-//                    continue;
-//                }
-//            }
-//            if (s.n_len == 1) {
-//                double one_dis = accumulated_distance.back() - accumulated_distance[s.i + 1] + instance->get_distance(preprocessor->best_station_[route[s.i]][route[s.i + 1]], route[s.i + 1]);
-//                if (one_dis > preprocessor->max_cruise_distance_) {
-//                    s.i++;
-//                    continue;
-//                }
-//            }
-//
-//            chosen_pos[cur_upper_bound - s.n_len] = s.i;
-//            stk.push({s.i + 1, s.n_len - 1, s.i + 1});
-//            s.i++;
-//        } else {
-//            stk.pop();
 //        }
 //    }
 //}
+
+/*
+ * This stack-based implementation consumes more memory than the recursive one in my experiments.
+ * This probably due to the fact that the recursive one will be automatically optimised by the compiler, C++, machine.
+ */
+void Follower::recursive_charging_placement(int m_len, int n_len, int* chosen_pos, int* best_chosen_pos, double& final_cost,
+                                            int cur_upper_bound, int* route, int length, vector<double>& accumulated_distance) const {
+    struct State {
+        int m_len;
+        int n_len;
+        int i;
+    };
+
+    stack<State> stk;
+    stk.push({m_len, n_len, m_len});
+
+    while (!stk.empty()) {
+        auto& s = stk.top();
+
+        if (s.n_len == 0) {
+            stk.pop();
+            double dis_sum = accumulated_distance.back();
+            for (int j = 0; j < cur_upper_bound; j++) {
+                int first_node = route[chosen_pos[j]];
+                int second_node = route[chosen_pos[j] + 1];
+                int the_station = preprocessor->best_station_[first_node][second_node];
+                dis_sum -= instance->get_distance(first_node, second_node);
+                dis_sum += instance->get_distance(first_node, the_station);
+                dis_sum += instance->get_distance(the_station, second_node);
+            }
+            if (dis_sum < final_cost) {
+                final_cost = dis_sum;
+                for (int j = 0; j < cur_upper_bound; ++j) {
+                    best_chosen_pos[j] = chosen_pos[j];
+                }
+            }
+            continue;
+        }
+
+        if (s.i <= length - 1 - s.n_len) {
+            if (cur_upper_bound == s.n_len) {
+                double one_dis = instance->get_distance(route[s.i], preprocessor->best_station_[route[s.i]][route[s.i + 1]]);
+                if (accumulated_distance[s.i] + one_dis > preprocessor->max_cruise_distance_) {
+                    stk.pop();
+                    continue;
+                }
+            } else {
+                int last_pos = chosen_pos[cur_upper_bound - s.n_len - 1];
+                double one_dis = instance->get_distance(route[last_pos + 1], preprocessor->best_station_[route[last_pos]][route[last_pos + 1]]);
+                double two_dis = instance->get_distance(route[s.i], preprocessor->best_station_[route[s.i]][route[s.i + 1]]);
+                if (accumulated_distance[s.i] - accumulated_distance[last_pos + 1] + one_dis + two_dis > preprocessor->max_cruise_distance_) {
+                    stk.pop();
+                    continue;
+                }
+            }
+            if (s.n_len == 1) {
+                double one_dis = accumulated_distance.back() - accumulated_distance[s.i + 1] + instance->get_distance(preprocessor->best_station_[route[s.i]][route[s.i + 1]], route[s.i + 1]);
+                if (one_dis > preprocessor->max_cruise_distance_) {
+                    s.i++;
+                    continue;
+                }
+            }
+
+            chosen_pos[cur_upper_bound - s.n_len] = s.i;
+            stk.push({s.i + 1, s.n_len - 1, s.i + 1});
+            s.i++;
+        } else {
+            stk.pop();
+        }
+    }
+}
 
 double Follower::insert_station_by_all_enumeration(int* repaired_route, int& repaired_length) const {
     const int length = repaired_length;
