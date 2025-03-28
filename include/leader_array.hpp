@@ -8,6 +8,7 @@
 #include "case.hpp"
 #include "preprocessor.hpp"
 #include "individual.hpp"
+#include <functional>  // For std::function
 
 class LeaderArray {
 public:
