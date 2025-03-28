@@ -5,7 +5,7 @@
 
 LeaderArray::LeaderArray(int seed_val, Case *instance, Preprocessor *preprocessor)
 : random_engine(seed_val), instance(instance), preprocessor(preprocessor) {
-    this->uniform_int_dis = std::uniform_int_distribution<int>(0, 5); // 6 moves
+    this->uniform_int_dis = std::uniform_int_distribution<int>(0, 17); // 18 moves
 
     this->max_search_depth = 10;
     this->route_cap = preprocessor->route_cap_;
@@ -41,24 +41,72 @@ void LeaderArray::run(Individual* ind) {
 void LeaderArray::neighbour_explore(const double& history_val) {
     history_cost = history_val;
 
+    bool has_moved = false;
     switch (uniform_int_dis(random_engine)) {
         case 0:
-            two_opt_intra_for_individual();
+            has_moved = perform_intra_move([this](int* route, int length) { return move1_intra(route, length); });
             break;
         case 1:
-            two_opt_inter_for_individual();
+            has_moved = perform_intra_move([this](int* route, int length) { return move4_intra(route, length); });
             break;
         case 2:
-            node_relocation_intra_for_individual();
+            has_moved = perform_intra_move([this](int* route, int length) { return move7_intra(route, length); });
             break;
         case 3:
-            node_relocation_inter_for_individual();
+            has_moved = perform_inter_move([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2)
+                                           {return move1_inter(route1, route2, length1, length2, loading1, loading2);});
             break;
         case 4:
-            node_exchange_intra_for_individual();
+            has_moved = perform_inter_move([this](int* route1, int* route2, int length1, int length2, int& loading1, int& loading2)
+                                           {return move4_inter(route1, route2, length1, length2, loading1, loading2);});
             break;
         case 5:
-            node_exchange_inter_for_individual();
+            has_moved = perform_inter_move([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2)
+                                           {return move8_inter(route1, route2, length1, length2, loading1, loading2);});
+            break;
+        case 6:
+            has_moved = perform_inter_move([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2)
+                                           {return move9_inter(route1, route2, length1, length2, loading1, loading2);});
+            break;
+        case 7:
+            has_moved = perform_inter_move_with_empty_route([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2)
+                                                            {return move1_inter_with_empty_route(route1, route2, length1, length2, loading1, loading2);});
+            break;
+        case 8:
+            has_moved = perform_inter_move_with_empty_route([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2)
+                                                            {return move8_inter_with_empty_route(route1, route2, length1, length2, loading1, loading2);});
+            break;
+        case 9:
+            has_moved = perform_inter_move_with_empty_route([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2)
+                                                            {return move9_inter_with_empty_route(route1, route2, length1, length2, loading1, loading2);});
+            break;
+        case 10:
+            has_moved = perform_intra_move([this](int* route, int length) { return move2_intra(route, length); });
+            break;
+        case 11:
+            has_moved = perform_inter_move([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2)
+                                           {return move2_inter(route1, route2, length1, length2, loading1, loading2);});
+            break;
+        case 12:
+            has_moved = perform_intra_move([this](int* route, int length) { return move3_intra(route, length); });
+            break;
+        case 13:
+            has_moved = perform_inter_move([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2)
+                                           {return move3_inter(route1, route2, length1, length2, loading1, loading2);});
+            break;
+        case 14:
+            has_moved = perform_intra_move([this](int* route, int length) { return move5_intra(route, length); });
+            break;
+        case 15:
+            has_moved = perform_inter_move([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2)
+                                           {return move5_inter(route1, route2, length1, length2, loading1, loading2);});
+            break;
+        case 16:
+            has_moved = perform_intra_move([this](int* route, int length) { return move6_intra(route, length); });
+            break;
+        case 17:
+            has_moved = perform_inter_move([this](int* route1, int* route2, int length1, int length2, int& loading1, int& loading2)
+                                           {return move6_inter(route1, route2, length1, length2, loading1, loading2);});
             break;
     }
 }
