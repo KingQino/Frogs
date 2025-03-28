@@ -49,6 +49,32 @@ public:
     bool node_exchange_between_two_routes(int* route1, int* route2, int length1, int length2, int& loading1, int& loading2);
     bool node_exchange_inter_for_individual(); // four-arcs exchange, inter-route
 
+    void clean();
+    void clean_empty_routes(int r1, int r2); // clean possible empty routes after move
+    bool perform_intra_move(const std::function<bool(int*, int)>& move_func);
+    bool perform_inter_move(const std::function<bool(int*, int*, int&, int&, int&, int&)>& move_func);
+    bool perform_inter_move_with_empty_route(const std::function<bool(int*, int*, int&, int&, int&, int&)>& move_func);
+
+    bool move1_intra(int* route, int length); // if U is ahead of V, then move U to the behind of V; otherwise, move U to the ahead of V
+    bool move1_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move1_inter_with_empty_route(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move2_intra(int* route, int length);
+    bool move2_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move3_intra(int* route, int length);
+    bool move3_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move4_intra(int* route, int length);
+    bool move4_inter(int* route1, int* route2, int length1, int length2, int& loading1, int& loading2);
+    bool move5_intra(int* route, int length);
+    bool move5_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move6_intra(int* route, int length);
+    bool move6_inter(int* route1, int* route2, int length1, int length2, int& loading1, int& loading2);
+    bool move7_intra(int* route, int length);
+    bool move8_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move8_inter_with_empty_route(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move9_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move9_inter_with_empty_route(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+
+
     friend ostream& operator<<(ostream& os, const LeaderArray& leader);
 };
 
