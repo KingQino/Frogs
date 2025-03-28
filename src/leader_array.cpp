@@ -18,7 +18,6 @@ LeaderArray::LeaderArray(int seed_val, Case *instance, Preprocessor *preprocesso
         this->routes[i] = new int[node_cap];
         memset(this->routes[i], 0, sizeof(int) * node_cap);
     }
-    this->num_routes = 0;
     this->num_nodes_per_route = new int[route_cap];
     memset(this->num_nodes_per_route, 0, sizeof(int) * route_cap);
     this->demand_sum_per_route = new int [route_cap];
@@ -263,28 +262,8 @@ bool LeaderArray::two_opt_inter_for_individual() {
 
         isMoved = two_opt_star_between_two_routes(routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2], demand_sum_per_route[r1], demand_sum_per_route[r2], temp_r1, temp_r2);
 
-        // remove empty routes
-        if (demand_sum_per_route[r1] == 0) {
-            int* tmp = routes[r1];
-            routes[r1] = routes[num_routes - 1];
-            routes[num_routes - 1] = tmp;
-            demand_sum_per_route[r1] = demand_sum_per_route[num_routes - 1];
-            num_nodes_per_route[r1] = num_nodes_per_route[num_routes - 1];
-            num_routes--;
-        }
-        if (demand_sum_per_route[r2] == 0) {
-            int* tmp = routes[r2];
-            routes[r2] = routes[num_routes - 1];
-            routes[num_routes - 1] = tmp;
-            demand_sum_per_route[r2] = demand_sum_per_route[num_routes - 1];
-            num_nodes_per_route[r2] = num_nodes_per_route[num_routes - 1];
-            num_routes--;
-        }
-
-        // update the variable "num_routes" and "route_cap" to remove the empty route
-        for (size_t i = num_routes; i < route_cap; ++i) {
-            num_nodes_per_route[i] = 0;
-            demand_sum_per_route[i] = 0;
+        if (isMoved) {
+            clean_empty_routes(r1, r2);
         }
 
         searchDepth++;
@@ -435,31 +414,11 @@ bool LeaderArray::node_relocation_inter_for_individual() {
         isMoved = node_relocation_between_two_routes(routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2],
                                                      demand_sum_per_route[r1], demand_sum_per_route[r2]);
 
+        if (isMoved) {
+            clean_empty_routes(r1, r2);
+        }
+
         searchDepth++;
-
-        // remove empty routes
-        if (demand_sum_per_route[r1] == 0) {
-            int* tmp = routes[r1];
-            routes[r1] = routes[num_routes - 1];
-            routes[num_routes - 1] = tmp;
-            demand_sum_per_route[r1] = demand_sum_per_route[num_routes - 1];
-            num_nodes_per_route[r1] = num_nodes_per_route[num_routes - 1];
-            num_routes--;
-        }
-        if (demand_sum_per_route[r2] == 0) {
-            int* tmp = routes[r2];
-            routes[r2] = routes[num_routes - 1];
-            routes[num_routes - 1] = tmp;
-            demand_sum_per_route[r2] = demand_sum_per_route[num_routes - 1];
-            num_nodes_per_route[r2] = num_nodes_per_route[num_routes - 1];
-            num_routes--;
-        }
-
-        // update the variable "num_routes" and "route_cap" to remove the empty route
-        for (size_t i = num_routes; i < route_cap; ++i) {
-            num_nodes_per_route[i] = 0;
-            demand_sum_per_route[i] = 0;
-        }
     }
 
     return isMoved;
