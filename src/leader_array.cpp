@@ -5,7 +5,7 @@
 
 LeaderArray::LeaderArray(int seed_val, Case *instance, Preprocessor *preprocessor)
 : random_engine(seed_val), instance(instance), preprocessor(preprocessor) {
-    this->uniform_int_dis = std::uniform_int_distribution<int>(0, 6); // 7 moves
+    this->uniform_int_dis = std::uniform_int_distribution<int>(0, 7); // 7 moves
 
     this->max_search_depth = 10;
     this->route_cap = preprocessor->route_cap_;
@@ -63,6 +63,10 @@ void LeaderArray::neighbour_explore(const double& history_val) {
         case 6:
             perform_inter_move([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2)
                 {return move9_inter(route1, route2, length1, length2, loading1, loading2);});
+            break;
+        case 7:
+            perform_inter_move_with_empty_route([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2)
+                {return move1_inter_with_empty_route(route1, route2, length1, length2, loading1, loading2);});
             break;
     }
 }
