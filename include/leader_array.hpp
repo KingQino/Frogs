@@ -16,6 +16,7 @@ public:
     Preprocessor* preprocessor;
     std::default_random_engine random_engine;   // Random number generator
     uniform_int_distribution<int> uniform_int_dis;// Uniform distribution for random integers
+    discrete_distribution<int> weighted_dist; // Discrete distribution for random choices
 
     int route_cap;
     int node_cap;

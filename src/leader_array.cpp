@@ -6,6 +6,8 @@
 LeaderArray::LeaderArray(int seed_val, Case *instance, Preprocessor *preprocessor)
 : random_engine(seed_val), instance(instance), preprocessor(preprocessor) {
     this->uniform_int_dis = std::uniform_int_distribution<int>(0, 7); // 7 moves
+    std::array<int, 8> weights = {20, 20, 20, 20, 20, 20, 20, 1};
+    this->weighted_dist = std::discrete_distribution<int>(weights.begin(), weights.end());
 
     this->max_search_depth = 10;
     this->route_cap = preprocessor->route_cap_;
@@ -40,7 +42,7 @@ void LeaderArray::run(Individual* ind) {
 void LeaderArray::neighbour_explore(const double& history_val) {
     history_cost = history_val;
 
-    switch (uniform_int_dis(random_engine)) {
+    switch (weighted_dist(random_engine)) {
         case 0:
             two_opt_intra_for_individual();
             break;
