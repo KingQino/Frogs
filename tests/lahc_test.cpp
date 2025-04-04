@@ -36,19 +36,14 @@ protected:
 
 TEST_F(LahcTest, InitializeHeuristic) {
     lahc->initialize_heuristic();
-    int num_routes = 0;
     int num_nodes = 0;
-    for (const auto & i : lahc->current->chromR) {
-        if (!i.empty()) {
-            num_routes++;
-            num_nodes += i.size();
-        }
+    for (int i = 0; i < lahc->current->num_routes; ++i) {
+        num_nodes += lahc->current->num_nodes_per_route[i] - 2;
     }
 
     EXPECT_EQ(lahc->iter, 0L);
-    EXPECT_EQ(lahc->current->upper_cost.penalised_cost, lahc->history_list[0]);
-    EXPECT_EQ(lahc->current->upper_cost.nb_routes, num_routes);
-    EXPECT_EQ(lahc->current->chromT.size(), num_nodes);
+    EXPECT_EQ(lahc->current->upper_cost, lahc->history_list[0]);
+    EXPECT_EQ(lahc->instance->num_customer_, num_nodes);
 }
 
 TEST_F(LahcTest, RunHeuristic) {

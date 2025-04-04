@@ -17,9 +17,9 @@ protected:
         instance = new Case(file_name_);
         params = new Parameters();
         preprocessor = new Preprocessor(*instance, *params);
-        split = new Split(params->seed, instance, preprocessor);
+        rng = std::mt19937 (params->seed);
+        split = new Split(rng, instance, preprocessor);
         local_search = new LocalSearch(params->seed, instance, preprocessor);
-        rng = std::default_random_engine(params->seed);
     }
 
     void TearDown() override {
@@ -35,7 +35,7 @@ protected:
     Preprocessor* preprocessor{};
     Split* split{};
     LocalSearch* local_search{};
-    std::default_random_engine rng;
+    std::mt19937 rng;
 };
 
 

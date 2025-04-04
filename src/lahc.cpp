@@ -13,18 +13,18 @@ Lahc::Lahc(int seed_val, Case* instance, Preprocessor* preprocessor) : Heuristic
     iter = 0L;
     idle_iter = 0L;
     history_length = static_cast<long>(preprocessor->params.history_length);
+    num_moves_per_history = 0.;
     history_list = vector<double>(history_length);
     current = nullptr;
-    global_best = make_unique<Individual>();
+    global_best = make_unique<Solution>();
 
-    split = new Split(seed_val, instance, preprocessor);
-//    leader = new LeaderLahc(seed_val, instance, preprocessor);
-    leader = new LeaderArray(seed_val, instance, preprocessor);
+    initializer = new Initializer(random_engine, instance, preprocessor);
+    leader = new LeaderArray(random_engine, instance, preprocessor);
     follower = new Follower(instance, preprocessor);
 }
 
 Lahc::~Lahc() {
-    delete split;
+    delete initializer;
     delete leader;
     delete follower;
     delete current;
@@ -32,16 +32,18 @@ Lahc::~Lahc() {
 
 void Lahc::initialize_heuristic() {
     delete current;
-    current = new Individual(instance, preprocessor);
+    vector<vector<int>> routes = initializer->routes_constructor_with_hien_method();
+    current = new Solution(instance, preprocessor, routes, instance->compute_total_distance(routes), instance->compute_demand_sum_per_route(routes));
+    routes.clear();
+    routes.shrink_to_fit();
 
-    split->initIndividualWithHienClustering(current);
-    history_list.assign(history_length, current->upper_cost.penalised_cost);
+    history_list.assign(history_length, current->upper_cost);
     this->iter = 0L;
     this->idle_iter = 0L;
 }
 
 void Lahc::run_heuristic() {
-    leader->load_individual(current);
+    leader->load_solution(current);
 
     do {
 
@@ -50,28 +52,35 @@ void Lahc::run_heuristic() {
         auto v = iter % history_length;
         double history_cost = history_list[v];
 
-        leader->neighbour_explore(history_cost);
-        leader->export_individual(current);
+        bool has_moved = leader->neighbour_explore(history_cost);
+        if (has_moved) {
+            leader->export_solution(current);
+            num_moves_per_history++;
+        }
         double candidate_cost = leader->upper_cost;
 
         // idle judgement and counting
         idle_iter = candidate_cost >= current_cost ? idle_iter + 1 : 0;
         // update the history list
-        history_list[v] = candidate_cost < history_cost ? candidate_cost : history_cost;
+        history_list[v] = std::min(candidate_cost, history_cost);
 
         if (v == 0L) {
             history_list_metrics = StatsInterface::calculate_statistical_indicators(history_list);
             flush_row_into_evol_log();
+            num_moves_per_history = 0.;
         }
 
         iter++;
+        duration = std::chrono::high_resolution_clock::now() - start;
 
-        follower->run(current);
+        if (has_moved) {
+            follower->run(current);
+        }
         if (current->lower_cost < global_best->lower_cost) {
-            global_best = std::move(make_unique<Individual>(*current));
+            global_best = std::move(make_unique<Solution>(*current));
         }
 
-    } while (iter < 100'000L || idle_iter < iter / 5);
+    } while ((iter < 100'000L || idle_iter < iter / 5) && duration.count() < preprocessor->max_exec_time_);
 }
 
 void Lahc::run() {
@@ -117,7 +126,7 @@ void Lahc::open_log_for_evolution() {
 
     const string file_name = "evols." + instance->instance_name_ + ".csv";
     log_evolution.open(directory + "/" + file_name);
-    log_evolution << "iters,global_best,min,max,mean,std\n";
+    log_evolution << "iters,global_best,min,max,mean,std,ratio_moves\n";
 }
 
 void Lahc::close_log_for_evolution() {
@@ -127,8 +136,25 @@ void Lahc::close_log_for_evolution() {
 }
 
 void Lahc::flush_row_into_evol_log() {
-    oss_row_evol << iter << "," << global_best->lower_cost << "," << history_list_metrics.min << "," <<
-        history_list_metrics.max <<"," << history_list_metrics.avg << "," << history_list_metrics.std << "\n";
+    oss_row_evol << iter << ",";
+
+    if (global_best->lower_cost > 1e6) {
+        oss_row_evol << std::scientific << std::setprecision(3) << global_best->lower_cost;
+    } else {
+        oss_row_evol << std::fixed << std::setprecision(3) << global_best->lower_cost;
+    }
+
+    // Reset to default float formatting
+    oss_row_evol << std::defaultfloat << ",";
+
+    // Ensure fixed precision for history metrics
+    oss_row_evol << std::fixed << std::setprecision(3)
+                 << history_list_metrics.min << ","
+                 << history_list_metrics.max << ","
+                 << history_list_metrics.avg << ","
+                 << history_list_metrics.std << ","
+                 << num_moves_per_history / static_cast<double>(history_length)
+                 << "\n";
 }
 
 void Lahc::save_log_for_solution() {

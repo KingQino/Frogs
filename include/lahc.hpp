@@ -6,11 +6,11 @@
 #define FROGS_LAHC_HPP
 
 #include "case.hpp"
-#include "Split.h"
+#include "initializer.hpp"
 #include "leader_lahc.hpp"
 #include "leader_array.hpp"
 #include "follower.hpp"
-#include "individual.hpp"
+#include "solution.hpp"
 #include "heuristic_interface.hpp"
 #include "stats_interface.hpp"
 
@@ -26,13 +26,13 @@ public:
     long iter;                                  // Iteration counter I
     long idle_iter;                             // Idle iteration counter
     long history_length;                        // LAHC history length Lh
+    double num_moves_per_history;               // the number of algorithm moves per history length iteration
     vector<double> history_list;                // Lahc history list L, it holds the objetive values
-    std::unique_ptr<Individual> global_best;    // Global best solution found so far
+    std::unique_ptr<Solution> global_best;      // Global best solution found so far
     Indicators history_list_metrics;            // The statistical info of the history list
-    Individual* current;                        // Current solution s
+    Solution* current;                          // Current solution s
 
-    Split* split;
-//    LeaderLahc* leader;
+    Initializer* initializer;
     LeaderArray* leader;
     Follower* follower;
 

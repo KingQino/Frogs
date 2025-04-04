@@ -16,9 +16,9 @@ protected:
         instance = new Case(file_name);
         params = new Parameters();
         preprocessor = new Preprocessor(*instance, *params);
-        split = new Split(params->seed, instance, preprocessor);
-        leader = new LeaderArray(params->seed, instance, preprocessor);
-        random_engine = std::default_random_engine(params->seed);
+        random_engine = std::mt19937(params->seed);
+        split = new Split(random_engine, instance, preprocessor);
+        leader = new LeaderArray(random_engine, instance, preprocessor);
     }
 
     void TearDown() override {
@@ -34,7 +34,7 @@ protected:
     Preprocessor* preprocessor{};
     Split* split{};
     LeaderArray* leader{};
-    std::default_random_engine random_engine;
+    std::mt19937 random_engine;
 };
 
 TEST_F(LeaderArrayTest, LoadIndividual) {

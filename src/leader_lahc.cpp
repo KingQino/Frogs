@@ -1109,8 +1109,8 @@ double LeaderLahc::getUpperCost() const {
     return upperCost;
 }
 
-LeaderLahc::LeaderLahc(int seed, Case* instance, Preprocessor* preprocessor) : instance(instance), preprocessor(preprocessor)
-{
+LeaderLahc::LeaderLahc(std::mt19937& engine, Case* instance, Preprocessor* preprocessor)
+    : random_engine(engine), instance(instance), preprocessor(preprocessor) {
     clients = std::vector < Node >(instance->num_customer_ + 1);
     routes = std::vector < Route >(preprocessor->route_cap_);
     depots = std::vector < Node >(preprocessor->route_cap_);
@@ -1136,7 +1136,6 @@ LeaderLahc::LeaderLahc(int seed, Case* instance, Preprocessor* preprocessor) : i
     for (int i = 1 ; i <= instance->num_customer_ ; i++) orderNodes.push_back(i);
     for (int r = 0 ; r < preprocessor->route_cap_ ; r++) orderRoutes.push_back(r);
 
-    random_engine = std::default_random_engine(seed);
     uniformIntDis = std::uniform_int_distribution<int>(0, 8); // 9 moves
     disIntraMove = std::uniform_int_distribution<int>(0, 2); // 3 intra moves
     disInterMove = std::uniform_int_distribution<int>(0, 3); // 4 intra moves

@@ -30,6 +30,7 @@ struct Parameters {
     // experimental parameters
     int runtime_multiplier;     // Runtime multiplier
 
+
     // Constructor: Initializes default values
     Parameters() :
             algorithm(Algorithm::LAHC),

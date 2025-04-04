@@ -20,7 +20,7 @@ public:
     int seed;
     Case* instance;
     Preprocessor* preprocessor;
-    std::default_random_engine random_engine;
+    std::mt19937 random_engine;
     uniform_real_distribution<double> uniform_real_dist;
 
     // Constructor to initialize member variables

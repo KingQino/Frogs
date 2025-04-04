@@ -257,7 +257,7 @@ vector<vector<int>> Split::prinsSplit(const vector<int> &chromosome) {
 }
 
 void Split::initIndividualWithHienClustering(Individual* ind) {
-    vector<int> chromosome(preprocessor->customer_ids_);
+    vector<int> chromosome = preprocessor->customer_ids_;
 
     // Clustering
     std::shuffle(chromosome.begin(),chromosome.end(), random_engine);
@@ -296,7 +296,7 @@ void Split::initIndividualWithHienClustering(Individual* ind) {
 
     // Balance the routes
     vector<int>& lastRoute = routes.back();
-    uniform_int_distribution<> distribution(0, static_cast<int >(lastRoute.size() -1) );
+    uniform_int_distribution<int> distribution(0, static_cast<int>(lastRoute.size() - 1));
     int customer = lastRoute[distribution(random_engine)];  // Randomly choose a customer from the last route
 
     int cap1 = 0;
@@ -307,9 +307,12 @@ void Split::initIndividualWithHienClustering(Individual* ind) {
 
     for (int i = 0; i < size; ++i) {
         int x = preprocessor->sorted_nearby_customers_[customer][i];
+
+        // Skip if already in lastRoute
         if (find(lastRoute.begin(), lastRoute.end(), x) != lastRoute.end()) {
             continue;
         }
+        // Find which route contains x
         auto route2It = find_if(routes.begin(), routes.end(), [x](const vector<int>& route) {
             return find(route.begin(), route.end(), x) != route.end();
         });
@@ -334,9 +337,9 @@ void Split::initIndividualWithHienClustering(Individual* ind) {
 
     int index = 0;
     ind->chromT.clear();  // Clear previous values
-    for (const auto&  tour: routes) {
+    for (auto&  tour: routes) {
         ind->chromT.insert(ind->chromT.end(), tour.begin(), tour.end());
-        ind->chromR[index++] = tour;
+        ind->chromR[index++] = std::move(tour);
     }
 
     ind->evaluate_upper_cost();
@@ -371,6 +374,7 @@ void Split::initIndividualWithDirectEncoding(Individual* ind) {
         route.push_back(next);
 
         if (next == instance->depot_) {
+            if (cur == instance->depot_) continue; // fix-bug
             all_routes.push_back(route);
             vehicle_idx += 1;
             route = {0};
@@ -399,8 +403,8 @@ void Split::initIndividualWithDirectEncoding(Individual* ind) {
 }
 
 
-Split::Split(int seed, Case* instance, Preprocessor* preprocessor): instance(instance), preprocessor(preprocessor)
-{
+Split::Split(std::mt19937& engine, Case* instance, Preprocessor* preprocessor)
+    : random_engine(engine), instance(instance), preprocessor(preprocessor) {
 	// Structures of the linear Split
 	cliSplit = std::vector <ClientSplit>(instance->num_customer_ + 1);
 	sumDistance = std::vector <double>(instance->num_customer_ + 1,0.);
@@ -408,5 +412,4 @@ Split::Split(int seed, Case* instance, Preprocessor* preprocessor): instance(ins
 	sumService = std::vector <double>(instance->num_customer_ + 1, 0.);
 	potential = std::vector<vector<double>>(preprocessor->route_cap_ + 1, std::vector<double>(instance->num_customer_ + 1,1.e30));
 	pred = std::vector < std::vector <int> >(preprocessor->route_cap_ + 1, std::vector<int>(instance->num_customer_ + 1, 0));
-    random_engine = std::default_random_engine(seed);
 }

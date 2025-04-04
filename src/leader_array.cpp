@@ -3,16 +3,18 @@
 //
 #include "leader_array.hpp"
 
-LeaderArray::LeaderArray(int seed_val, Case *instance, Preprocessor *preprocessor)
-: random_engine(seed_val), instance(instance), preprocessor(preprocessor) {
-    this->uniform_int_dis = std::uniform_int_distribution<int>(0, 7); // 7 moves
+LeaderArray::LeaderArray(std::mt19937& engine, Case *instance, Preprocessor *preprocessor)
+    : instance(instance),
+      preprocessor(preprocessor),
+      random_engine(engine),
+      uniform_int_dis(0, 7) {
 
     this->max_search_depth = 10;
     this->route_cap = preprocessor->route_cap_;
     this->node_cap  = preprocessor->node_cap_;
     this->num_routes = 0;
-    this->upper_cost = 0;
-    this->history_cost = 0;
+    this->upper_cost = 0.;
+    this->history_cost = 0.;
     this->routes = new int *[route_cap];
     for (int i = 0; i < route_cap; ++i) {
         this->routes[i] = new int[node_cap];
@@ -37,28 +39,29 @@ void LeaderArray::run(Individual* ind) {
 
 }
 
-void LeaderArray::neighbour_explore(const double& history_val) {
+bool LeaderArray::neighbour_explore(const double& history_val) {
     history_cost = history_val;
 
+    bool has_moved = false;
     switch (uniform_int_dis(random_engine)) {
         case 0:
-            two_opt_intra_for_individual();
+            has_moved = two_opt_intra_for_individual();
             break;
         case 1:
-            perform_inter_move([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2)
+            has_moved = perform_inter_move([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2)
                 {return move8_inter(route1, route2, length1, length2, loading1, loading2);});
             break;
         case 2:
-            node_relocation_intra_for_individual();
+            has_moved = node_relocation_intra_for_individual();
             break;
         case 3:
-            node_relocation_inter_for_individual();
+            has_moved = node_relocation_inter_for_individual();
             break;
         case 4:
-            node_exchange_intra_for_individual();
+            has_moved = node_exchange_intra_for_individual();
             break;
         case 5:
-            node_exchange_inter_for_individual();
+            has_moved = node_exchange_inter_for_individual();
             break;
         case 6:
             perform_inter_move([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2)
@@ -69,7 +72,32 @@ void LeaderArray::neighbour_explore(const double& history_val) {
                 {return move1_inter_with_empty_route(route1, route2, length1, length2, loading1, loading2);});
             break;
     }
+
+    return has_moved;
 }
+
+void LeaderArray::load_solution(Solution* sol) {
+    clean();
+
+    this->upper_cost = sol->upper_cost;;
+    this->num_routes = sol->num_routes;
+    memcpy(this->num_nodes_per_route, sol->num_nodes_per_route, sizeof(int) * sol->route_cap);
+    memcpy(this->demand_sum_per_route, sol->demand_sum_per_route, sizeof(int) * sol->route_cap);
+    for (int i = 0; i < sol->num_routes; ++i) {
+        memcpy(this->routes[i], sol->routes[i], sizeof(int) * sol->node_cap);
+    }
+}
+
+void LeaderArray::export_solution(Solution* sol) const {
+    sol->upper_cost = this->upper_cost;
+    sol->num_routes = this->num_routes;
+    memcpy(sol->num_nodes_per_route, this->num_nodes_per_route, sizeof(int) * this->route_cap);
+    memcpy(sol->demand_sum_per_route, this->demand_sum_per_route, sizeof(int) * this->route_cap);
+    for (int i = 0; i < this->num_routes; ++i) {
+        memcpy(sol->routes[i], this->routes[i], sizeof(int) * this->node_cap);
+    }
+}
+
 
 void LeaderArray::load_individual(Individual* ind) {
     memset(this->num_nodes_per_route, 0, sizeof(int) * this->route_cap);

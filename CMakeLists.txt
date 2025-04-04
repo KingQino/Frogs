@@ -12,6 +12,9 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 endif()
 
+# Find OpenMP
+find_package(OpenMP REQUIRED)
+
 set(DEPENDENCIES
         include/case.hpp
         src/case.cpp
@@ -39,6 +42,10 @@ set(DEPENDENCIES
         external/include/magic_enum.hpp
         include/leader_array.hpp
         src/leader_array.cpp
+        include/solution.hpp
+        src/solution.cpp
+        include/initializer.hpp
+        src/initializer.cpp
 )
 
 add_executable(Run main.cpp ${DEPENDENCIES})
@@ -46,10 +53,10 @@ add_executable(Run main.cpp ${DEPENDENCIES})
 # Include directories
 target_include_directories(Run PRIVATE include external/include)
 
-# Enable multithreading if needed
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
-target_link_libraries(Run PRIVATE Threads::Threads)
+# Enable multithreading with OpenMP
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(Run PRIVATE OpenMP::OpenMP_CXX)
+endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_subdirectory(external/googletest) # Use pre-existing GoogleTest
@@ -68,7 +75,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
             tests/leader_array_test.cpp)
 
     target_include_directories(Tests PRIVATE include external/include)
-    target_link_libraries(Tests PRIVATE gtest gtest_main)
+    target_link_libraries(Tests PRIVATE gtest gtest_main OpenMP::OpenMP_CXX)
 
     # Custom target to run Valgrind on the test executable
     add_custom_target(valgrind_tests

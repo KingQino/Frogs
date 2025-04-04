@@ -99,7 +99,7 @@ public:
 
     Case* instance;                             // Problem instance information
     Preprocessor* preprocessor;                 // Preprocessed data
-    std::default_random_engine random_engine;   // Random number generator
+    std::mt19937 random_engine;   // Random number generator
     uniform_int_distribution<int> uniformIntDis;// Uniform distribution for random integers
     uniform_int_distribution<int> disIntraMove; // Uniform distribution for random integers in the range for intra-route moves
     uniform_int_distribution<int> disInterMove; // Uniform distribution for random integers in the range for inter-route moves
@@ -194,7 +194,7 @@ public:
     void exportIndividual(Individual * indiv);
 
     // Constructor
-    LeaderLahc(int seed, Case* instance, Preprocessor* preprocessor);
+    LeaderLahc(std::mt19937& engine, Case* instance, Preprocessor* preprocessor);
 };
 
 
