@@ -4,7 +4,7 @@
 
 #include "lahc.hpp"
 
-const std::string ALGORITHM = "Lahc";
+const std::string Lahc::ALGORITHM = "Lahc";
 
 Lahc::Lahc(int seed_val, Case* instance, Preprocessor* preprocessor) : HeuristicInterface("LAHC", seed_val, instance, preprocessor) {
     enable_logging = preprocessor->params.enable_logging;

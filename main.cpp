@@ -4,6 +4,7 @@
 #include "case.hpp"
 #include "preprocessor.hpp"
 #include "lahc.hpp"
+#include "cbma.hpp"
 #include "magic_enum.hpp"
 
 using namespace std;
@@ -17,7 +18,16 @@ void run_algorithm(int run, const Parameters* params, vector<double>& perf_of_tr
 
     switch (params->algorithm) {
         case Algorithm::CBMA: {
-            // TODO: Implement CBMA
+            Cbma* cbma = new Cbma(run, instance, preprocessor);
+            cbma->run();
+
+            // Prevent race condition on shared vector
+            #pragma omp critical
+            {
+                perf_of_trials[run - 1] = cbma->global_best->lower_cost;
+            }
+
+            delete cbma;
             break;
         }
 

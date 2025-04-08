@@ -35,6 +35,8 @@ public:
     Solution(Case* instance, Preprocessor* preprocessor);
     Solution(Case* instance, Preprocessor* preprocessor, const vector<vector<int>>& routes, double upper_cost, const vector<int>& demand_sum_per_route);
     ~Solution();
+
+    [[nodiscard]] vector<int> get_chromosome() const;
 };
 
 #endif //FROGS_SOLUTION_HPP

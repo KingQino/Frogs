@@ -10,6 +10,9 @@ Solution::Solution() {
 }
 
 Solution::Solution(const Solution &sol) {
+    this->instance = sol.instance;
+    this->preprocessor = sol.preprocessor;
+
     this->route_cap = sol.route_cap;
     this->node_cap = sol.node_cap;
     this->num_routes = sol.num_routes;
@@ -68,4 +71,15 @@ Solution::~Solution() {
     delete[] this->routes;
     delete[] this->num_nodes_per_route;
     delete[] this->demand_sum_per_route;
+}
+
+vector<int> Solution::get_chromosome() const {
+    vector<int> chromosome; // num of customers
+    chromosome.reserve(instance->num_customer_);
+    for (int i = 0; i < num_routes; ++i) {
+        for (int j = 1; j < num_nodes_per_route[i] - 1; ++j) {
+            chromosome.push_back(routes[i][j]);
+        }
+    }
+    return chromosome;
 }

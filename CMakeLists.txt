@@ -46,6 +46,8 @@ set(DEPENDENCIES
         src/solution.cpp
         include/initializer.hpp
         src/initializer.cpp
+        include/cbma.hpp
+        src/cbma.cpp
 )
 
 add_executable(Run main.cpp ${DEPENDENCIES})
@@ -72,7 +74,8 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
             tests/follower_test.cpp
             tests/leader_lahc_test.cpp
             tests/lahc_test.cpp
-            tests/leader_array_test.cpp)
+            tests/leader_array_test.cpp
+            tests/cbma_test.cpp)
 
     target_include_directories(Tests PRIVATE include external/include)
     target_link_libraries(Tests PRIVATE gtest gtest_main OpenMP::OpenMP_CXX)

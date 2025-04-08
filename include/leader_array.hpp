@@ -10,6 +10,16 @@
 #include "individual.hpp"
 #include "solution.hpp"
 #include <functional>  // For std::function
+#include <unordered_set>
+
+// used in 2-opt*, define the hash relationship to make sure one-to-one mapping between route pairs
+struct pair_hash
+{
+    size_t operator() (pair<int, int> const & a_pair) const {
+        return a_pair.first * 256 + a_pair.second;
+    }
+};
+
 
 class LeaderArray {
 public:
@@ -29,6 +39,7 @@ public:
     double history_cost;
 
     void run(Individual* ind);
+    void run(Solution* sol);
     bool neighbour_explore(const double& history_val);
     void load_individual(Individual* ind);
     void export_individual(Individual* ind) const;
@@ -37,6 +48,13 @@ public:
     LeaderArray(std::mt19937& engine, Case* instance, Preprocessor* preprocessor);
     ~LeaderArray();
 
+    // Operators for CBMA
+    void two_opt_for_route(int* route, int length);
+    void two_opt_for_sol();
+    bool two_opt_star_for_routes(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2, int* temp_r1, int* temp_r2);
+    void two_opt_star_for_sol();
+    bool node_relocation_for_route(int* route, int length);
+    void node_relocation_for_sol();
 
     static void moveItoJ(int* route, int a, int b);
     [[nodiscard]] bool is_accepted(const double& change) const;
