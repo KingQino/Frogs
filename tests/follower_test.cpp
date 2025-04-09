@@ -83,38 +83,6 @@ TEST_F(FollowerTest, Refine) {
     EXPECT_DOUBLE_EQ(ind.lower_cost, instance->calculate_total_dist_follower(follower->lower_routes, follower->num_routes, follower->lower_num_nodes_per_route));
 }
 
-TEST_F(FollowerTest, ConsecutiveRun) {
-    vector<int> chromT(preprocessor->customer_ids_);
-    std::shuffle(chromT.begin(), chromT.end(), random_engine);
-    Individual ind(instance, preprocessor, chromT);
-    split->generalSplit(&ind, preprocessor->route_cap_);
-
-    EXPECT_DOUBLE_EQ(ind.upper_cost.penalised_cost, instance->calculate_total_dist(ind.chromR));
-
-    double historyVal = 800;
-    leader->loadIndividual(&ind);
-    int length = 10000;
-    int num_infeasible = 0;
-    for (int i = 0; i < length; i++) {
-        leader->neighbourExplore(historyVal);
-        leader->exportChromosome(&ind);
-
-        historyVal = leader->getUpperCost() * 1.1;
-        EXPECT_NEAR(leader->getUpperCost(), instance->calculate_total_dist(ind.chromR), 0.000'001);
-
-        follower->run(&ind);
-
-        if (follower->lower_cost >= INFEASIBLE) {
-            num_infeasible++;
-        } else {
-            EXPECT_NEAR(ind.lower_cost, instance->calculate_total_dist_follower(follower->lower_routes, follower->num_routes, follower->lower_num_nodes_per_route), 0.000'001);
-        }
-//        cout << "Upper Cost: " << leader->getUpperCost() << " | Ground Truth: " << instance->calculate_total_dist(ind.chromR)
-//        <<  " | Lower Cost: " <<  follower->lower_cost  << " | Ground Truth: "
-//        << instance->calculate_total_dist_follower(follower->lower_routes, follower->num_routes, follower->lower_num_nodes_per_route) << endl;
-    }
-}
-
 TEST_F(FollowerTest, SpecialCase_En23k3) {
     string file_name = "E-n23-k3.evrp";
     Case instance_E23(file_name);

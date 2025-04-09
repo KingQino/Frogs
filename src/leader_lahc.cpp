@@ -4,94 +4,6 @@
 
 #include "leader_lahc.hpp"
 
-int LeaderLahc::getRandomCustomerNodeU() {
-    std::uniform_int_distribution<int> dis(0, instance->num_customer_ - 1);
-
-    return orderNodes[dis(random_engine)];
-}
-
-int LeaderLahc::getRandomCorrelatedNodeV(const int &customerNode) {
-    std::uniform_int_distribution<int> dis(0, static_cast<int>(preprocessor->correlated_vertices_[customerNode].size()) - 1);
-
-    return preprocessor->correlated_vertices_[customerNode][dis(random_engine)];
-}
-
-Node* LeaderLahc::getNodeVFromCustomersAndDepots(const int &customerNode, int numNonEmptyRoutes) {
-    int correlated_vertices_size = static_cast<int>(preprocessor->correlated_vertices_[customerNode].size());
-    std::uniform_int_distribution<int> dis(0, correlated_vertices_size + numNonEmptyRoutes - 1);
-    int random = dis(random_engine);
-
-    if (random < correlated_vertices_size) {
-        return &clients[preprocessor->correlated_vertices_[customerNode][random]];
-    } else {
-        int NonEmptyRouteIndex = 0;
-        for (auto & route : routes) {
-            if (route.nbCustomers > 0) {
-                if (NonEmptyRouteIndex == random - correlated_vertices_size) {
-                    return route.depot;
-                }
-                NonEmptyRouteIndex++;
-            }
-        }
-
-        return nullptr;
-    }
-}
-
-void LeaderLahc::neighbourExplore(double historyVal) {
-    // Before we call this function, we need to call loadIndividual first
-    historyCost = historyVal;
-
-
-    bool isMoved = false;
-    int searchDepth = 0;
-    while (!isMoved && searchDepth < 10) {
-        nodeU = &clients[getRandomCustomerNodeU()];
-        setLocalVariablesRouteU();
-//        int numRoutes = routes.size() - emptyRoutes.size();
-//        nodeV = getNodeVFromCustomersAndDepots(nodeU->cour, numRoutes);
-        nodeV = &clients[getRandomCorrelatedNodeV(nodeU->cour)];
-        setLocalVariablesRouteV();
-        // 关于节点V为仓库节点的情况我们先不考虑
-        if (routeU == routeV) {
-            if (routeU->nbCustomers <= 2) continue;
-            switch (disIntraMove(random_engine)) {
-                case 0:
-                    isMoved = move1_intra();
-                    break;
-                case 1:
-                    isMoved = move4_intra();
-                    break;
-                case 2:
-                    isMoved = move7_intra();
-                    break;
-                default:
-                    break;
-            }
-        } else {
-            switch (disInterMove(random_engine)) {
-                case 0:
-                    isMoved = move1_inter();
-                    break;
-                case 1:
-                    isMoved = move4_inter();
-                    break;
-                case 2:
-                    isMoved = move8_inter();
-                    break;
-                case 3:
-                    isMoved = move9_inter();
-                    break;
-                default:
-                    break;
-            }
-
-        }
-        searchDepth++;
-    }
-
-}
-
 void LeaderLahc::run(Individual * indiv, double penaltyCapacityLS, double penaltyDurationLS)
 {
     this->penaltyCapacityLS = penaltyCapacityLS;
@@ -165,6 +77,21 @@ void LeaderLahc::run(Individual * indiv, double penaltyCapacityLS, double penalt
                 if (move9()) continue; // 2-OPT*
             }
         }
+
+        /* (SWAP*) MOVES LIMITED TO ROUTE PAIRS WHOSE CIRCLE SECTORS OVERLAP */
+        for (int rU = 0; rU < preprocessor->route_cap_; rU++)
+        {
+            routeU = &routes[orderRoutes[rU]];
+            int lastTestSWAPStarRouteU = routeU->whenLastTestedSWAPStar;
+            routeU->whenLastTestedSWAPStar = nbMoves;
+            for (int rV = 0; rV < preprocessor->route_cap_; rV++)
+            {
+                routeV = &routes[orderRoutes[rV]];
+                if (routeU->nbCustomers > 0 && routeV->nbCustomers > 0 && routeU->cour < routeV->cour && (loopID == 0 || std::max<int>(routeU->whenLastModified, routeV->whenLastModified) > lastTestSWAPStarRouteU))
+                    if (CircleSector::overlap(routeU->sector, routeV->sector))
+                        swapStar();
+            }
+        }
     }
 
     // Register the solution produced by the LS in the individual
@@ -197,46 +124,6 @@ void LeaderLahc::setLocalVariablesRouteV()
     serviceV = preprocessor->customers_[nodeVIndex].service_duration;
     loadY	 = preprocessor->customers_[nodeYIndex].demand;
     serviceY = preprocessor->customers_[nodeYIndex].service_duration;
-}
-
-bool LeaderLahc::isAccepted(const double& change) const {
-    return upperCost + change < historyCost || change <= MY_EPSILON;
-}
-
-bool LeaderLahc::move1_intra() {
-    if (routeU->nbCustomers <= 2) return false; // A route with less than 2 customers don't need to be modified
-    if (nodeUIndex == nodeYIndex) return false;
-
-    double costSuppU = instance->get_distance(nodeUPrevIndex, nodeXIndex) - instance->get_distance(nodeUPrevIndex, nodeUIndex) - instance->get_distance(nodeUIndex, nodeXIndex);
-    double costSuppV = instance->get_distance(nodeVIndex, nodeUIndex) + instance->get_distance(nodeUIndex, nodeYIndex) - instance->get_distance(nodeVIndex, nodeYIndex);
-
-    double change = costSuppU + costSuppV;
-    if (!isAccepted(change)) return false;
-
-    insertNode(nodeU, nodeV);
-    nbMoves++;
-    updateRouteData(routeU);
-    upperCost += change;
-
-    return true;
-}
-
-bool LeaderLahc::move1_inter() {
-    if (routeV->load + loadU > instance->max_vehicle_capa_) return false;
-
-    double costSuppU = instance->get_distance(nodeUPrevIndex, nodeXIndex) - instance->get_distance(nodeUPrevIndex, nodeUIndex) - instance->get_distance(nodeUIndex, nodeXIndex);
-    double costSuppV = instance->get_distance(nodeVIndex, nodeUIndex) + instance->get_distance(nodeUIndex, nodeYIndex) - instance->get_distance(nodeVIndex, nodeYIndex);
-
-    double change = costSuppU + costSuppV;
-    if (!isAccepted(change)) return false;
-
-    insertNode(nodeU, nodeV);
-    nbMoves++;
-    updateRouteData(routeU);
-    updateRouteData(routeV);
-    upperCost += change;
-
-    return true;
 }
 
 bool LeaderLahc::move1()
@@ -319,41 +206,6 @@ bool LeaderLahc::move3()
     searchCompleted = false;
     updateRouteData(routeU);
     if (routeU != routeV) updateRouteData(routeV);
-    return true;
-}
-
-bool LeaderLahc::move4_intra() {
-    if (nodeUIndex == nodeVPrevIndex || nodeUIndex == nodeYIndex) return false;
-
-    double costSuppU = instance->get_distance(nodeUPrevIndex, nodeVIndex) + instance->get_distance(nodeVIndex, nodeXIndex) - instance->get_distance(nodeUPrevIndex, nodeUIndex) - instance->get_distance(nodeUIndex, nodeXIndex);
-    double costSuppV = instance->get_distance(nodeVPrevIndex, nodeUIndex) + instance->get_distance(nodeUIndex, nodeYIndex) - instance->get_distance(nodeVPrevIndex, nodeVIndex) - instance->get_distance(nodeVIndex, nodeYIndex);
-
-    double change = costSuppU + costSuppV;
-    if (!isAccepted(change)) return false;
-
-    swapNode(nodeU, nodeV);
-    nbMoves++; // Increment move counter before updating route data
-    updateRouteData(routeU);
-    upperCost += change;
-
-    return true;
-}
-
-bool LeaderLahc::move4_inter() {
-    if (routeU->load + loadV - loadU > instance->max_vehicle_capa_ || routeV->load + loadU - loadV > instance->max_vehicle_capa_) return false;
-
-    double costSuppU = instance->get_distance(nodeUPrevIndex, nodeVIndex) + instance->get_distance(nodeVIndex, nodeXIndex) - instance->get_distance(nodeUPrevIndex, nodeUIndex) - instance->get_distance(nodeUIndex, nodeXIndex);
-    double costSuppV = instance->get_distance(nodeVPrevIndex, nodeUIndex) + instance->get_distance(nodeUIndex, nodeYIndex) - instance->get_distance(nodeVPrevIndex, nodeVIndex) - instance->get_distance(nodeVIndex, nodeYIndex);
-
-    double change = costSuppU + costSuppV;
-    if (!isAccepted(change)) return false;
-
-    swapNode(nodeU, nodeV);
-    nbMoves++; // Increment move counter before updating route data
-    updateRouteData(routeU);
-    updateRouteData(routeV);
-    upperCost += change;
-
     return true;
 }
 
@@ -440,38 +292,6 @@ bool LeaderLahc::move6()
     return true;
 }
 
-bool LeaderLahc::move7_intra() {
-    if (nodeU->position > nodeV->position) return false;
-    if (nodeU->next == nodeV) return false;
-
-    double change = instance->get_distance(nodeUIndex, nodeVIndex) + instance->get_distance(nodeXIndex, nodeYIndex) - instance->get_distance(nodeUIndex, nodeXIndex) - instance->get_distance(nodeVIndex, nodeYIndex) + nodeV->cumulatedReversalDistance - nodeX->cumulatedReversalDistance;
-
-    if (!isAccepted(change)) return false;
-
-    Node * nodeNum = nodeX->next;
-    nodeX->prev = nodeNum;
-    nodeX->next = nodeY;
-
-    while (nodeNum != nodeV)
-    {
-        Node * temp = nodeNum->next;
-        nodeNum->next = nodeNum->prev;
-        nodeNum->prev = temp;
-        nodeNum = temp;
-    }
-
-    nodeV->next = nodeV->prev;
-    nodeV->prev = nodeU;
-    nodeU->next = nodeV;
-    nodeY->prev = nodeX;
-
-    nbMoves++; // Increment move counter before updating route data
-    updateRouteData(routeU);
-    upperCost += change;
-
-    return true;
-}
-
 bool LeaderLahc::move7()
 {
     if (nodeU->position > nodeV->position) return false;
@@ -501,81 +321,6 @@ bool LeaderLahc::move7()
     nbMoves++; // Increment move counter before updating route data
     searchCompleted = false;
     updateRouteData(routeU);
-    return true;
-}
-
-bool LeaderLahc::move8_inter() {
-    if (nodeU->cumulatedLoad + nodeV->cumulatedLoad > instance->max_vehicle_capa_ ||
-        routeU->load - nodeU->cumulatedLoad + routeV->load - nodeV->cumulatedLoad > instance->max_vehicle_capa_) return false;
-
-    double change = instance->get_distance(nodeUIndex, nodeVIndex) + instance->get_distance(nodeXIndex, nodeYIndex) - instance->get_distance(nodeUIndex, nodeXIndex) - instance->get_distance(nodeVIndex, nodeYIndex);
-    // this calculation actually has another version, which supports the asymmetric scenario! As shown in the following snippet:
-//    double change = instance->get_distance(nodeUIndex, nodeVIndex) + instance->get_distance(nodeXIndex, nodeYIndex) - instance->get_distance(nodeUIndex, nodeXIndex) - instance->get_distance(nodeVIndex, nodeYIndex)
-//                  + nodeV->cumulatedReversalDistance + routeU->reversalDistance - nodeX->cumulatedReversalDistance;
-
-    if (!isAccepted(change)) return false;
-
-    Node * depotU = routeU->depot;
-    Node * depotV = routeV->depot;
-    Node * depotUFin = routeU->depot->prev;
-    Node * depotVFin = routeV->depot->prev;
-    Node * depotVSuiv = depotV->next;
-
-    Node * temp;
-    Node * xx = nodeX;
-    Node * vv = nodeV;
-
-    while (!xx->isDepot)
-    {
-        temp = xx->next;
-        xx->next = xx->prev;
-        xx->prev = temp;
-        xx->route = routeV;
-        xx = temp;
-    }
-
-    while (!vv->isDepot)
-    {
-        temp = vv->prev;
-        vv->prev = vv->next;
-        vv->next = temp;
-        vv->route = routeU;
-        vv = temp;
-    }
-
-    nodeU->next = nodeV;
-    nodeV->prev = nodeU;
-    nodeX->next = nodeY;
-    nodeY->prev = nodeX;
-
-    if (nodeX->isDepot)
-    {
-        depotUFin->next = depotU;
-        depotUFin->prev = depotVSuiv;
-        depotUFin->prev->next = depotUFin;
-        depotV->next = nodeY;
-        nodeY->prev = depotV;
-    }
-    else if (nodeV->isDepot)
-    {
-        depotV->next = depotUFin->prev;
-        depotV->next->prev = depotV;
-        depotV->prev = depotVFin;
-        depotUFin->prev = nodeU;
-        nodeU->next = depotUFin;
-    }
-    else
-    {
-        depotV->next = depotUFin->prev;
-        depotV->next->prev = depotV;
-        depotUFin->prev = depotVSuiv;
-        depotUFin->prev->next = depotUFin;
-    }
-
-    nbMoves++; // Increment move counter before updating route data
-    updateRouteData(routeU);
-    updateRouteData(routeV);
-    upperCost += change;
     return true;
 }
 
@@ -652,61 +397,6 @@ bool LeaderLahc::move8()
     searchCompleted = false;
     updateRouteData(routeU);
     updateRouteData(routeV);
-    return true;
-}
-
-bool LeaderLahc::move9_inter() {
-    if (nodeU->cumulatedLoad + routeV->load - nodeV->cumulatedLoad > instance->max_vehicle_capa_ ||
-        nodeV->cumulatedLoad + routeU->load - nodeU->cumulatedLoad > instance->max_vehicle_capa_) return false;
-
-    double change = instance->get_distance(nodeUIndex, nodeYIndex) + instance->get_distance(nodeVIndex, nodeXIndex) - instance->get_distance(nodeUIndex, nodeXIndex) - instance->get_distance(nodeVIndex, nodeYIndex);
-
-    if (!isAccepted(change)) return false;
-
-    Node * depotU = routeU->depot;
-    Node * depotV = routeV->depot;
-    Node * depotUFin = depotU->prev;
-    Node * depotVFin = depotV->prev;
-    Node * depotUpred = depotUFin->prev;
-
-    Node * count = nodeY;
-    while (!count->isDepot)
-    {
-        count->route = routeU;
-        count = count->next;
-    }
-
-    count = nodeX;
-    while (!count->isDepot)
-    {
-        count->route = routeV;
-        count = count->next;
-    }
-
-    nodeU->next = nodeY;
-    nodeY->prev = nodeU;
-    nodeV->next = nodeX;
-    nodeX->prev = nodeV;
-
-    if (nodeX->isDepot)
-    {
-        depotUFin->prev = depotVFin->prev;
-        depotUFin->prev->next = depotUFin;
-        nodeV->next = depotVFin;
-        depotVFin->prev = nodeV;
-    }
-    else
-    {
-        depotUFin->prev = depotVFin->prev;
-        depotUFin->prev->next = depotUFin;
-        depotVFin->prev = depotUpred;
-        depotVFin->prev->next = depotVFin;
-    }
-
-    nbMoves++; // Increment move counter before updating route data
-    updateRouteData(routeU);
-    updateRouteData(routeV);
-    upperCost += change;
     return true;
 }
 
@@ -1105,10 +795,6 @@ void LeaderLahc::exportChromosome(Individual *ind) {
     ind->upper_cost.nb_routes = nb_routes;
 }
 
-double LeaderLahc::getUpperCost() const {
-    return upperCost;
-}
-
 LeaderLahc::LeaderLahc(std::mt19937& engine, Case* instance, Preprocessor* preprocessor)
     : random_engine(engine), instance(instance), preprocessor(preprocessor) {
     clients = std::vector < Node >(instance->num_customer_ + 1);
@@ -1136,14 +822,10 @@ LeaderLahc::LeaderLahc(std::mt19937& engine, Case* instance, Preprocessor* prepr
     for (int i = 1 ; i <= instance->num_customer_ ; i++) orderNodes.push_back(i);
     for (int r = 0 ; r < preprocessor->route_cap_ ; r++) orderRoutes.push_back(r);
 
-    uniformIntDis = std::uniform_int_distribution<int>(0, 8); // 9 moves
-    disIntraMove = std::uniform_int_distribution<int>(0, 2); // 3 intra moves
-    disInterMove = std::uniform_int_distribution<int>(0, 3); // 4 intra moves
     penaltyCapacityLS = preprocessor->penalty_capacity_;
     penaltyDurationLS = preprocessor->penalty_duration_;
 
     upperCost = 0.;
-    historyCost = 0.;
     searchCompleted = false;
     nbMoves = 0;
     loopID = 0;

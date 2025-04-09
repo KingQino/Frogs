@@ -24,21 +24,15 @@ void LocalSearch::run(Individual * indiv, double penaltyCapacityLS, double penal
 		if (loopID > 1) // Allows at least two loops since some moves involving empty routes are not checked at the first loop
 			searchCompleted = true;
 
-//        int count_nodeU = 0;
 		/* CLASSICAL ROUTE IMPROVEMENT (RI) MOVES SUBJECT TO A PROXIMITY RESTRICTION */
 		for (int posU = 0; posU < instance->num_customer_; posU++)
 		{
 			nodeU = &clients[orderNodes[posU]];
 			int lastTestRINodeU = nodeU->whenLastTestedRI;
 			nodeU->whenLastTestedRI = nbMoves;
-//            count_nodeU++;
-//            std::cout << "nodeU changed: " << nodeU->cour <<  " | count_nodeU: " << count_nodeU << std::endl;
 			for (int posV = 0; posV < (int)preprocessor->correlated_vertices_[nodeU->cour].size(); posV++)
 			{
 				nodeV = &clients[preprocessor->correlated_vertices_[nodeU->cour][posV]];
-//                if(lastTestRINodeU != -1) {
-//                    std::cout << "lastTestRINodeU: " << lastTestRINodeU << std::endl;
-//                }
 				if (loopID == 0 || std::max<int>(nodeU->route->whenLastModified, nodeV->route->whenLastModified) > lastTestRINodeU) // only evaluate moves involving routes that have been modified since last move evaluations for nodeU
 				{
 					// Randomizing the order of the neighborhoods within this loop does not matter much as we are already randomizing the order of the node pairs (and it's not very common to find improving moves of different types for the same node pair)
