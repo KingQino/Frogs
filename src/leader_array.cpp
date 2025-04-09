@@ -172,7 +172,7 @@ void LeaderArray::two_opt_for_route(int *route, int length) {
             }
         }
 
-        end_loop:
+        end_loop: ;
     }
 }
 
@@ -231,7 +231,7 @@ bool LeaderArray::two_opt_star_for_routes(int *route1, int *route2, int &length1
 
                         improved = true;
                         has_moved = true;
-                        goto endloop;
+                        goto end_loop;
                     }
                 } else if (partial_dem_r1 + partial_dem_r2 <= instance->max_vehicle_capa_ && loading1 - partial_dem_r1 + loading2 - partial_dem_r2 <= instance->max_vehicle_capa_) {
                     double old_cost = instance->get_distance(route1[n1], route1[n1 + 1]) + instance->get_distance(route2[n2], route2[n2 + 1]);
@@ -264,14 +264,14 @@ bool LeaderArray::two_opt_star_for_routes(int *route1, int *route2, int &length1
 
                         improved = true;
                         has_moved = true;
-                        goto endloop;
+                        goto end_loop;
                     }
                 }
 
             }
         }
 
-        endloop:
+        end_loop: ;
     }
 
     return has_moved;
@@ -381,7 +381,7 @@ bool LeaderArray::node_relocation_for_route(int *route, int length) {
             }
         }
 
-        end_loop:
+        end_loop: ;
     }
 
     return has_moved;
