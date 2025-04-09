@@ -17,6 +17,7 @@ Lahc::Lahc(int seed_val, Case* instance, Preprocessor* preprocessor) : Heuristic
     history_list = vector<double>(history_length);
     current = nullptr;
     global_best = make_unique<Solution>();
+    global_best_upper_so_far = std::numeric_limits<double>::max();
 
     initializer = new Initializer(random_engine, instance, preprocessor);
     leader = new LeaderArray(random_engine, instance, preprocessor);
@@ -58,6 +59,7 @@ void Lahc::run_heuristic() {
             num_moves_per_history++;
         }
         double candidate_cost = leader->upper_cost;
+        global_best_upper_so_far = std::min(global_best_upper_so_far, candidate_cost);
 
         // idle judgement and counting
         idle_iter = candidate_cost >= current_cost ? idle_iter + 1 : 0;
@@ -73,11 +75,11 @@ void Lahc::run_heuristic() {
         iter++;
         duration = std::chrono::high_resolution_clock::now() - start;
 
-        if (has_moved) {
+        if (has_moved && candidate_cost < global_best_upper_so_far * 1.10) {
             follower->run(current);
-        }
-        if (current->lower_cost < global_best->lower_cost) {
-            global_best = std::move(make_unique<Solution>(*current));
+            if (current->lower_cost < global_best->lower_cost) {
+                global_best = std::move(make_unique<Solution>(*current));
+            }
         }
 
     } while ((iter < 100'000L || idle_iter < iter / 5) && duration.count() < preprocessor->max_exec_time_);

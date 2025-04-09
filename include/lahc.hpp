@@ -31,6 +31,7 @@ public:
     std::unique_ptr<Solution> global_best;      // Global best solution found so far
     Indicators history_list_metrics;            // The statistical info of the history list
     Solution* current;                          // Current solution s
+    double global_best_upper_so_far;            // The best solution found so far
 
     Initializer* initializer;
     LeaderArray* leader;
