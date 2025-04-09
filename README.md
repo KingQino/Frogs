@@ -335,8 +335,6 @@
      module purge
      module load GCCcore/13.3.0 GCC/13.3.0 OpenMPI/5.0.3
      
-     # Set OpenMP threads to match Slurm CPUs per task
-     export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
      
      # Load cases from parameters.txt
      mapfile -t cases < "parameters.txt"        # Load parameters.txt from the build directory
@@ -361,7 +359,7 @@
          fi
      done
      ```
-
+   
 4. Statistics
 
    `./stats/[Algorithm]/objective.sh`
