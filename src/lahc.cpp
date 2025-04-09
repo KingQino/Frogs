@@ -82,7 +82,7 @@ void Lahc::run_heuristic() {
             }
         }
 
-    } while ((iter < 100'000L || idle_iter < iter / 5) && duration.count() < preprocessor->max_exec_time_);
+    } while ((iter < 100'000L || idle_iter < iter / 10) && duration.count() < preprocessor->max_exec_time_);
 }
 
 void Lahc::run() {
