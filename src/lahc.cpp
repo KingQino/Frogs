@@ -14,6 +14,11 @@ Lahc::Lahc(int seed_val, Case* instance, Preprocessor* preprocessor) : Heuristic
     idle_iter = 0L;
     ratio_successful_moves = 1.0;
     history_length = static_cast<long>(preprocessor->params.history_length);
+    if (instance->dimension_ >= 100) {
+        boundary_no_low_opt = 2 * history_length * instance->dimension_;
+    } else {
+        boundary_no_low_opt = 0L;
+    }
     num_moves_per_history = 0.;
     history_list = vector<double>(history_length);
     current = nullptr;
@@ -82,7 +87,7 @@ void Lahc::run_heuristic() {
         iter++;
         duration = std::chrono::high_resolution_clock::now() - start;
 
-        if (has_moved && candidate_cost < global_best_upper_so_far * 1.10) {
+        if (iter >= boundary_no_low_opt && has_moved && candidate_cost < global_best_upper_so_far * 1.10) {
             follower->run(current);
             if (current->lower_cost < global_best->lower_cost) {
                 global_best = std::move(make_unique<Solution>(*current));
@@ -90,6 +95,7 @@ void Lahc::run_heuristic() {
         }
 
     } while ((iter < 100'000L || idle_iter < iter / 5) && ratio_successful_moves > 0.001 && duration.count() < preprocessor->max_exec_time_);
+//    boundary_no_low_opt = static_cast<long>((double)boundary_no_low_opt * 0.99);
 }
 
 void Lahc::run() {

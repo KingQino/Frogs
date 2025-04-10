@@ -23,6 +23,7 @@ public:
     bool enable_logging;
     int stop_criteria;
 
+    long boundary_no_low_opt;                   // The number of iterations without lower-level optimisation
     long iter;                                  // Iteration counter I
     long idle_iter;                             // Idle iteration counter
     long history_length;                        // LAHC history length Lh
