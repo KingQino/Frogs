@@ -12,6 +12,7 @@ Lahc::Lahc(int seed_val, Case* instance, Preprocessor* preprocessor) : Heuristic
 
     iter = 0L;
     idle_iter = 0L;
+    ratio_successful_moves = 1.0;
     history_length = static_cast<long>(preprocessor->params.history_length);
     num_moves_per_history = 0.;
     history_list = vector<double>(history_length);
@@ -41,6 +42,7 @@ void Lahc::initialize_heuristic() {
     history_list.assign(history_length, current->upper_cost);
     this->iter = 0L;
     this->idle_iter = 0L;
+    this->ratio_successful_moves = 1.0; // the largest decimal value
 }
 
 void Lahc::run_heuristic() {
@@ -52,6 +54,17 @@ void Lahc::run_heuristic() {
 
         auto v = iter % history_length;
         double history_cost = history_list[v];
+
+        if (v == 0L) {
+            history_list_metrics = StatsInterface::calculate_statistical_indicators(history_list);
+
+            if (iter != 0L) {
+                ratio_successful_moves = num_moves_per_history / static_cast<double>(history_length);
+            }
+
+            flush_row_into_evol_log();
+            num_moves_per_history = 0.;
+        }
 
         bool has_moved = leader->neighbour_explore(history_cost);
         if (has_moved) {
@@ -66,12 +79,6 @@ void Lahc::run_heuristic() {
         // update the history list
         history_list[v] = std::min(candidate_cost, history_cost);
 
-        if (v == 0L) {
-            history_list_metrics = StatsInterface::calculate_statistical_indicators(history_list);
-            flush_row_into_evol_log();
-            num_moves_per_history = 0.;
-        }
-
         iter++;
         duration = std::chrono::high_resolution_clock::now() - start;
 
@@ -82,7 +89,7 @@ void Lahc::run_heuristic() {
             }
         }
 
-    } while ((iter < 100'000L || idle_iter < iter / 5) && duration.count() < preprocessor->max_exec_time_);
+    } while ((iter < 100'000L || idle_iter < iter / 5) && ratio_successful_moves > 0.001 && duration.count() < preprocessor->max_exec_time_);
 }
 
 void Lahc::run() {
@@ -155,7 +162,7 @@ void Lahc::flush_row_into_evol_log() {
                  << history_list_metrics.max << ","
                  << history_list_metrics.avg << ","
                  << history_list_metrics.std << ","
-                 << num_moves_per_history / static_cast<double>(history_length)
+                 << ((iter == 0L)? 0.0 : ratio_successful_moves)
                  << "\n";
 }
 
