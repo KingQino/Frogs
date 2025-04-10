@@ -95,7 +95,7 @@ void Lahc::run_heuristic() {
         }
 
     } while ((iter < 100'000L || idle_iter < iter / 5) && ratio_successful_moves > 0.001 && duration.count() < preprocessor->max_exec_time_);
-//    boundary_no_low_opt = static_cast<long>((double)boundary_no_low_opt * 0.99);
+    boundary_no_low_opt = static_cast<long>((double)boundary_no_low_opt * 0.99);
 }
 
 void Lahc::run() {
