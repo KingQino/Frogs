@@ -14,48 +14,30 @@
 
 using namespace std;
 
-struct UpperCost {
-    double penalised_cost{};        // Penalized cost of the solution
-    int nb_routes{};				// Number of routes
-    double distance{};			    // Total Distance
-    double capacity_excess{};		// Sum of excess load in all routes
-    double duration_excess{};		// Sum of excess duration in all routes
-    void reset() {
-        penalised_cost = 0.;
-        nb_routes = 0;
-        distance = 0.;
-        capacity_excess = 0.;
-        duration_excess = 0.;
-    }
-};
-
 class Individual {
 public:
     Case* instance{};
     Preprocessor* preprocessor{};
 
-    // chromosome information, for evolution
-    vector<int> chromT;             // Giant tour representing the individual
-    vector<vector<int>> chromR;     // For each vehicle, the associated sequence of deliveries (complete solution)
-    UpperCost upper_cost;           // The cost of upper-level solution
-    bool is_upper_feasible{};       // Feasibility status of the individual
-    double lower_cost{};            // The cost of lower-level solution, i.e., the complete solution
+    int route_cap{};
+    int node_cap{};
 
-    // Ma: population diversity control
-    double biased_fitness{};        // The biased fitness. The smaller, the better.
-    vector<int> successors;         // For each node, the successor in the solution (can be the depot 0)
-    vector<int> predecessors;       // For each node, the predecessor in the solution (can be the depot 0)
-    multiset<pair<double, Individual*>> proximate_individuals; // The other individuals in the population, ordered by increasing proximity (the set container follows a natural ordering based on the first value of the pair)
+    int** routes;                     // the CVRP solution
+    int num_routes{};                 // the number of routes for the solution
+    int* num_nodes_per_route{};       // the node number of each route
+    int* demand_sum_per_route{};      // the demand sum of all customers of each route
+    double upper_cost{};              // the upper cost of the solution
+
+    int** lower_routes;               // the solution of lower-level sub-problem
+    int*  lower_num_nodes_per_route{};  // the node number of each route in the lower-level solution
+    double lower_cost{};              // the lower cost of the solution
+
 
     Individual();                                                                   // Constructor: empty individual
     Individual(const Individual& ind);                                              // Copy constructor
     Individual(Case* instance, Preprocessor* preprocessor);                         // Constructor: random individual
-    Individual(Case* instance, Preprocessor* preprocessor, const vector<int>& chromT);     // Constructor: random individual, the next step is to use `Split` to generate the ChromR
-    Individual(Case* instance, Preprocessor* preprocessor, const vector<int>& chromT, const vector<vector<int>>& chromR, double upper_cost);  // Constructor: some delicate methods for initialisation
-
-    void evaluate_upper_cost();                                                     // Measuring cost of a solution from the information of chromR
-    double broken_pairs_distance(const Individual* ind) const;                      // Distance measure with another individual
-    double average_broken_pairs_distance_closest(int nb_closest) const;             // Returns the average distance of this individual with the nbClosest individuals
+    Individual(Case* instance, Preprocessor* preprocessor, const vector<vector<int>>& routes, double upper_cost, const vector<int>& demand_sum_per_route);  // Constructor: some delicate methods for initialisation
+    ~Individual();
 
 
     friend ostream& operator<<(ostream& os, const Individual& individual);
