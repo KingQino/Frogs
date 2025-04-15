@@ -9,7 +9,7 @@ LeaderArray::LeaderArray(std::mt19937& engine, Case *instance, Preprocessor *pre
       random_engine(engine),
       uniform_int_dis(0, 7) {
 
-    this->max_search_depth = 10;
+    this->max_search_depth = 20;
     this->route_cap = preprocessor->route_cap_;
     this->node_cap  = preprocessor->node_cap_;
     this->num_routes = 0;
