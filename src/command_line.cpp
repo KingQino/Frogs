@@ -31,6 +31,7 @@ void CommandLine::parse_parameters(Parameters& params) const {
         params.enable_multithreading = get_bool("mth", params.enable_multithreading);
         params.seed = get_int("seed", params.seed);
         params.history_length = get_int("his_len", params.history_length);
+        params.max_search_depth = get_int("max_depth", params.max_search_depth);
         params.runtime_multiplier = get_int("rt_mul", params.runtime_multiplier);
         params.nb_granular = get_int("nb_granular", params.nb_granular);
         params.is_hard_constraint = get_bool("is_hard_constraint", params.is_hard_constraint);
@@ -54,6 +55,7 @@ void CommandLine::display_help() {
               << "  -mth [0|1]                   : Enable multi-threading (default: 1)\n"
               << "  -seed [int]                  : Random seed (default: 0)\n"
               << "  -his_len [int]               : LAHC history length (default: 5000)\n"
+              << "  -max_depth [int]             : LAHC max search depth (default: 25)\n"
               << "  -rt_mul [int]                : Runtime multiplier (default: 1)\n"
               << "  -nb_granular [int]           : Granular search parameter (default: 20)\n"
               << "  -is_hard_constraint [0|1]    : Whether to use hard constraint (default: 1)\n"
