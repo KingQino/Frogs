@@ -26,6 +26,7 @@ struct Parameters {
     bool is_hard_constraint;    // Hard constraint
     bool is_duration_constraint;// Whether to consider duration constraint
     int history_length;         // LAHC history length
+    int max_neigh_attempts;     // Maximum attempts for neighbourhood exploration
 
     // experimental parameters
     int runtime_multiplier;     // Runtime multiplier
@@ -45,6 +46,7 @@ struct Parameters {
         is_duration_constraint = false;
         history_length = 5'000;
         runtime_multiplier = 1;
+        max_neigh_attempts = 10'000;
     }
 };
 

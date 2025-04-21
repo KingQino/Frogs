@@ -26,10 +26,6 @@ set(DEPENDENCIES
         external/include/CircleSector.h
         include/individual.hpp
         src/individual.cpp
-        external/include/Split.h
-        external/src/Split.cpp
-        external/include/LocalSearch.h
-        external/src/LocalSearch.cpp
         include/follower.hpp
         src/follower.cpp
         include/stats_interface.hpp
@@ -37,8 +33,6 @@ set(DEPENDENCIES
         include/heuristic_interface.hpp
         include/lahc.hpp
         src/lahc.cpp
-        include/leader_lahc.hpp
-        src/leader_lahc.cpp
         external/include/magic_enum.hpp
         include/leader_array.hpp
         src/leader_array.cpp
@@ -48,6 +42,10 @@ set(DEPENDENCIES
         src/initializer.cpp
         include/cbma.hpp
         src/cbma.cpp
+        include/sga.hpp
+        src/sga.cpp
+        include/leader_sga.hpp
+        src/leader_sga.cpp
 )
 
 add_executable(Run main.cpp ${DEPENDENCIES})
@@ -72,10 +70,11 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
             tests/preprocessor_test.cpp
             tests/individual_test.cpp
             tests/follower_test.cpp
-            tests/leader_lahc_test.cpp
             tests/lahc_test.cpp
             tests/leader_array_test.cpp
-            tests/cbma_test.cpp)
+            tests/cbma_test.cpp
+            tests/sga_test.cpp
+            tests/leader_sga_test.cpp)
 
     target_include_directories(Tests PRIVATE include external/include)
     target_link_libraries(Tests PRIVATE gtest gtest_main OpenMP::OpenMP_CXX)

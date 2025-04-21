@@ -7,7 +7,6 @@
 
 #include "case.hpp"
 #include "initializer.hpp"
-#include "leader_lahc.hpp"
 #include "leader_array.hpp"
 #include "follower.hpp"
 #include "solution.hpp"

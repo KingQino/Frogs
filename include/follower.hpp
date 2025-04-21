@@ -11,6 +11,7 @@
 #include "solution.hpp"
 #include <list>
 #include <stack>
+#include <cassert>
 
 #define INFEASIBLE 1'000'000'000L
 
@@ -39,6 +40,7 @@ public:
     int num_routes;                        // Number of routes
     int** lower_routes;
     int*  lower_num_nodes_per_route;
+    double* lower_cost_per_route;
     double lower_cost;
 
     double insert_station_by_simple_enum(int* repaired_route, int& repaired_length) const;
@@ -51,6 +53,8 @@ public:
 
 
     void clean();
+    void run_for_single_route(int route_idx) const;
+    void run(PartialSolution* partial_sol);
     void refine(Individual* ind);
     void run(Individual* ind);
     void load_individual(const Individual* ind);

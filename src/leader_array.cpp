@@ -110,40 +110,25 @@ void LeaderArray::export_solution(Solution* sol) const {
 
 
 void LeaderArray::load_individual(Individual* ind) {
-    memset(this->num_nodes_per_route, 0, sizeof(int) * this->route_cap);
-    memset(this->demand_sum_per_route, 0, sizeof(int) * this->route_cap);
-    for (int i = 0; i < this->route_cap; ++i) {
-        memset(this->routes[i], 0, sizeof(int) * this->node_cap);
-    }
+    clean();
 
-    // The individual loaded should have several consecutive routes from index 0 to num_routes - 1
-    this->upper_cost = ind->upper_cost.penalised_cost;
-    this->num_routes = ind->upper_cost.nb_routes;
-    for (int i = 0; i < num_routes; ++i) {
-        this->num_nodes_per_route[i] = static_cast<int>(ind->chromR[i].size()) + 2;
-        this->demand_sum_per_route[i] = instance->calculate_demand_sum(ind->chromR[i]);
-
-        memcpy(&this->routes[i][1], ind->chromR[i].data(),ind->chromR[i].size() * sizeof(int));
+    this->upper_cost = ind->upper_cost;;
+    this->num_routes = ind->num_routes;
+    memcpy(this->num_nodes_per_route, ind->num_nodes_per_route, sizeof(int) * ind->route_cap);
+    memcpy(this->demand_sum_per_route, ind->demand_sum_per_route, sizeof(int) * ind->route_cap);
+    for (int i = 0; i < ind->num_routes; ++i) {
+        memcpy(this->routes[i], ind->routes[i], sizeof(int) * ind->node_cap);
     }
 }
 
 void LeaderArray::export_individual(Individual* ind) const {
-    ind->upper_cost.penalised_cost = this->upper_cost;
-    ind->upper_cost.distance = this->upper_cost;
-    ind->upper_cost.nb_routes = this->num_routes;
-
-    int index = 0;
-    for (int i = 0; i < this->route_cap; ++i) {
-        ind->chromR[i].clear();
-        ind->chromR[i].shrink_to_fit();
-        for (int j = 1; j < this->num_nodes_per_route[i] - 1; ++j) {
-            ind->chromR[i].push_back(this->routes[i][j]);
-            ind->chromT[index++] = this->routes[i][j];
-        }
+    ind->upper_cost = this->upper_cost;
+    ind->num_routes = this->num_routes;
+    memcpy(ind->num_nodes_per_route, this->num_nodes_per_route, sizeof(int) * this->route_cap);
+    memcpy(ind->demand_sum_per_route, this->demand_sum_per_route, sizeof(int) * this->route_cap);
+    for (int i = 0; i < this->num_routes; ++i) {
+        memcpy(ind->routes[i], this->routes[i], sizeof(int) * this->node_cap);
     }
-
-
-//    ind->evaluate_upper_cost();
 }
 
 void LeaderArray::two_opt_for_route(int *route, int length) {
@@ -297,7 +282,7 @@ void LeaderArray::two_opt_star_for_sol() {
         }
     };
 
-    unordered_set<pair<int, int>, pair_hash> route_pairs;
+    unordered_set<pair<int, int>, PairHash> route_pairs;
     for (int i = 0; i < num_routes - 1; i++) {
         for (int j = i + 1; j < num_routes; j++) {
             route_pairs.insert(make_pair(i, j));

@@ -5,7 +5,8 @@
 #ifndef FROGS_INITIALIZER_HPP
 #define FROGS_INITIALIZER_HPP
 
-#include "solution.hpp"
+#include "case.hpp"
+#include "preprocessor.hpp"
 
 class Initializer {
 public:

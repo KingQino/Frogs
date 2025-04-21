@@ -35,6 +35,7 @@ void CommandLine::parse_parameters(Parameters& params) const {
         params.nb_granular = get_int("nb_granular", params.nb_granular);
         params.is_hard_constraint = get_bool("is_hard_constraint", params.is_hard_constraint);
         params.is_duration_constraint = get_bool("is_duration_constraint", params.is_duration_constraint);
+        params.max_neigh_attempts = get_int("neigh_attempts", params.max_neigh_attempts);
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         display_help();
@@ -47,7 +48,7 @@ void CommandLine::display_help() {
     std::cout << "--------------------------------------------------- Parameters Instruction  ---------------------------------------------------" << std::endl;
     std::cout << "Usage: ./Run [options]\n"
               << "Options:\n"
-              << "  -alg [enum]                  : Algorithm name (e.g., Cbma, Lahc)\n"
+              << "  -alg [enum]                  : Algorithm name (e.g., Cbma, Lahc, Sga)\n"
               << "  -ins [filename]              : Problem instance filename\n"
               << "  -log [0|1]                   : Enable logging (default: 0)\n"
               << "  -stp [0|1|2]                 : Stopping criteria, 0: max-evals, 1: max-time, 2: obj-converge (default: 0)\n"
@@ -57,7 +58,8 @@ void CommandLine::display_help() {
               << "  -rt_mul [int]                : Runtime multiplier (default: 1)\n"
               << "  -nb_granular [int]           : Granular search parameter (default: 20)\n"
               << "  -is_hard_constraint [0|1]    : Whether to use hard constraint (default: 1)\n"
-              << "  -is_duration_constraint [0|1]: Whether to consider duration constraint (default: 0)\n";
+              << "  -is_duration_constraint [0|1]: Whether to consider duration constraint (default: 0)\n"
+              << "  -neigh_attempts [int]        : Maximum attempts for neighbourhood exploration (default: 10000)\n";
     std::cout << "-------------------------------------------------------------------------------------------------------------------------------" << std::endl;
 }
 

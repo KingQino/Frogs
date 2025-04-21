@@ -19,6 +19,8 @@ Follower::Follower(Case* instance, Preprocessor* preprocessor) {
     }
     this->lower_num_nodes_per_route = new int [route_cap];
     memset(this->lower_num_nodes_per_route, 0, sizeof(int) * route_cap);
+    this->lower_cost_per_route = new double [route_cap];
+    memset(this->lower_cost_per_route, 0.0, sizeof(double) * route_cap);
     this->lower_cost = 0;
 }
 
@@ -28,6 +30,7 @@ Follower::~Follower() {
     }
     delete[] this->lower_routes;
     delete[] this->lower_num_nodes_per_route;
+    delete[] this->lower_cost_per_route;
 }
 
 void Follower::clean() {
@@ -37,6 +40,98 @@ void Follower::clean() {
         memset(this->lower_routes[i], 0, sizeof(int) * node_cap);
     }
     memset(this->lower_num_nodes_per_route, 0, sizeof(int) * route_cap);
+    memset(this->lower_cost_per_route, 0.0, sizeof(double) * route_cap);
+}
+
+void Follower::run(PartialSolution* partial_sol) {
+    // move_type: 0 for intra-route, 1 for inter-route, 2 for inter-route with empty route
+    if (partial_sol->move_type == 0) {
+        assert(partial_sol->idx1 != -1 && "The partial solution passed is wrong!");
+
+        // intra-route move
+        int idx = partial_sol->idx1;
+
+        memcpy(lower_routes[idx], partial_sol->route1, sizeof(int) * node_cap);
+        lower_num_nodes_per_route[idx] = partial_sol->length1;
+        run_for_single_route(idx);
+    } else if (partial_sol->move_type == 1) {
+        assert(partial_sol->idx1 != -1 && partial_sol->idx2 != -1 && "The partial solution passed is wrong!");
+
+        // inter-route move
+        int idx1 = partial_sol->idx1;
+        int idx2 = partial_sol->idx2;
+
+        if (!partial_sol->is_empty1 && !partial_sol->is_empty2) {
+            memcpy(lower_routes[idx1], partial_sol->route1, sizeof(int) * node_cap);
+            lower_num_nodes_per_route[idx1] = partial_sol->length1;
+
+            memcpy(lower_routes[idx2], partial_sol->route2, sizeof(int) * node_cap);
+            lower_num_nodes_per_route[idx2] = partial_sol->length2;
+
+            run_for_single_route(idx1);
+            run_for_single_route(idx2);
+        } else if (!partial_sol->is_empty1) {
+            // r1 is not empty, r2 is empty
+
+            memcpy(lower_routes[idx1], partial_sol->route1, sizeof(int) * node_cap);
+            lower_num_nodes_per_route[idx1] = partial_sol->length1;
+            run_for_single_route(idx1);
+
+            int last = num_routes - 1;
+            if (idx2 != last) {
+                memcpy(lower_routes[idx2], lower_routes[last], sizeof(int) * node_cap);
+                lower_num_nodes_per_route[idx2] = lower_num_nodes_per_route[last];
+                lower_cost_per_route[idx2] = lower_cost_per_route[last];
+            }
+            memset(lower_routes[last], 0, sizeof(int) * node_cap);
+            lower_num_nodes_per_route[last] = 0;
+            lower_cost_per_route[last] = 0.0;
+            num_routes--;
+
+        } else if (!partial_sol->is_empty2) {
+            // r1 is empty, r2 is not empty
+
+            memcpy(lower_routes[idx2], partial_sol->route2, sizeof(int) * node_cap);
+            lower_num_nodes_per_route[idx2] = partial_sol->length2;
+            run_for_single_route(idx2);
+
+            int last = num_routes - 1;
+            if (idx1 != last) {
+                memcpy(lower_routes[idx1], lower_routes[last], sizeof(int) * node_cap);
+                lower_num_nodes_per_route[idx1] = lower_num_nodes_per_route[last];
+                lower_cost_per_route[idx1] = lower_cost_per_route[last];
+            }
+            memset(lower_routes[last], 0, sizeof(int) * node_cap);
+            lower_num_nodes_per_route[last] = 0;
+            lower_cost_per_route[last] = 0.0;
+            num_routes--;
+
+        } else {
+            // both routes are empty, it's impossible to happen
+            assert(false && "The partial solution passed is wrong!");
+        }
+
+    }
+
+    lower_cost = std::accumulate(lower_cost_per_route, lower_cost_per_route + num_routes, 0.0);
+}
+
+void Follower::run_for_single_route(int idx) const {
+    if (lower_num_nodes_per_route[idx] <= 2) {
+        return;
+    }
+    double cost_SE = insert_station_by_simple_enum( lower_routes[idx], lower_num_nodes_per_route[idx]);
+
+    if (cost_SE == -1) {
+        double cost_RE = insert_station_by_remove_enum( lower_routes[idx], lower_num_nodes_per_route[idx]);
+        if (cost_RE == -1) {
+            lower_cost_per_route[idx] = INFEASIBLE;
+        } else {
+            lower_cost_per_route[idx] = cost_RE;
+        }
+    } else {
+        lower_cost_per_route[idx] = cost_SE;
+    }
 }
 
 void Follower::refine(Individual* ind) {
@@ -44,7 +139,9 @@ void Follower::refine(Individual* ind) {
 
     lower_cost = 0.0;
     for (int i = 0; i < num_routes; ++i) {
-        lower_cost += insert_station_by_all_enumeration(lower_routes[i], lower_num_nodes_per_route[i]);
+        double cost = insert_station_by_all_enumeration(lower_routes[i], lower_num_nodes_per_route[i]);
+        lower_cost_per_route[i] = cost;
+        lower_cost += cost;
     }
 
     export_individual(ind);
@@ -54,19 +151,9 @@ void Follower::run(Individual *ind) {
     load_individual(ind);
 
     for (int i = 0; i < num_routes; ++i) {
-        double cost_SE = insert_station_by_simple_enum( lower_routes[i], lower_num_nodes_per_route[i]);
-
-        if (cost_SE == -1) {
-            double cost_RE = insert_station_by_remove_enum( lower_routes[i], lower_num_nodes_per_route[i]);
-            if (cost_RE == -1) {
-                lower_cost += INFEASIBLE;
-            } else {
-                lower_cost += cost_RE;
-            }
-        } else {
-            lower_cost += cost_SE;
-        }
+        run_for_single_route(i);
     }
+    lower_cost = std::accumulate(lower_cost_per_route, lower_cost_per_route + num_routes, 0.0);
 
     export_individual(ind);
 }
@@ -75,19 +162,9 @@ void Follower::run(Solution* sol) {
     load_solution(sol);
 
     for (int i = 0; i < num_routes; ++i) {
-        double cost_SE = insert_station_by_simple_enum( lower_routes[i], lower_num_nodes_per_route[i]);
-
-        if (cost_SE == -1) {
-            double cost_RE = insert_station_by_remove_enum( lower_routes[i], lower_num_nodes_per_route[i]);
-            if (cost_RE == -1) {
-                lower_cost += INFEASIBLE;
-            } else {
-                lower_cost += cost_RE;
-            }
-        } else {
-            lower_cost += cost_SE;
-        }
+        run_for_single_route(i);
     }
+    lower_cost = std::accumulate(lower_cost_per_route, lower_cost_per_route + num_routes, 0.0);
 
     export_solution(sol);
 }
@@ -109,11 +186,11 @@ void Follower::export_solution(Solution* sol) const {
 void Follower::load_individual(const Individual* ind) {
     clean();
 
-    this->num_routes = ind->upper_cost.nb_routes;
+    this->num_routes = ind->num_routes;
     for (int i = 0; i < num_routes; ++i) {
-        this->lower_num_nodes_per_route[i] = static_cast<int>(ind->chromR[i].size()) + 2;
+        this->lower_num_nodes_per_route[i] = ind->num_nodes_per_route[i];
 
-        memcpy(&this->lower_routes[i][1], ind->chromR[i].data(),ind->chromR[i].size() * sizeof(int));
+        memcpy(this->lower_routes[i], ind->routes[i], sizeof(int) * node_cap);
     }
 }
 
