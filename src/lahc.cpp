@@ -87,7 +87,7 @@ void Lahc::run_heuristic() {
         iter++;
         duration = std::chrono::high_resolution_clock::now() - start;
 
-        if (iter >= boundary_no_low_opt && has_moved && candidate_cost < global_best_upper_so_far * 1.10) {
+        if (has_moved && candidate_cost < global_best_upper_so_far * 1.10) {
             follower->run(current);
             if (current->lower_cost < global_best->lower_cost) {
                 global_best = std::move(make_unique<Solution>(*current));
@@ -95,7 +95,6 @@ void Lahc::run_heuristic() {
         }
 
     } while ((iter < 100'000L || idle_iter < iter / 5) && ratio_successful_moves > 0.001 && duration.count() < preprocessor->max_exec_time_);
-//    boundary_no_low_opt = static_cast<long>((double)boundary_no_low_opt * 0.99);
 }
 
 void Lahc::run() {
