@@ -116,6 +116,7 @@ Algorithm CommandLine::string_to_algorithm(const std::string& algo_str) {
 
     if (lower_algo == "cbma") return Algorithm::CBMA;
     if (lower_algo == "lahc") return Algorithm::LAHC;
+    if (lower_algo == "sga")  return Algorithm::SGA;
 
     std::cerr << "Warning: Unknown algorithm '" << algo_str << "', defaulting to Lahc.\n";
     return Algorithm::LAHC; // Default to Lahc if input is invalid

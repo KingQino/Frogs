@@ -10,7 +10,7 @@
 
 using namespace std;
 
-enum class Algorithm { CBMA, LAHC};
+enum class Algorithm { CBMA, LAHC, SGA};
 
 struct Parameters {
     // Running parameters

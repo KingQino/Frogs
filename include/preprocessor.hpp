@@ -13,6 +13,14 @@
 
 #define MY_EPSILON 0.000'01       // Precision parameter, used to avoid numerical instabilities
 
+// Hash function for pairs of route indices
+struct PairHash
+{
+    size_t operator() (pair<int, int> const & a_pair) const {
+        return a_pair.first * 256 + a_pair.second;
+    }
+};
+
 struct Customer {
     int id{};                     // Index of the customer
     double coord_x{};             // Coordinate X
