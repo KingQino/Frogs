@@ -65,6 +65,9 @@ public:
     Individual(Case* instance, Preprocessor* preprocessor, const vector<vector<int>>& routes, double upper_cost, const vector<int>& demand_sum_per_route);  // Constructor: some delicate methods for initialisation
     ~Individual();
 
+    void clean();
+    void load_routes(const vector<vector<int>>& routes, double upper_cost, const vector<int>& demand_sum_per_route);
+
     [[nodiscard]] vector<int> get_chromosome() const; // Get the chromosome of the individual
 
     friend ostream& operator<<(ostream& os, const Individual& individual);

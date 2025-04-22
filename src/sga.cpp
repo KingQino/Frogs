@@ -26,12 +26,14 @@ Sga::Sga(int seed_val, Case *instance, Preprocessor* preprocessor)
     initializer = new Initializer(random_engine, instance, preprocessor);
     leader = new LeaderSga(random_engine, instance, preprocessor);
     follower = new Follower(instance, preprocessor);
+    partial_sol = new PartialSolution();
 }
 
 Sga::~Sga() {
     delete initializer;
     delete leader;
     delete follower;
+    delete partial_sol;
     population.clear();
     population.shrink_to_fit();
 }
@@ -72,18 +74,16 @@ void Sga::run() {
 }
 
 void Sga::initialize_heuristic() {
-    population.clear();
-    population.shrink_to_fit();
     population.reserve(pop_size);
 
     for (int i = 0; i < pop_size; ++i) {
         vector<vector<int>> routes = initializer->routes_constructor_with_hien_method();
 
-        shared_ptr<Individual> ind_ptr = make_shared<Individual>(instance, preprocessor, routes,
+        unique_ptr<Individual> ind_ptr = make_unique<Individual>(instance, preprocessor, routes,
                                                                  instance->compute_total_distance(routes),
                                                                  instance->compute_demand_sum_per_route(routes));
 
-        population.push_back(ind_ptr);
+        population.emplace_back(std::move(ind_ptr));
     }
 
     global_best = make_unique<Individual>();
@@ -101,9 +101,6 @@ void Sga::run_heuristic() {
         data_logging2[i] = ind->upper_cost;
 
         global_best_upper_so_far = min(global_best_upper_so_far, ind->upper_cost);
-
-
-        auto* partial_sol = new PartialSolution();
 
         // for loop for neighbour exploration
         for (int j = 0; j < max_neigh_attempts; ++j) {
@@ -123,7 +120,6 @@ void Sga::run_heuristic() {
             partial_sol->clean();
         }
 
-        delete partial_sol;
     }
 
     pop_cost_metrics = StatsInterface::calculate_statistical_indicators(data_logging1);
@@ -134,7 +130,7 @@ void Sga::run_heuristic() {
     vector<vector<int>> elites;
     elites.reserve(pop_size);
     for(auto& ind : population) {
-        elites.push_back(ind->get_chromosome()); // encoding
+        elites.emplace_back(std::move(ind->get_chromosome())); // encoding
     }
 
     vector<vector<int>> immigrants;
@@ -142,7 +138,7 @@ void Sga::run_heuristic() {
     for (int i = 0; i < pop_size; ++i) {
         vector<int> immigrant(preprocessor->customer_ids_);
         shuffle(immigrant.begin(), immigrant.end(), random_engine);
-        immigrants.push_back(immigrant);
+        immigrants.emplace_back(std::move(immigrant));
     }
 
     vector<int> indices(pop_size);
@@ -163,8 +159,8 @@ void Sga::run_heuristic() {
         mut_shuffle_indexes(parent1, mut_ind_prob);
         mut_shuffle_indexes(parent2, mut_ind_prob);
 
-        offspring.push_back(parent1);
-        offspring.push_back(parent2);
+        offspring.emplace_back(std::move(parent1));
+        offspring.emplace_back(std::move(parent2));
     }
     // 25 pairs of elite and immigrants
     std::shuffle(indices.begin(), indices.end(), random_engine);
@@ -175,32 +171,29 @@ void Sga::run_heuristic() {
         mut_shuffle_indexes(parent1, mut_ind_prob);
         mut_shuffle_indexes(parent2, mut_ind_prob);
 
-        offspring.push_back(parent1);
-        offspring.push_back(parent2);
+        offspring.emplace_back(std::move(parent1));
+        offspring.emplace_back(std::move(parent2));
     }
     // 15 pairs of immigrants
     std::shuffle(indices.begin(), indices.end(), random_engine);
     for (int i = 0; i < 15; ++i) {
-        offspring.push_back(immigrants[i]);
-        offspring.push_back(immigrants[pop_size - 1 - i]);
+        offspring.emplace_back(std::move(immigrants[i]));
+        offspring.emplace_back(std::move(immigrants[pop_size - 1 - i]));
     }
 
 
-    population.clear();
-    population.shrink_to_fit();
-    population.reserve(pop_size);
     for (int i = 0; i < pop_size; ++i) {
-        vector<vector<int>> dumb_routes = initializer->prins_split(offspring[i]);
+        population[i]->clean();
 
+        vector<vector<int>> dumb_routes = initializer->prins_split(offspring[i]);
         for (auto& route : dumb_routes) {
             route.insert(route.begin(), instance->depot_);
             route.push_back(instance->depot_);
         }
 
-        population.push_back(make_shared<Individual>(instance, preprocessor,dumb_routes,
-                                                   instance->compute_total_distance(dumb_routes),
-                                                   instance->compute_demand_sum_per_route(dumb_routes))
-        );
+        population[i]->load_routes(dumb_routes,
+                                   instance->compute_total_distance(dumb_routes),
+                                   instance->compute_demand_sum_per_route(dumb_routes));
     }
 }
 

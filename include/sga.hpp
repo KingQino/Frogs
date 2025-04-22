@@ -24,7 +24,7 @@ public:
 
     int pop_size;
     int gen;
-    vector<shared_ptr<Individual>> population;
+    vector<unique_ptr<Individual>> population;
     unique_ptr<Individual> global_best;      // Global best solution found so far
     double global_best_upper_so_far;            // The best solution found so far
 
@@ -40,6 +40,7 @@ public:
     Initializer* initializer;
     LeaderSga* leader;
     Follower* follower;
+    PartialSolution* partial_sol;
 
     Sga(int seed, Case *instance, Preprocessor *preprocessor);
     ~Sga() override;
