@@ -26,7 +26,7 @@ public:
     int gen;
     vector<unique_ptr<Individual>> population;
     unique_ptr<Individual> global_best;      // Global best solution found so far
-    double global_best_upper_so_far;            // The best solution found so far
+    double global_best_upper_so_far{};            // The best solution found so far
 
     uniform_int_distribution<int> uniform_int_dis;// Uniform distribution for random integers
     double mut_ind_prob; // Probability of mutation for each individual

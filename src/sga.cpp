@@ -13,8 +13,6 @@ Sga::Sga(int seed_val, Case *instance, Preprocessor* preprocessor)
 
     this->pop_size = 100;
     this->gen = 0;
-    global_best = make_unique<Individual>();
-    global_best_upper_so_far = numeric_limits<double>::max();
 
     data_logging1 = vector<double>(pop_size);
     data_logging2 = vector<double>(pop_size);
@@ -94,7 +92,8 @@ void Sga::initialize_heuristic() {
         population.emplace_back(std::move(ind_ptr));
     }
 
-    global_best = make_unique<Individual>();
+    global_best = make_unique<Individual>(instance, preprocessor);
+    global_best_upper_so_far = numeric_limits<double>::max();
 }
 
 void Sga::run_heuristic() {
@@ -129,7 +128,7 @@ void Sga::run_heuristic() {
                 #pragma omp critical
                 {
                     if (ind->lower_cost < global_best->lower_cost) {
-                        global_best = std::make_unique<Individual>(*ind);
+                        *global_best = *ind;  // 拷贝内容，不重新分配
                     }
                 }
             }

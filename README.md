@@ -425,7 +425,7 @@
 1. open an interactive job, login in a specific node
 
    ```sh
-   qlogin -pe smp 2 -l h_vmem=16G -l h_rt=1:0:0 -l rocky 
+   qlogin -pe smp 10 -l h_vmem=16G -l h_rt=1:0:0 -l rocky 
    ```
 
    ```sh
@@ -455,7 +455,7 @@
    make valgrind_run
    ```
 
-4. To analyze actual memory usage:
+4. To analyze actual memory usage (optional)
 
    ```cmake
    # 强制开启调试符号

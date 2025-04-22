@@ -64,6 +64,7 @@ public:
     Individual(Case* instance, Preprocessor* preprocessor);                         // Constructor: random individual
     Individual(Case* instance, Preprocessor* preprocessor, const vector<vector<int>>& routes, double upper_cost, const vector<int>& demand_sum_per_route);  // Constructor: some delicate methods for initialisation
     ~Individual();
+    Individual& operator=(const Individual& other);
 
     void clean();
     void load_routes(const vector<vector<int>>& routes, double upper_cost, const vector<int>& demand_sum_per_route);
