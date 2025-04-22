@@ -106,7 +106,7 @@ void Sga::run_heuristic() {
         auto* partial_sol = new PartialSolution();
 
         // for loop for neighbour exploration
-        for (int j = 0; j < 1'000; ++j) {
+        for (int j = 0; j < max_neigh_attempts; ++j) {
             bool has_moved = leader->neighbour_explore(global_best_upper_so_far * 1.1, partial_sol);
             if (has_moved) {
                 follower->run(partial_sol);
