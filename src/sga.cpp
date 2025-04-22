@@ -26,22 +26,15 @@ Sga::Sga(int seed_val, Case *instance, Preprocessor* preprocessor)
     followers.reserve(pop_size);
     partial_sols.reserve(pop_size);
     for (int i = 0; i < pop_size; ++i) {
-        leaders.emplace_back(new LeaderSga(random_engine, instance, preprocessor));
-        followers.emplace_back(new Follower(instance, preprocessor));
-        partial_sols.emplace_back(new PartialSolution());
+        leaders.emplace_back(std::make_unique<LeaderSga>(random_engine, instance, preprocessor));
+        followers.emplace_back(std::make_unique<Follower>(instance, preprocessor));
+        partial_sols.emplace_back(std::make_unique<PartialSolution>());
     }
 
 }
 
 Sga::~Sga() {
     delete initializer;
-    for (int i = 0; i < pop_size; ++i) {
-        delete leaders[i];
-        delete followers[i];
-        delete partial_sols[i];
-    }
-    population.clear();
-    population.shrink_to_fit();
 }
 
 void Sga::run() {
@@ -116,9 +109,9 @@ void Sga::run_heuristic() {
 
         // for loop for neighbour exploration
         for (int j = 0; j < max_neigh_attempts; ++j) {
-            bool has_moved = leaders[i]->neighbour_explore(global_best_upper_so_far * 1.1, partial_sols[i]);
+            bool has_moved = leaders[i]->neighbour_explore(global_best_upper_so_far * 1.1, partial_sols[i].get());
             if (has_moved) {
-                followers[i]->run(partial_sols[i]);
+                followers[i]->run(partial_sols[i].get());
 
                 leaders[i]->export_individual(ind.get());
                 followers[i]->export_individual(ind.get());
