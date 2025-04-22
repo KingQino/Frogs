@@ -25,6 +25,7 @@ public:
     vector<shared_ptr<Individual>> population;
     std::unique_ptr<Individual> global_best;      // Global best solution found so far
     std::unique_ptr<Individual> iter_best;
+    double global_best_upper_so_far;            // The best solution found so far
 
     int pop_size;
     double elite_ratio;

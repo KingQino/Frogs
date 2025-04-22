@@ -97,7 +97,7 @@ void Cbma::run_heuristic() {
     if (gen > delta) { //  switch off - False
         // when the generations are greater than the threshold, part of the upper-level sub-solutions S1 will be selected for local search
         double old_cost = talented_ind->upper_cost;
-        leader->run(talented_ind.get());
+        leader->run_plus(talented_ind.get());
         double new_cost = talented_ind->upper_cost;
         v1 = old_cost - new_cost;
         v2 = *std::max_element(P.begin(), P.end());
@@ -122,7 +122,7 @@ void Cbma::run_heuristic() {
     for(auto& ind : S1) {
         double old_cost = ind->upper_cost;
 
-        leader->run(ind.get());
+        leader->run_plus(ind.get());
 
         if (v2 < old_cost - ind->upper_cost)
             v2 = old_cost - ind->upper_cost;
