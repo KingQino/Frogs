@@ -455,7 +455,32 @@
    make valgrind_run
    ```
 
-4. check memory usage
+4. To analyze actual memory usage:
+
+   ```cmake
+   # 强制开启调试符号
+   set(CMAKE_BUILD_TYPE Debug)
+   set(CMAKE_CXX_FLAGS_DEBUG "-g")
+   ```
+
+   ```sh
+   cmake ..
+   make clean
+   make -j
+   ```
+
+   ```sh
+   # valgrind --tool=massif ./your_program
+   valgrind --tool=massif ./Run -alg sga -ins E-n22-k4.evrp -log 1 -stp 1 -mth 0 -neigh_attempts 10000
+   
+   # ms_printhuman-readable breakdown of memory usage over time
+   ms_print massif.out.xxxx > massif_report.txt
+   less massif_report.txt
+   ```
+
+   > chatGPT analyze
+
+5. check memory usage
 
    ```sh
    # Apocrita
