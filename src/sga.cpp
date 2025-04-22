@@ -20,6 +20,7 @@ Sga::Sga(int seed_val, Case *instance, Preprocessor* preprocessor)
     data_logging2 = vector<double>(pop_size);
 
     uniform_int_dis = uniform_int_distribution<int>(0, pop_size - 1);
+    normal_dis = normal_distribution<double>(1.1, 1.0);
     mut_ind_prob = 0.2;
     max_neigh_attempts = preprocessor->params.max_neigh_attempts;
 
@@ -107,7 +108,7 @@ void Sga::run_heuristic() {
 
         // for loop for neighbour exploration
         for (int j = 0; j < 1'000; ++j) {
-            bool has_moved = leader->neighbour_explore(global_best_upper_so_far * 1.1, partial_sol);
+            bool has_moved = leader->neighbour_explore(global_best_upper_so_far * normal_dis(random_engine), partial_sol);
             if (has_moved) {
                 follower->run(partial_sol);
 

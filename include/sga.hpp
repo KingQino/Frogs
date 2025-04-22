@@ -29,6 +29,7 @@ public:
     double global_best_upper_so_far;            // The best solution found so far
 
     uniform_int_distribution<int> uniform_int_dis;// Uniform distribution for random integers
+    normal_distribution<double> normal_dis;
     double mut_ind_prob; // Probability of mutation for each individual
     int max_neigh_attempts;
 

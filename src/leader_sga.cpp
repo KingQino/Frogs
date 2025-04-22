@@ -1090,7 +1090,7 @@ bool LeaderSga::move9_inter_impro(int *route1, int *route2, int &length1, int &l
 }
 
 bool LeaderSga::is_accepted_neigh(const double &change) const {
-    return upper_cost + change < border_cost; // border_cost for example, is the best upper cost so far * 1.1
+    return upper_cost + change < border_cost || change <= -MY_EPSILON; // border_cost for example, is the best upper cost so far * 1.1
 }
 
 bool LeaderSga::perform_intra_move_neigh(const std::function<bool(int *, int)> &move_func) {
