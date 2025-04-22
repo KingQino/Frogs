@@ -31,6 +31,9 @@ Sga::Sga(int seed_val, Case *instance, Preprocessor* preprocessor)
         partial_sols.emplace_back(std::make_unique<PartialSolution>());
     }
 
+    elites.reserve(pop_size);
+    immigrants.reserve(pop_size);
+    offspring.reserve(pop_size);
 }
 
 Sga::~Sga() {
@@ -101,11 +104,8 @@ void Sga::run_heuristic() {
         followers[i]->run(ind.get());
         data_logging2[i] = ind->upper_cost;
 
-        // 更新 global_best_upper_so_far（用原子或临界区）
-        #pragma omp critical
-        {
-            global_best_upper_so_far = std::min(global_best_upper_so_far, ind->upper_cost);
-        }
+        #pragma omp atomic write
+        global_best_upper_so_far = std::min(global_best_upper_so_far, ind->upper_cost);
 
         // for loop for neighbour exploration
         for (int j = 0; j < max_neigh_attempts; ++j) {
@@ -135,14 +135,12 @@ void Sga::run_heuristic() {
     flush_row_into_evol_log();
 
 
-    vector<vector<int>> elites;
-    elites.reserve(pop_size);
-    for(auto& ind : population) {
-        elites.emplace_back(std::move(ind->get_chromosome())); // encoding
+    elites.clear();
+    for (auto& ind : population) {
+        elites.emplace_back(std::move(ind->get_chromosome()));
     }
 
-    vector<vector<int>> immigrants;
-    immigrants.reserve(pop_size);
+    immigrants.clear();
     for (int i = 0; i < pop_size; ++i) {
         vector<int> immigrant(preprocessor->customer_ids_);
         shuffle(immigrant.begin(), immigrant.end(), random_engine);
@@ -152,8 +150,7 @@ void Sga::run_heuristic() {
     vector<int> indices(pop_size);
     std::iota(indices.begin(), indices.end(), 0);
 
-    vector<vector<int>> offspring;
-    offspring.reserve(pop_size);
+    offspring.clear();
     // crossover and mutation
     // 10 pairs of elites
     for (int i = 0; i < 10; ++i) {

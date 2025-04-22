@@ -16,6 +16,10 @@
 using namespace std;
 
 class Sga final : public HeuristicInterface, public StatsInterface {
+private:
+    std::vector<std::vector<int>> elites;
+    std::vector<std::vector<int>> immigrants;
+    std::vector<std::vector<int>> offspring;
 public:
     static const std::string ALGORITHM;
 
