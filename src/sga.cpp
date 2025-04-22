@@ -22,14 +22,9 @@ Sga::Sga(int seed_val, Case *instance, Preprocessor* preprocessor)
     max_neigh_attempts = preprocessor->params.max_neigh_attempts;
 
     initializer = new Initializer(random_engine, instance, preprocessor);
-    leaders.reserve(pop_size);
-    followers.reserve(pop_size);
-    partial_sols.reserve(pop_size);
-    for (int i = 0; i < pop_size; ++i) {
-        leaders.emplace_back(std::make_unique<LeaderSga>(random_engine, instance, preprocessor));
-        followers.emplace_back(std::make_unique<Follower>(instance, preprocessor));
-        partial_sols.emplace_back(std::make_unique<PartialSolution>());
-    }
+    leader = new LeaderSga(random_engine, instance, preprocessor);
+    follower = new Follower(instance, preprocessor);
+    partial_sol = new PartialSolution();
 
     elites.reserve(pop_size);
     immigrants.reserve(pop_size);
@@ -95,37 +90,31 @@ void Sga::initialize_heuristic() {
 void Sga::run_heuristic() {
     gen++;
 
-    #pragma omp parallel for schedule(dynamic) default(none)
     for (int i = 0; i < pop_size; ++i) {
         auto& ind = population[i];
         data_logging1[i] = ind->upper_cost;
 
-        leaders[i]->local_improve(ind.get());
-        followers[i]->run(ind.get());
+        leader->local_improve(ind.get());
+        follower->run(ind.get());
         data_logging2[i] = ind->upper_cost;
 
-        #pragma omp atomic write
         global_best_upper_so_far = std::min(global_best_upper_so_far, ind->upper_cost);
 
         // for loop for neighbour exploration
         for (int j = 0; j < max_neigh_attempts; ++j) {
-            bool has_moved = leaders[i]->neighbour_explore(global_best_upper_so_far * 1.1, partial_sols[i].get());
+            bool has_moved = leader->neighbour_explore(global_best_upper_so_far * 1.1, partial_sol);
             if (has_moved) {
-                followers[i]->run(partial_sols[i].get());
+                follower->run(partial_sol);
 
-                leaders[i]->export_individual(ind.get());
-                followers[i]->export_individual(ind.get());
+                leader->export_individual(ind.get());
+                follower->export_individual(ind.get());
 
-                // update the global best solution
-                #pragma omp critical
-                {
-                    if (ind->lower_cost < global_best->lower_cost) {
-                        *global_best = *ind;  // copy the content of ind to global_best, not deep copy
-                    }
+                if (ind->lower_cost < global_best->lower_cost) {
+                    *global_best = *ind;  // copy the content of ind to global_best, not deep copy
                 }
             }
 
-            partial_sols[i]->clean();
+            partial_sol->clean();
         }
 
     }
@@ -249,10 +238,10 @@ void Sga::save_log_for_solution() {
 
     log_solution.open(directory + "/" + file_name);
     log_solution << fixed << setprecision(5) << global_best->lower_cost << endl;
-    followers[0]->run(global_best.get());
-    for (int i = 0; i < followers[0]->num_routes; ++i) {
-        for (int j = 0; j < followers[0]->lower_num_nodes_per_route[i]; ++j) {
-            log_solution << followers[0]->lower_routes[i][j] << ",";
+    follower->run(global_best.get());
+    for (int i = 0; i < follower->num_routes; ++i) {
+        for (int j = 0; j < follower->lower_num_nodes_per_route[i]; ++j) {
+            log_solution << follower->lower_routes[i][j] << ",";
         }
         log_solution << endl;
     }

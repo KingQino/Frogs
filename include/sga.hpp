@@ -42,9 +42,9 @@ public:
     Indicators pop_cost_metrics_after_impro; // The statistical info of the population cost metrics
 
     Initializer* initializer;
-    std::vector<std::unique_ptr<LeaderSga>> leaders;
-    std::vector<std::unique_ptr<Follower>> followers;
-    std::vector<std::unique_ptr<PartialSolution>> partial_sols;
+    LeaderSga* leader;
+    Follower* follower;
+    PartialSolution* partial_sol;
 
     Sga(int seed, Case *instance, Preprocessor *preprocessor);
     ~Sga() override;
