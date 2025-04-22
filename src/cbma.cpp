@@ -24,7 +24,7 @@ Cbma::Cbma(int seed_val, Case *instance, Preprocessor *preprocessor) : Heuristic
     r = 0.0;
 
     initializer = new Initializer(random_engine, instance, preprocessor);
-    leader = new LeaderArray(random_engine, instance, preprocessor);
+    leader = new LeaderCbma(random_engine, instance, preprocessor);
     follower = new Follower(instance, preprocessor);
 }
 
@@ -74,28 +74,26 @@ void Cbma::initialize_heuristic() {
     population.reserve(pop_size);
     for (int i = 0; i < pop_size; ++i) {
         vector<vector<int>> routes = initializer->routes_constructor_with_hien_method();
-        auto sol = make_shared<Solution>(instance, preprocessor, routes,
+        auto ind = make_shared<Individual>(instance, preprocessor, routes,
                                          instance->compute_total_distance(routes),
                                          instance->compute_demand_sum_per_route(routes));
-        population.push_back(sol);
+        population.push_back(ind);
         routes.clear();
         routes.shrink_to_fit();
     }
 
-    global_best = make_unique<Solution>(*population[0]);
-    iter_best = make_unique<Solution>(*population[0]);
+    global_best = make_unique<Individual>(*population[0]);
+    iter_best = make_unique<Individual>(*population[0]);
 }
 
 void Cbma::run_heuristic() {
-    gen++;
-
     vector<double> data = get_fitness_vector_from_upper_group(population);
     S_stats = calculate_statistical_indicators(get_fitness_vector_from_upper_group(population));
 
-    vector<shared_ptr<Solution>> S1 = population;
+    vector<shared_ptr<Individual>> S1 = population;
     double v1 = 0;
     double v2;
-    shared_ptr<Solution> talented_ind = select_best_upper_individual(population);
+    shared_ptr<Individual> talented_ind = select_best_upper_individual(population);
     if (gen > delta) { //  switch off - False
         // when the generations are greater than the threshold, part of the upper-level sub-solutions S1 will be selected for local search
         double old_cost = talented_ind->upper_cost;
@@ -138,9 +136,9 @@ void Cbma::run_heuristic() {
 
     // Current S1 has been selected and local search.
     // Pick a portion of the upper sub-solutions to go for recharging process, by the difference between before and after charging of the best solution in S1
-    vector<shared_ptr<Solution>> S2 = S1;
+    vector<shared_ptr<Individual>> S2 = S1;
     double v3;
-    shared_ptr<Solution> outstanding_upper = select_best_upper_individual(S1);
+    shared_ptr<Individual> outstanding_upper = select_best_upper_individual(S1);
     if (gen > 0) { // Switch = off False
         double old_cost = outstanding_upper->upper_cost; // fitness without recharging f
         follower->run(outstanding_upper.get());
@@ -162,7 +160,7 @@ void Cbma::run_heuristic() {
     }
 
     // Current S2 has been selected and ready for recharging, make recharging on S2
-    vector<shared_ptr<Solution>> S3;
+    vector<shared_ptr<Individual>> S3;
     S3.push_back(outstanding_upper); //  *** switch off ***
     for (auto& ind:S2) {
         double old_cost = ind->upper_cost;
@@ -179,11 +177,13 @@ void Cbma::run_heuristic() {
     S3_stats = calculate_statistical_indicators(get_fitness_vector_from_lower_group(S3));
 
     // statistics
-    iter_best = make_unique<Solution>(*select_best_lower_individual(S3));
+    iter_best = make_unique<Individual>(*select_best_lower_individual(S3));
     if (global_best->lower_cost > iter_best->lower_cost) {
-        global_best = make_unique<Solution>(*iter_best);
+        global_best = make_unique<Individual>(*iter_best);
     }
-    flush_row_into_evol_log();
+    if (gen % 100 == 0) {
+        flush_row_into_evol_log();
+    }
 
 
     // Selection
@@ -260,7 +260,7 @@ void Cbma::run_heuristic() {
 
     // update population
     population.reserve(pop_size);
-    population.push_back(make_shared<Solution>(*iter_best));
+    population.push_back(make_shared<Individual>(*iter_best));
     for (int i = 0; i < pop_size - 1; ++i) {
         vector<vector<int>> dumb_routes = initializer->prins_split(chromosomes[i]);
 
@@ -269,12 +269,13 @@ void Cbma::run_heuristic() {
             route.push_back(instance->depot_);
         }
 
-        population.push_back(make_shared<Solution>(instance, preprocessor,dumb_routes,
+        population.push_back(make_shared<Individual>(instance, preprocessor,dumb_routes,
                                                    instance->compute_total_distance(dumb_routes),
                                                    instance->compute_demand_sum_per_route(dumb_routes))
         );
     }
 
+    gen++;
 }
 
 void Cbma::open_log_for_evolution() {
@@ -321,12 +322,12 @@ void Cbma::save_log_for_solution() {
     log_solution.close();
 }
 
-shared_ptr<Solution> Cbma::select_best_upper_individual(const vector<shared_ptr<Solution>>& pop) {
+shared_ptr<Individual> Cbma::select_best_upper_individual(const vector<shared_ptr<Individual>>& pop) {
     if (pop.empty()) {
         return nullptr;  // Handle the case where the population is empty
     }
 
-    auto comparator = [](const shared_ptr<Solution>& ind1, const shared_ptr<Solution>& ind2) {
+    auto comparator = [](const shared_ptr<Individual>& ind1, const shared_ptr<Individual>& ind2) {
         return ind1->upper_cost < ind2->upper_cost;
     };
 
@@ -335,12 +336,12 @@ shared_ptr<Solution> Cbma::select_best_upper_individual(const vector<shared_ptr<
     return *best;
 }
 
-shared_ptr<Solution> Cbma::select_best_lower_individual(const vector<shared_ptr<Solution>>& pop) {
+shared_ptr<Individual> Cbma::select_best_lower_individual(const vector<shared_ptr<Individual>>& pop) {
     if (pop.empty()) {
         return nullptr;  // Handle the case where the population is empty
     }
 
-    auto comparator = [](const shared_ptr<Solution>& ind1, const shared_ptr<Solution>& ind2) {
+    auto comparator = [](const shared_ptr<Individual>& ind1, const shared_ptr<Individual>& ind2) {
         return ind1->lower_cost < ind2->lower_cost;
     };
 
@@ -428,7 +429,7 @@ void Cbma::mut_shuffle_indexes(vector<int>& chromosome, double ind_pb) {
     }
 }
 
-vector<double> Cbma::get_fitness_vector_from_upper_group(const vector<shared_ptr<Solution>>& group){
+vector<double> Cbma::get_fitness_vector_from_upper_group(const vector<shared_ptr<Individual>>& group){
     std::vector<double> ans;
     ans.reserve(group.size());  // Reserve space to avoid unnecessary reallocation
 
@@ -439,7 +440,7 @@ vector<double> Cbma::get_fitness_vector_from_upper_group(const vector<shared_ptr
     return ans;
 }
 
-vector<double> Cbma::get_fitness_vector_from_lower_group(const vector<shared_ptr<Solution>>& group) {
+vector<double> Cbma::get_fitness_vector_from_lower_group(const vector<shared_ptr<Individual>>& group) {
     std::vector<double> ans;
     ans.reserve(group.size());  // Reserve space to avoid unnecessary reallocation
 

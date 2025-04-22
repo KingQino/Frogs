@@ -46,6 +46,8 @@ set(DEPENDENCIES
         src/sga.cpp
         include/leader_sga.hpp
         src/leader_sga.cpp
+        include/leader_cbma.hpp
+        src/leader_cbma.cpp
 )
 
 add_executable(Run main.cpp ${DEPENDENCIES})

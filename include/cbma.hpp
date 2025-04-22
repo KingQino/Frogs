@@ -7,9 +7,9 @@
 
 #include "case.hpp"
 #include "initializer.hpp"
-#include "leader_array.hpp"
+#include "leader_cbma.hpp"
 #include "follower.hpp"
-#include "solution.hpp"
+#include "individual.hpp"
 #include "heuristic_interface.hpp"
 #include "stats_interface.hpp"
 
@@ -22,9 +22,9 @@ public:
     bool enable_logging;
     int stop_criteria;
 
-    vector<shared_ptr<Solution>> population;
-    std::unique_ptr<Solution> global_best;      // Global best solution found so far
-    std::unique_ptr<Solution> iter_best;
+    vector<shared_ptr<Individual>> population;
+    std::unique_ptr<Individual> global_best;      // Global best solution found so far
+    std::unique_ptr<Individual> iter_best;
 
     int pop_size;
     double elite_ratio;
@@ -45,7 +45,7 @@ public:
     Indicators S3_stats;
 
     Initializer* initializer;
-    LeaderArray* leader;
+    LeaderCbma* leader;
     Follower* follower;
 
 
@@ -59,14 +59,14 @@ public:
     void flush_row_into_evol_log() override;
     void save_log_for_solution() override;
 
-    static shared_ptr<Solution> select_best_upper_individual(const vector<shared_ptr<Solution>>& pop);
-    static shared_ptr<Solution> select_best_lower_individual(const vector<shared_ptr<Solution>>& pop);
+    static shared_ptr<Individual> select_best_upper_individual(const vector<shared_ptr<Individual>>& pop);
+    static shared_ptr<Individual> select_best_lower_individual(const vector<shared_ptr<Individual>>& pop);
     vector<vector<int>> select_random(const vector<vector<int>>& chromosomes, int k);
     void cx_partially_matched(vector<int>& parent1, vector<int>& parent2);
     void mut_shuffle_indexes(vector<int>& chromosome, double ind_pb);
 
-    static vector<double> get_fitness_vector_from_upper_group(const vector<shared_ptr<Solution>>& group) ;
-    static vector<double> get_fitness_vector_from_lower_group(const vector<shared_ptr<Solution>>& group) ;
+    static vector<double> get_fitness_vector_from_upper_group(const vector<shared_ptr<Individual>>& group) ;
+    static vector<double> get_fitness_vector_from_lower_group(const vector<shared_ptr<Individual>>& group) ;
 };
 
 #endif //FROGS_CBMA_HPP
