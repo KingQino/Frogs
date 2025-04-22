@@ -27,6 +27,8 @@ LeaderSga::LeaderSga(std::mt19937& engine, Case *instance, Preprocessor *preproc
     memset(this->num_nodes_per_route, 0, sizeof(int) * route_cap);
     this->demand_sum_per_route = new int [route_cap];
     memset(this->demand_sum_per_route, 0, sizeof(int) * route_cap);
+
+    prepare_temp_buffers(node_cap);
 }
 
 LeaderSga::~LeaderSga() {
@@ -36,6 +38,9 @@ LeaderSga::~LeaderSga() {
     delete[] routes;
     delete[] num_nodes_per_route;
     delete[] demand_sum_per_route;
+
+    delete[] temp_r1;
+    delete[] temp_r2;
 }
 
 void LeaderSga::local_improve(Individual *ind) {
@@ -206,7 +211,7 @@ void LeaderSga::run(Individual *ind) {
 void LeaderSga::load_individual(Individual* ind) {
     clean();
 
-    this->upper_cost = ind->upper_cost;;
+    this->upper_cost = ind->upper_cost;
     this->num_routes = ind->num_routes;
     memcpy(this->num_nodes_per_route, ind->num_nodes_per_route, sizeof(int) * ind->route_cap);
     memcpy(this->demand_sum_per_route, ind->demand_sum_per_route, sizeof(int) * ind->route_cap);
@@ -970,8 +975,6 @@ bool LeaderSga::move7_intra_impro(int *route, int length) {
 bool LeaderSga::move8_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
     if (length1 < 3 || length2 < 3) return false;
 
-    int* temp_r1 = new int[node_cap];
-    int* temp_r2 = new int[node_cap];
     memset(temp_r1, 0, sizeof(int) * node_cap);
     memset(temp_r2, 0, sizeof(int) * node_cap);
 
@@ -1026,16 +1029,12 @@ bool LeaderSga::move8_inter_impro(int* route1, int* route2, int& length1, int& l
 
     end_loops:;
 
-    delete[] temp_r1;
-    delete[] temp_r2;
-
     return has_moved;
 }
 
 bool LeaderSga::move9_inter_impro(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2) {
     if (length1 < 3 || length2 < 3) return false;
 
-    int* temp_r1 = new int[node_cap];
     memset(temp_r1, 0, sizeof(int) * node_cap);
 
     bool has_moved = false;
@@ -1084,9 +1083,18 @@ bool LeaderSga::move9_inter_impro(int *route1, int *route2, int &length1, int &l
 
     end_loops:;
 
-    delete[] temp_r1;
-
     return has_moved;
+}
+
+void LeaderSga::prepare_temp_buffers(int required_size) const {
+    if (temp_buffer_size >= required_size) return;
+
+    delete[] temp_r1;
+    delete[] temp_r2;
+
+    temp_r1 = new int[required_size];
+    temp_r2 = new int[required_size];
+    temp_buffer_size = required_size;
 }
 
 bool LeaderSga::is_accepted_neigh(const double &change) const {
@@ -1331,8 +1339,6 @@ bool LeaderSga::move7_intra_neigh(int *route, int length) {
 bool LeaderSga::move8_inter_neigh(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2) {
     if (length1 < 3 || length2 < 3) return false;
 
-    int* temp_r1 = new int[node_cap];
-    int* temp_r2 = new int[node_cap];
     memset(temp_r1, 0, sizeof(int) * node_cap);
     memset(temp_r2, 0, sizeof(int) * node_cap);
 
@@ -1386,16 +1392,12 @@ bool LeaderSga::move8_inter_neigh(int *route1, int *route2, int &length1, int &l
         }
     }
 
-    delete[] temp_r1;
-    delete[] temp_r2;
-
     return has_moved;
 }
 
 bool LeaderSga::move9_inter_neigh(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2) {
     if (length1 < 3 || length2 < 3) return false;
 
-    int* temp_r1 = new int[node_cap];
     memset(temp_r1, 0, sizeof(int) * node_cap);
 
     bool has_moved = false;
@@ -1443,8 +1445,6 @@ bool LeaderSga::move9_inter_neigh(int *route1, int *route2, int &length1, int &l
             break;
         }
     }
-
-    delete[] temp_r1;
 
     return has_moved;
 }

@@ -13,6 +13,12 @@
 
 
 class LeaderSga {
+private:
+    mutable int* temp_r1 = nullptr;
+    mutable int* temp_r2 = nullptr;
+    mutable int temp_buffer_size = 0;
+
+    void prepare_temp_buffers(int required_size) const;
 public:
     Case* instance;
     Preprocessor* preprocessor;
