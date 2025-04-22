@@ -29,6 +29,15 @@ struct ChargingMeta {
 };
 
 class Follower {
+private:
+    // all these auxiliary data structures are used to reduce the memory allocation repeatedly
+    mutable int* temp_route = nullptr;
+    mutable int* temp_chosen_pos = nullptr;
+    mutable int* temp_best_chosen_pos = nullptr;
+    mutable double* temp_accumulated_distance = nullptr;
+    mutable int buffer_size = 0;
+
+    void prepare_temp_buffers(int required_size) const;
 public:
 
     Case* instance;
@@ -46,7 +55,7 @@ public:
     double insert_station_by_simple_enum(int* repaired_route, int& repaired_length) const;
     double insert_station_by_remove_enum(int* repaired_route, int& repaired_length) const;
     void recursive_charging_placement(int m_len, int n_len, int* chosen_pos, int* best_chosen_pos, double& final_cost,
-                                      int cur_upper_bound, int* route, int length, vector<double>& accumulated_distance) const;
+                                      int cur_upper_bound, int* route, int length, const double* accumulated_distance) const;
     double insert_station_by_all_enumeration(int* repaired_route, int& repaired_length) const;
     ChargingMeta try_enumerate_n_stations_to_route(int m_len, int n_len, int* chosen_sta, int* chosen_pos, double& cost,
                                                    int cur_upper_bound, int* route, int length, vector<double>& accumulated_distance) const;

@@ -124,11 +124,10 @@ void Sga::run_heuristic() {
                 followers[i]->export_individual(ind.get());
 
                 // update the global best solution
-                // 更新 global_best（只在某个条件下）
                 #pragma omp critical
                 {
                     if (ind->lower_cost < global_best->lower_cost) {
-                        *global_best = *ind;  // 拷贝内容，不重新分配
+                        *global_best = *ind;  // copy the content of ind to global_best, not deep copy
                     }
                 }
             }
