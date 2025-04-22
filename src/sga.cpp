@@ -20,7 +20,7 @@ Sga::Sga(int seed_val, Case *instance, Preprocessor* preprocessor)
     data_logging2 = vector<double>(pop_size);
 
     uniform_int_dis = uniform_int_distribution<int>(0, pop_size - 1);
-    normal_dis = normal_distribution<double>(1.1, 1.0);
+    normal_dis = normal_distribution<double>(1.05, 1.0);
     mut_ind_prob = 0.2;
     max_neigh_attempts = preprocessor->params.max_neigh_attempts;
 
