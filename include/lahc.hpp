@@ -37,6 +37,7 @@ public:
     Initializer* initializer;
     LeaderArray* leader;
     Follower* follower;
+    PartialSolution* partial_sol;
 
 public:
     Lahc(int seed, Case *instance, Preprocessor* preprocessor);

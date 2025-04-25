@@ -28,6 +28,7 @@ Lahc::Lahc(int seed_val, Case* instance, Preprocessor* preprocessor) : Heuristic
     initializer = new Initializer(random_engine, instance, preprocessor);
     leader = new LeaderArray(random_engine, instance, preprocessor);
     follower = new Follower(instance, preprocessor);
+    partial_sol = new PartialSolution();
 }
 
 Lahc::~Lahc() {
@@ -35,6 +36,7 @@ Lahc::~Lahc() {
     delete leader;
     delete follower;
     delete current;
+    delete partial_sol;
 }
 
 void Lahc::initialize_heuristic() {

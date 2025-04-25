@@ -14,11 +14,19 @@
 
 
 class LeaderArray {
+private:
+    mutable int* temp_r1 = nullptr;
+    mutable int* temp_r2 = nullptr;
+    mutable int temp_buffer_size = 0;
+
+    void prepare_temp_buffers(int required_size) const;
 public:
     Case* instance;
     Preprocessor* preprocessor;
     std::mt19937& random_engine;   // Random number generator
     uniform_int_distribution<int> uniform_int_dis;// Uniform distribution for random integers
+
+    PartialSolution* partial_sol;
 
     int route_cap;
     int node_cap;
@@ -33,6 +41,7 @@ public:
     void run(Individual* ind);
     void run(Solution* sol);
     bool neighbour_explore(const double& history_val);
+    bool neighbour_explore(const double& history_val, PartialSolution* partial_ind);
     void load_individual(Individual* ind);
     void export_individual(Individual* ind) const;
     void load_solution(Solution* sol);
@@ -43,7 +52,7 @@ public:
     // Operators for CBMA
     void two_opt_for_route(int* route, int length);
     void two_opt_for_sol();
-    bool two_opt_star_for_routes(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2, int* temp_r1, int* temp_r2);
+    bool two_opt_star_for_routes(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
     void two_opt_star_for_sol();
     bool node_relocation_for_route(int* route, int length);
     void node_relocation_for_sol();
@@ -52,7 +61,7 @@ public:
     [[nodiscard]] bool is_accepted(const double& change) const;
     bool two_opt_for_single_route(int* route, int length);
     bool two_opt_intra_for_individual();
-    bool two_opt_star_between_two_routes(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2, int* temp_r1, int* temp_r2);
+    bool two_opt_star_between_two_routes(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
     bool two_opt_inter_for_individual();
     bool node_relocation_for_single_route(int* route, int length);
     bool node_relocation_intra_for_individual(); // three-arcs exchange, intra-route

@@ -33,6 +33,9 @@ Sga::Sga(int seed_val, Case *instance, Preprocessor* preprocessor)
 
 Sga::~Sga() {
     delete initializer;
+    delete leader;
+    delete follower;
+    delete partial_sol;
 }
 
 void Sga::run() {

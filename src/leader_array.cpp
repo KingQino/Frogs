@@ -24,6 +24,8 @@ LeaderArray::LeaderArray(std::mt19937& engine, Case *instance, Preprocessor *pre
     memset(this->num_nodes_per_route, 0, sizeof(int) * route_cap);
     this->demand_sum_per_route = new int [route_cap];
     memset(this->demand_sum_per_route, 0, sizeof(int) * route_cap);
+
+    prepare_temp_buffers(node_cap);
 }
 
 LeaderArray::~LeaderArray() {
@@ -33,6 +35,20 @@ LeaderArray::~LeaderArray() {
     delete[] routes;
     delete[] num_nodes_per_route;
     delete[] demand_sum_per_route;
+
+    delete[] temp_r1;
+    delete[] temp_r2;
+}
+
+void LeaderArray::prepare_temp_buffers(int required_size) const {
+    if (temp_buffer_size >= required_size) return;
+
+    delete[] temp_r1;
+    delete[] temp_r2;
+
+    temp_r1 = new int[required_size];
+    temp_r2 = new int[required_size];
+    temp_buffer_size = required_size;
 }
 
 void LeaderArray::run(Individual* ind) {
@@ -47,6 +63,44 @@ void LeaderArray::run(Solution *sol) {
     node_relocation_for_sol();
 
     export_solution(sol);
+}
+
+bool LeaderArray::neighbour_explore(const double& history_val, PartialSolution* partial_ind) {
+    history_cost = history_val;
+    partial_sol = partial_ind;
+
+    bool has_moved = false;
+    switch (uniform_int_dis(random_engine)) {
+        case 0:
+            has_moved = two_opt_intra_for_individual();
+            break;
+        case 1:
+            has_moved = perform_inter_move([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2)
+                                           {return move8_inter(route1, route2, length1, length2, loading1, loading2);});
+            break;
+        case 2:
+            has_moved = node_relocation_intra_for_individual();
+            break;
+        case 3:
+            has_moved = node_relocation_inter_for_individual();
+            break;
+        case 4:
+            has_moved = node_exchange_intra_for_individual();
+            break;
+        case 5:
+            has_moved = node_exchange_inter_for_individual();
+            break;
+        case 6:
+            perform_inter_move([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2)
+                               {return move9_inter(route1, route2, length1, length2, loading1, loading2);});
+            break;
+        case 7:
+            perform_inter_move_with_empty_route([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2)
+                                                {return move1_inter_with_empty_route(route1, route2, length1, length2, loading1, loading2);});
+            break;
+    }
+
+    return has_moved;
 }
 
 bool LeaderArray::neighbour_explore(const double& history_val) {
@@ -169,7 +223,7 @@ void LeaderArray::two_opt_for_sol() {
 }
 
 bool LeaderArray::two_opt_star_for_routes(int *route1, int *route2, int &length1, int &length2, int &loading1,
-                                          int &loading2, int* temp_r1, int* temp_r2) {
+                                          int &loading2) {
     if (length1 < 3 || length2 < 3) return false;
     bool improved = true;
 
@@ -265,8 +319,6 @@ bool LeaderArray::two_opt_star_for_routes(int *route1, int *route2, int &length1
 void LeaderArray::two_opt_star_for_sol() {
     if (num_routes == 1) return;
 
-    int* temp_r1 = new int[node_cap];
-    int* temp_r2 = new int[node_cap];
     memset(temp_r1, 0, sizeof(int) * node_cap);
     memset(temp_r2, 0, sizeof(int) * node_cap);
 
@@ -294,7 +346,7 @@ void LeaderArray::two_opt_star_for_sol() {
         auto [r1, r2] = *route_pairs.begin();
         route_pairs.erase(route_pairs.begin());
 
-        has_moved = two_opt_star_for_routes(routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2], demand_sum_per_route[r1], demand_sum_per_route[r2], temp_r1, temp_r2);
+        has_moved = two_opt_star_for_routes(routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2], demand_sum_per_route[r1], demand_sum_per_route[r2]);
 
         if (has_moved) {
             for (int i = 0; i < r1; i++) {
@@ -317,9 +369,6 @@ void LeaderArray::two_opt_star_for_sol() {
             std::fill(demand_sum_per_route + num_routes, demand_sum_per_route + route_cap, 0);
         }
     }
-
-    delete[] temp_r1;
-    delete[] temp_r2;
 }
 
 bool LeaderArray::node_relocation_for_route(int *route, int length) {
@@ -429,7 +478,7 @@ bool LeaderArray::two_opt_intra_for_individual() {
 
 // TODO: 它可以被拆成两个算子
 bool LeaderArray::two_opt_star_between_two_routes(int *route1, int *route2, int &length1, int &length2, int &loading1,
-                                                  int &loading2, int *temp_r1, int *temp_r2 ) {
+                                                  int &loading2) {
 
     if (length1 < 3 || length2 < 3) return false;
 
@@ -518,8 +567,6 @@ bool LeaderArray::two_opt_inter_for_individual() {
     bool isMoved = false;
     int searchDepth = 0;
 
-    int* temp_r1 = new int[node_cap];
-    int* temp_r2 = new int[node_cap];
     memset(temp_r1, 0, sizeof(int) * node_cap);
     memset(temp_r2, 0, sizeof(int) * node_cap);
 
@@ -535,7 +582,7 @@ bool LeaderArray::two_opt_inter_for_individual() {
             }
         }
 
-        isMoved = two_opt_star_between_two_routes(routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2], demand_sum_per_route[r1], demand_sum_per_route[r2], temp_r1, temp_r2);
+        isMoved = two_opt_star_between_two_routes(routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2], demand_sum_per_route[r1], demand_sum_per_route[r2]);
 
         if (isMoved) {
             clean_empty_routes(r1, r2);
@@ -544,8 +591,6 @@ bool LeaderArray::two_opt_inter_for_individual() {
         searchDepth++;
     }
 
-    delete[] temp_r1;
-    delete[] temp_r2;
     return isMoved;
 }
 
@@ -1521,8 +1566,6 @@ bool LeaderArray::move7_intra(int* route, int length) {
 bool LeaderArray::move8_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
     if (length1 < 3 || length2 < 3) return false;
 
-    int* temp_r1 = new int[node_cap];
-    int* temp_r2 = new int[node_cap];
     memset(temp_r1, 0, sizeof(int) * node_cap);
     memset(temp_r2, 0, sizeof(int) * node_cap);
 
@@ -1576,9 +1619,6 @@ bool LeaderArray::move8_inter(int* route1, int* route2, int& length1, int& lengt
         }
     }
 
-    delete[] temp_r1;
-    delete[] temp_r2;
-
     return has_moved;
 }
 
@@ -1586,8 +1626,6 @@ bool LeaderArray::move8_inter_with_empty_route(int *route1, int *route2, int &le
                                                int &loading2) {
     if (length1 < 4 || length2 != 0) return false;
 
-    int* temp_r1 = new int[node_cap];
-    int* temp_r2 = new int[node_cap];
     memset(temp_r1, 0, sizeof(int) * node_cap);
     memset(temp_r2, 0, sizeof(int) * node_cap);
 
@@ -1636,16 +1674,12 @@ bool LeaderArray::move8_inter_with_empty_route(int *route1, int *route2, int &le
         has_moved = true;
     }
 
-    delete[] temp_r1;
-    delete[] temp_r2;
-
     return has_moved;
 }
 
 bool LeaderArray::move9_inter(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
     if (length1 < 3 || length2 < 3) return false;
 
-    int* temp_r1 = new int[node_cap];
     memset(temp_r1, 0, sizeof(int) * node_cap);
 
     bool has_moved = false;
@@ -1694,8 +1728,6 @@ bool LeaderArray::move9_inter(int* route1, int* route2, int& length1, int& lengt
         }
     }
 
-    delete[] temp_r1;
-
     return has_moved;
 }
 
@@ -1703,7 +1735,6 @@ bool LeaderArray::move9_inter_with_empty_route(int *route1, int *route2, int &le
                                                int &loading2) {
     if (length1 < 4) return false;
 
-    int* temp_r1 = new int[node_cap];
     memset(temp_r1, 0, sizeof(int) * node_cap);
 
     bool has_moved = false;
@@ -1745,8 +1776,6 @@ bool LeaderArray::move9_inter_with_empty_route(int *route1, int *route2, int &le
 
         has_moved = true;
     }
-
-    delete[] temp_r1;
 
     return  has_moved;
 }
