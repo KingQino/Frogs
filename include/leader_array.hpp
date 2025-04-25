@@ -12,14 +12,6 @@
 #include <functional>  // For std::function
 #include <unordered_set>
 
-// used in 2-opt*, define the hash relationship to make sure one-to-one mapping between route pairs
-struct pair_hash
-{
-    size_t operator() (pair<int, int> const & a_pair) const {
-        return a_pair.first * 256 + a_pair.second;
-    }
-};
-
 
 class LeaderArray {
 public:

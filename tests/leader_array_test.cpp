@@ -3,8 +3,8 @@
 //
 
 #include "gtest/gtest.h"
-#include "Split.h"
 #include "leader_array.hpp"
+#include "initializer.hpp"
 #include <random>
 
 using namespace ::testing;
@@ -17,7 +17,7 @@ protected:
         params = new Parameters();
         preprocessor = new Preprocessor(*instance, *params);
         random_engine = std::mt19937(params->seed);
-        split = new Split(random_engine, instance, preprocessor);
+        initializer = new Initializer(random_engine, instance, preprocessor);
         leader = new LeaderArray(random_engine, instance, preprocessor);
     }
 
@@ -25,31 +25,31 @@ protected:
         delete instance;
         delete params;
         delete preprocessor;
-        delete split;
+        delete initializer;
         delete leader;
     }
 
     Case* instance{};
     Parameters* params{};
     Preprocessor* preprocessor{};
-    Split* split{};
+    Initializer* initializer{};
     LeaderArray* leader{};
     std::mt19937 random_engine;
 };
 
 TEST_F(LeaderArrayTest, LoadIndividual) {
-    Individual ind(instance, preprocessor);
-    split->initIndividualWithHienClustering(&ind);
+    vector<vector<int>> routes = initializer->routes_constructor_with_hien_method();
+    Individual ind(instance, preprocessor, routes, instance->compute_total_distance(routes), instance->compute_demand_sum_per_route(routes));
 
     leader->load_individual(&ind);
 
-    EXPECT_DOUBLE_EQ(leader->upper_cost, ind.upper_cost.penalised_cost);
-    EXPECT_EQ(leader->num_routes, ind.upper_cost.nb_routes);
+    EXPECT_DOUBLE_EQ(leader->upper_cost, ind.upper_cost);
+    EXPECT_EQ(leader->num_routes, ind.num_routes);
 }
 
 TEST_F(LeaderArrayTest, NeighbourhoodExplore) {
-    Individual ind(instance, preprocessor);
-    split->initIndividualWithHienClustering(&ind);
+    vector<vector<int>> routes = initializer->routes_constructor_with_hien_method();
+    Individual ind(instance, preprocessor, routes, instance->compute_total_distance(routes), instance->compute_demand_sum_per_route(routes));
 
     leader->load_individual(&ind);
 
@@ -60,32 +60,7 @@ TEST_F(LeaderArrayTest, NeighbourhoodExplore) {
         leader->export_individual(&ind);
 
         EXPECT_NE(leader->upper_cost, history_cost);
-        EXPECT_DOUBLE_EQ(leader->upper_cost, ind.upper_cost.penalised_cost);
-        EXPECT_EQ(leader->num_routes, ind.upper_cost.nb_routes);
-    }
-}
-
-TEST_F(LeaderArrayTest, Moves) {
-    Individual ind(instance, preprocessor);
-    ind.chromT = {12, 8, 14, 4, 3, 6, 11, 10, 9, 5, 1, 2, 7, 15, 17, 20, 21, 18, 13, 16, 19};
-    ind.chromR[0] = {12, 8, 14, 4, 3, 6, 11};
-    ind.chromR[1] = {10, 9, 5, 1, 2, 7};
-    ind.chromR[2] = {15, 17, 20, 21, 18};
-    ind.chromR[3] = {13, 16, 19};
-    ind.upper_cost.penalised_cost = 515.861;
-    ind.upper_cost.distance = 515.861;
-    ind.upper_cost.nb_routes = 4;
-    ind.is_upper_feasible = true;
-    ind.lower_cost = 524.634;
-
-    leader->load_individual(&ind);
-
-    double history_cost = 800;
-
-    leader->history_cost = history_cost;
-
-    for (int i = 0; i < 10; ++i) {
-        bool isMoved = leader->two_opt_inter_for_individual();
-        EXPECT_TRUE(true);
+        EXPECT_DOUBLE_EQ(leader->upper_cost, ind.upper_cost);
+        EXPECT_EQ(leader->num_routes, ind.num_routes);
     }
 }

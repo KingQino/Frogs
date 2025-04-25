@@ -10,7 +10,7 @@
 
 using namespace std;
 
-enum class Algorithm { CBMA, LAHC};
+enum class Algorithm { CBMA, LAHC, SGA};
 
 struct Parameters {
     // Running parameters
@@ -27,6 +27,7 @@ struct Parameters {
     bool is_duration_constraint;// Whether to consider duration constraint
     int history_length;         // LAHC history length
     int max_search_depth;       // LAHC max_search_depth determines how many times the neighbourhood (random) will be explored
+    int max_neigh_attempts;     // Maximum attempts for neighbourhood exploration
 
     // experimental parameters
     int runtime_multiplier;     // Runtime multiplier
@@ -45,7 +46,8 @@ struct Parameters {
         is_hard_constraint = true;
         is_duration_constraint = false;
         history_length = 5'000;
-        max_search_depth = 25;
+        max_search_depth = 200;
+        max_neigh_attempts = 10'000;
         runtime_multiplier = 1;
     }
 };

@@ -5,6 +5,7 @@
 #include "preprocessor.hpp"
 #include "lahc.hpp"
 #include "cbma.hpp"
+#include "sga.hpp"
 #include "magic_enum.hpp"
 
 using namespace std;
@@ -42,6 +43,20 @@ void run_algorithm(int run, const Parameters* params, vector<double>& perf_of_tr
             }
 
             delete lahc;
+            break;
+        }
+
+        case Algorithm::SGA: {
+            Sga* sga = new Sga(run, instance, preprocessor);
+            sga->run();
+
+            // Prevent race condition on shared vector
+            #pragma omp critical
+            {
+                perf_of_trials[run - 1] = sga->global_best->lower_cost;
+            }
+
+            delete sga;
             break;
         }
     }

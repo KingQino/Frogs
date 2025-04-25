@@ -6,128 +6,222 @@
 #include <random>
 #include <algorithm>
 
+PartialSolution::PartialSolution() {
+    this->move_type = -1;
+    this->idx1 = -1;
+    this->idx2 = -1;
+    this->route1 = nullptr;
+    this->route2 = nullptr;
+    this->length1 = 0;
+    this->length2 = 0;
+    this->is_empty1 = true;
+    this->is_empty2 = true;
+
+    this->num_routes = 0;
+}
+
+void PartialSolution::clean() {
+    this->move_type = -1;
+    this->idx1 = -1;
+    this->idx2 = -1;
+    this->route1 = nullptr;
+    this->route2 = nullptr;
+    this->length1 = 0;
+    this->length2 = 0;
+    this->is_empty1 = true;
+    this->is_empty2 = true;
+
+    this->num_routes = 0;
+}
+
+void PartialSolution::set_intra_route(int idx, int* route, int length) {
+    this->move_type = 0;
+
+    this->idx1 = idx;
+    this->route1 = route;
+    this->length1 = length;
+    this->is_empty1 = false;
+}
+
+void PartialSolution::set_inter_route(int r1, int *rout1, int len1, bool emp1, int r2, int *rout2, int len2,
+                                      bool emp2) {
+    this->move_type = 1;
+
+    this->idx1 = r1;
+    this->route1 = rout1;
+    this->length1 = len1;
+    this->is_empty1 = emp1;
+
+    this->idx2 = r2;
+    this->route2 = rout2;
+    this->length2 = len2;
+    this->is_empty2 = emp2;
+}
+
+std::ostream &operator<<(std::ostream &os, const PartialSolution &partial_sol) {
+    os << "PartialSolution: move_type = " << partial_sol.move_type << "\n";
+    os << "num_routes = " << partial_sol.num_routes << "\n";
+    os << "idx1 = " << partial_sol.idx1
+       << ", length1 = " << partial_sol.length1 << ", is_empty1 = " << partial_sol.is_empty1
+       << ", idx2 = " << partial_sol.idx2 << ", length2 = " << partial_sol.length2
+       << ", is_empty2 = " << partial_sol.is_empty2;
+    return os;
+}
+
+
 Individual::Individual() {
     this->lower_cost = numeric_limits<double>::max();
+    this->route_cap = 0;  // Fix: Initialize route_cap to avoid undefined behavior
+    this->routes = nullptr;
 }
 
 Individual::Individual(const Individual &ind) {
     this->instance = ind.instance;
-    this->predecessors = ind.predecessors;
-    this->chromT = ind.chromT;
-    this->chromR = ind.chromR;
+    this->preprocessor = ind.preprocessor;
+
+    this->route_cap = ind.route_cap;
+    this->node_cap = ind.node_cap;
+    this->num_routes = ind.num_routes;
     this->upper_cost = ind.upper_cost;
     this->lower_cost = ind.lower_cost;
-    this->is_upper_feasible = ind.is_upper_feasible;
-    this->biased_fitness = ind.biased_fitness;
-    this->successors = ind.successors;
-    this->predecessors = ind.predecessors;
-    this->proximate_individuals = ind.proximate_individuals;
+    this->routes = new int *[ind.route_cap];
+    for (int i = 0; i < ind.route_cap; ++i) {
+        this->routes[i] = new int[ind.node_cap];
+        memcpy(this->routes[i], ind.routes[i], sizeof(int) * ind.node_cap);
+    }
+    this->num_nodes_per_route = new int[ind.route_cap];
+    memcpy(this->num_nodes_per_route, ind.num_nodes_per_route, sizeof(int) * ind.route_cap);
+    this->demand_sum_per_route = new int[ind.route_cap];
+    memcpy(this->demand_sum_per_route, ind.demand_sum_per_route, sizeof(int) * ind.route_cap);
 }
 
 Individual::Individual(Case* instance, Preprocessor *preprocessor) {
     this->instance = instance;
     this->preprocessor = preprocessor;
 
-    this->successors = vector<int>(instance->num_customer_ + 1);
-    this->predecessors = vector<int>(instance->num_customer_ + 1);
-    this->chromR = vector<vector<int>>(preprocessor->route_cap_);
-    this->chromT = vector<int>(instance->num_customer_);
+    this->route_cap = preprocessor->route_cap_;
+    this->node_cap = preprocessor->node_cap_;
+    this->routes = new int *[route_cap];
+    for (int i = 0; i < route_cap; ++i) {
+        this->routes[i] = new int[node_cap];
+        memset(this->routes[i], 0, sizeof(int) * node_cap);
+    }
+    this->num_nodes_per_route = new int[route_cap];
+    memset(this->num_nodes_per_route, 0, sizeof(int) * route_cap);
+    this->demand_sum_per_route = new int [route_cap];
+    memset(this->demand_sum_per_route, 0, sizeof(int) * route_cap);
+    this->num_routes = 0;
+    this->upper_cost = 0.;
+    this->lower_cost = numeric_limits<double>::max();
 }
 
-Individual::Individual(Case* instance, Preprocessor* preprocessor, const vector<int>& chromT)
+
+Individual::Individual(Case* instance, Preprocessor* preprocessor, const vector<vector<int>>& routes, double upper_cost,
+                       const vector<int>& demand_sum_per_route)
 : Individual(instance, preprocessor) {
-    this->chromT = chromT;
-}
-
-Individual::Individual(Case* instance, Preprocessor* preprocessor, const vector<int>& chromT, const vector<vector<int>>& chromR, double upper_cost)
-: Individual(instance, preprocessor) {
-    this->chromT = chromT;
-    for (int i = 0; i < chromR.size(); ++i) {
-        this->chromR[i] = chromR[i];
+    this->upper_cost = upper_cost;
+    this->num_routes = static_cast<int>(routes.size());
+    for (int i = 0; i < this->num_routes; ++i) {
+        this->num_nodes_per_route[i] = static_cast<int>(routes[i].size());
+        memcpy(this->routes[i], routes[i].data(), sizeof(int) * this->num_nodes_per_route[i]);
     }
-    this->upper_cost.penalised_cost = upper_cost;
-    this->upper_cost.distance = upper_cost;
-    this->upper_cost.nb_routes = static_cast<int>(chromR.size());
-    this->upper_cost.capacity_excess = 0;
-    this->upper_cost.duration_excess = 0;
-    this->is_upper_feasible = true; // assume that all initialised solutions are feasible
-}
-
-double Individual::broken_pairs_distance(const Individual* ind) const
-{
-    int differences = 0;
-    for (int j = 1; j <= instance->num_customer_; j++) {
-        if (successors[j] != ind->successors[j] && successors[j] != ind->predecessors[j]) differences++;
-        if (predecessors[j] == 0 && ind->predecessors[j] != 0 && ind->successors[j] != 0) differences++;
+    for (int i = 0; i < demand_sum_per_route.size(); ++i) {
+        this->demand_sum_per_route[i] = demand_sum_per_route[i];
     }
 
-    return static_cast<double>(differences)/static_cast<double>(instance->num_customer_);
+    this->lower_cost = numeric_limits<double>::max();
 }
 
-double Individual::average_broken_pairs_distance_closest(const int nb_closest) const {
-    double result = 0 ;
-    const int max_size = std::min<int>(nb_closest, static_cast<int>(proximate_individuals.size()));
-    auto it = proximate_individuals.begin();
-    for (int i=0 ; i < max_size; i++) {
-        result += it->first ;
-        ++it ;
+Individual::~Individual() {
+    for (int i = 0; i < this->route_cap; ++i) {
+        delete[] routes[i];
+    }
+    delete[] routes;
+    delete[] num_nodes_per_route;
+    delete[] demand_sum_per_route;
+}
+
+Individual& Individual::operator=(const Individual& other) {
+    if (this == &other) return *this;
+
+    this->num_routes = other.num_routes;
+    this->upper_cost = other.upper_cost;
+    this->lower_cost = other.lower_cost;
+    for (int i = 0; i < route_cap; ++i) {
+        memcpy(this->routes[i], other.routes[i], sizeof(int) * node_cap);
+    }
+    memcpy(this->num_nodes_per_route, other.num_nodes_per_route, sizeof(int) * route_cap);
+    memcpy(this->demand_sum_per_route, other.demand_sum_per_route, sizeof(int) * route_cap);
+
+    return *this;
+}
+
+
+void Individual::clean() {
+    for (int i = 0; i < route_cap; ++i) {
+        memset(this->routes[i], 0, sizeof(int) * node_cap);
+    }
+    memset(this->num_nodes_per_route, 0, sizeof(int) * route_cap);
+    memset(this->demand_sum_per_route, 0, sizeof(int) * route_cap);
+    this->num_routes = 0;
+    this->upper_cost = 0.;
+    this->lower_cost = 0.;
+}
+
+void Individual::load_routes(const vector<vector<int>>& routs, double up_cost, const vector<int> &demand_per_route) {
+    this->upper_cost = up_cost;
+    this->num_routes = static_cast<int>(routs.size());
+    for (int i = 0; i < this->num_routes; ++i) {
+        this->num_nodes_per_route[i] = static_cast<int>(routs[i].size());
+        memcpy(this->routes[i], routs[i].data(), sizeof(int) * this->num_nodes_per_route[i]);
+    }
+    for (int i = 0; i < demand_per_route.size(); ++i) {
+        this->demand_sum_per_route[i] = demand_per_route[i];
     }
 
-    return result/static_cast<double>(max_size) ;
+    this->lower_cost = numeric_limits<double>::max();
 }
 
-void Individual::evaluate_upper_cost() {
-    upper_cost.reset();
-    for (int r = 0; r < preprocessor->route_cap_; r++) {
-        if (!chromR[r].empty()) {
-            double distance = instance->get_distance(instance->depot_, chromR[r][0]);
-            double load = preprocessor->customers_[chromR[r][0]].demand;
-            double service = preprocessor->customers_[chromR[r][0]].service_duration;
-            predecessors[chromR[r][0]] = instance->depot_;
-            for (int i = 1; i < static_cast<int>(chromR[r].size()); i++) {
-                distance += instance->get_distance(chromR[r][i-1], chromR[r][i]);
-                load += preprocessor->customers_[chromR[r][i]].demand;
-                service += preprocessor->customers_[chromR[r][i]].service_duration;
-                predecessors[chromR[r][i]] = chromR[r][i-1];
-                successors[chromR[r][i-1]] = chromR[r][i];
-            }
-            successors[chromR[r][chromR[r].size() - 1]] = instance->depot_;
-            distance += instance->get_distance(chromR[r][chromR[r].size() - 1], instance->depot_);
-            upper_cost.distance += distance;
-            upper_cost.nb_routes++;
-            if (load > instance->max_vehicle_capa_) upper_cost.capacity_excess += load - instance->max_vehicle_capa_;
-            // The time spent on the route is directly proportional to the distance traveled, plus the service time at each customer
-            // Here, assume that the time spent is equal to 1 by the distance traveled.
-            if (distance + service > instance->max_service_time_) upper_cost.duration_excess += distance + service - instance->max_service_time_;
+vector<int> Individual::get_chromosome() const {
+    vector<int> chromosome; // num of customers
+    chromosome.reserve(instance->num_customer_); // Preallocate memory for efficiency
+    for (int i = 0; i < num_routes; ++i) {
+        for (int j = 1; j < num_nodes_per_route[i] - 1; ++j) {
+            chromosome.push_back(routes[i][j]);
         }
     }
 
-    upper_cost.penalised_cost = upper_cost.distance + upper_cost.capacity_excess * preprocessor->penalty_capacity_ + upper_cost.duration_excess * preprocessor->penalty_duration_;
-    is_upper_feasible = (upper_cost.capacity_excess < MY_EPSILON && upper_cost.duration_excess < MY_EPSILON);
+    return chromosome;
 }
 
-std::ostream& operator<<(std::ostream& os, const Individual& individual) {
-    os << "ChromT: ";
-    for (int i : individual.chromT) {
-        os << i << " ";
+std::ostream& operator<<(std::ostream& os, const Individual& ind) {
+    os << "Individual Details:\n";
+    os << "Route Capacity: " << ind.route_cap << "\n";
+    os << "Node Capacity: " << ind.node_cap << "\n";
+    os << "Number of Routes: " << ind.num_routes << "\n";
+    os << "Upper Cost: " << ind.upper_cost << "\n";
+    os << "Lower Cost: " << ind.lower_cost << "\n";
+
+    os << "Number of Nodes per route (upper): ";
+    for (int i = 0; i < ind.route_cap; ++i) {
+        os << ind.num_nodes_per_route[i] << " ";
     }
     os << "\n";
-    os << "ChromR: \n";
-    for (int i = 0; i < individual.chromR.size(); ++i) {
-        os << "  Route " << i << ": ";
-        for (int j : individual.chromR[i]) {
-            os << j << " ";
+
+    os << "Demand sum per route: ";
+    for (int i = 0; i < ind.route_cap; ++i) {
+        os << ind.demand_sum_per_route[i] << " ";
+    }
+    os << "\n";
+
+    os << "Upper Routes: \n";
+    for (int i = 0; i < ind.num_routes; ++i) {
+        os << "Route " << i << ": ";
+        for (int j = 0; j < ind.num_nodes_per_route[i]; ++j) {
+            os << ind.routes[i][j] << " ";
         }
         os << "\n";
     }
-    os << "Upper Cost: \n";
-    os << "  Penalised Cost: " << individual.upper_cost.penalised_cost << "\n";
-    os << "  Number of Routes: " << individual.upper_cost.nb_routes << "\n";
-    os << "  Distance: " << individual.upper_cost.distance << "\n";
-    os << "  Capacity Excess: " << individual.upper_cost.capacity_excess << "\n";
-    os << "  Duration Excess: " << individual.upper_cost.duration_excess << "\n";
-    os << "Is Upper Feasible: " << individual.is_upper_feasible << "\n";
-    os << "Lower Cost: " << individual.lower_cost << "\n";
 
     return os;
 }
