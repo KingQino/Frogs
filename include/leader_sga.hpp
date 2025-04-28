@@ -37,6 +37,9 @@ public:
     double upper_cost;
     double border_cost;
     int moves_count;
+    vector<int> move_indices;
+    unordered_set<pair<int, int>, PairHash> route_pairs;
+
 
     void local_improve(Individual* ind);
     bool neighbour_explore(const double& border_val, PartialSolution* partial_ind);
