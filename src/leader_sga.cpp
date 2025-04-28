@@ -12,6 +12,8 @@ LeaderSga::LeaderSga(std::mt19937& engine, Case *instance, Preprocessor *preproc
 
     this->partial_sol = nullptr;
     this->moves_count = 15;
+    move_indices.resize(moves_count);
+    std::iota(move_indices.begin(), move_indices.end(), 0);
     this->max_search_depth = 25;
     this->route_cap = preprocessor->route_cap_;
     this->node_cap  = preprocessor->node_cap_;
@@ -45,9 +47,6 @@ LeaderSga::~LeaderSga() {
 
 void LeaderSga::local_improve(Individual *ind) {
     load_individual(ind);
-
-    vector<int> move_indices(moves_count);
-    iota(move_indices.begin(), move_indices.end(), 0);
 
     int loop_count = 0;
     bool improvement_found = true;
@@ -321,7 +320,7 @@ bool LeaderSga::perform_inter_move_impro(const std::function<bool(int *, int *, 
         }
     };
 
-    unordered_set<pair<int, int>, PairHash> route_pairs;
+    route_pairs.clear();
     for (int i = 0; i < num_routes - 1; i++) {
         for (int j = i + 1; j < num_routes; j++) {
             route_pairs.insert(make_pair(i, j));
