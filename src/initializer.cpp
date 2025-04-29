@@ -26,7 +26,6 @@ Initializer::~Initializer() = default;
 
 // Prins, C., 2004. A simple and effective evolutionary algorithm for the vehicle routing problem. Computers & operations research, 31(12), pp.1985-2002.
 vector<vector<int>> Initializer::prins_split(const vector<int>& chromosome) const {
-
     // giant tour starts from depot (node 0)
     temp_x[0] = 0;
     for (int i = 0; i < n; ++i) {
@@ -40,14 +39,12 @@ vector<vector<int>> Initializer::prins_split(const vector<int>& chromosome) cons
     // dynamic programming to find the shortest path
     for (int i = 1; i <= n; ++i) {
         int load = 0;
-        double cost = 0.0;
+        double cost = depot_dist[temp_x[i]] * 2;  // initial cost = 2 by dist(depot, x[1])
         for (int j = i; j <= n; ++j) {
             load += instance->get_customer_demand_(temp_x[j]);
             if (load > instance->max_vehicle_capa_) break;
 
-            if (i == j) {
-                cost = depot_dist[temp_x[j]] * 2;
-            } else {
+            if (j > i) {
                 cost -= depot_dist[temp_x[j - 1]];
                 cost += instance->get_distance(temp_x[j - 1], temp_x[j]);
                 cost += depot_dist[temp_x[j]];
@@ -76,41 +73,41 @@ vector<vector<int>> Initializer::prins_split(const vector<int>& chromosome) cons
 vector<vector<int>> Initializer::hien_clustering() {
     vector<int> chromosome = preprocessor->customer_ids_;
 
-    // Clustering
-    std::shuffle(chromosome.begin(),chromosome.end(), random_engine);
+    std::shuffle(chromosome.begin(), chromosome.end(), random_engine);
+
     vector<vector<int>> routes;
     vector<int> route;
+    route.reserve(instance->num_customer_); // 预留，防止反复扩容
+
     while (!chromosome.empty()) {
         route.clear();
-
-        int anchor = chromosome.front();
-        chromosome.erase(chromosome.begin());
+        int anchor = chromosome.back();
+        chromosome.pop_back();
         route.push_back(anchor);
+
         int cap = instance->get_customer_demand_(anchor);
+        const auto& nearby_customers = preprocessor->sorted_nearby_customers_[anchor];
 
-        vector<int> nearby_customers = preprocessor->sorted_nearby_customers_[anchor];
-        int length = static_cast<int>(nearby_customers.size()); // the size of nearby_customers
+        for (int node : nearby_customers) {
+            auto it = find(chromosome.begin(), chromosome.end(), node);
+            if (it == chromosome.end()) continue;
 
-        for (int i = 0; i < length; ++i) {
-            int node = nearby_customers[i];
-            auto it = find(chromosome.begin(),chromosome.end(), node);
-            if (it == chromosome.end()) {
-                continue;
-            }
-            if (cap + instance->get_customer_demand_(node) <= instance->max_vehicle_capa_) {
+            int demand = instance->get_customer_demand_(node);
+            if (cap + demand <= instance->max_vehicle_capa_) {
+                cap += demand;
                 route.push_back(node);
-                cap += instance->get_customer_demand_(node);
                 chromosome.erase(it);
-            } else {
-                routes.push_back(route);
-                break;
+            }
+
+            if (cap >= instance->max_vehicle_capa_) {
+                break; // 提前剪枝，满了就停
             }
         }
+
+        routes.push_back(route);
     }
 
-    routes.push_back(route);
-
-    return std::move(routes);
+    return routes;
 }
 
 void Initializer::hien_balancing(vector<vector<int>>& routes) {
@@ -155,14 +152,16 @@ void Initializer::hien_balancing(vector<vector<int>>& routes) {
 }
 
 vector<vector<int>> Initializer::routes_constructor_with_split() {
-    vector<int> a_giant_tour(preprocessor->customer_ids_);
+    temp_x.clear();
+    temp_x.push_back(instance->depot_); // 先放depot
 
-    shuffle(a_giant_tour.begin(), a_giant_tour.end(), random_engine);
+    temp_x.insert(temp_x.end(), preprocessor->customer_ids_.begin(), preprocessor->customer_ids_.end());
+    shuffle(temp_x.begin() + 1, temp_x.end(), random_engine); // 注意 depot 不参与 shuffle
 
-    vector<vector<int>> all_routes = prins_split(a_giant_tour);
+    vector<vector<int>> all_routes = prins_split(temp_x); // temp_x已经带depot了
+
     for (auto& route : all_routes) {
-        route.insert(route.begin(), instance->depot_);
-        route.push_back(instance->depot_);
+        route.push_back(instance->depot_); // 只补最后一个 depot
     }
 
     return all_routes;
