@@ -59,6 +59,7 @@ public:
     // wrapper function - search until no improvement
     bool perform_intra_move_impro(const std::function<bool(int*, int)>& move_func) const;
     bool perform_inter_move_impro(const std::function<bool(int*, int*, int&, int&, int&, int&)>& move_func);
+    bool perform_inter_move_with_empty_impro(const std::function<bool(int*, int*, int&, int&, int&, int&)>& move_func);
     // basic operators - neighbourhood size O(n^2)
     bool move1_intra_impro(int* route, int length); // if U is ahead of V, then move U to the behind of V; otherwise, move U to the ahead of V
     bool move1_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
@@ -75,6 +76,7 @@ public:
     bool move7_intra_impro(int* route, int length);
     bool move8_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
     bool move9_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move1_inter_with_empty_route_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
 
 
     /* Neighbourhood exploration attempts all possible neighbour solutions - it jumps to any neighbouring solution whose cost is below a given threshold */

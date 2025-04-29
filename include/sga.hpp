@@ -20,6 +20,7 @@ private:
     std::vector<std::vector<int>> elites;
     std::vector<std::vector<int>> immigrants;
     std::vector<std::vector<int>> offspring;
+    vector<int> indices;
 public:
     static const std::string ALGORITHM;
 
