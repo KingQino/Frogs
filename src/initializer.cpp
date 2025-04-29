@@ -5,57 +5,71 @@
 #include "initializer.hpp"
 
 Initializer::Initializer(std::mt19937& engine, Case *instance, Preprocessor *preprocessor)
-    : random_engine(engine), instance(instance), preprocessor(preprocessor) {}
+    : random_engine(engine), instance(instance), preprocessor(preprocessor) {
+
+    n = instance->num_customer_;
+    temp_x.reserve(n + 1);
+    temp_vv.reserve(n + 1);
+    temp_pp.reserve(n + 1);
+
+    temp_all_routes.reserve(preprocessor->route_cap_);
+
+
+    depot_dist.resize(n + 1, 0.0);  // depot到每个点的距离
+    // 预处理 depot 到每个点的距离
+    for (int i = 1; i <= n; ++i) {
+        depot_dist[i] = instance->get_distance(instance->depot_, preprocessor->customer_ids_[i - 1]);
+    }
+}
 
 Initializer::~Initializer() = default;
 
 // Prins, C., 2004. A simple and effective evolutionary algorithm for the vehicle routing problem. Computers & operations research, 31(12), pp.1985-2002.
 vector<vector<int>> Initializer::prins_split(const vector<int>& chromosome) const {
-    vector<int> x(chromosome.size() + 1, 0); // a giant tour starts from 0
-    copy(chromosome.begin(), chromosome.end(), x.begin() + 1);
 
-    vector<double> vv(x.size(), std::numeric_limits<double>::max()); // value, the accumulated cost of the shortest path from 0 to i
-    vector<int> pp(x.size(), 0); // path, record the split routes of the corresponding shortest path
-    vv[0] = 0.0;
-
-    for (int i = 1; i < x.size(); ++i) {
-        int load = 0;
-        double cost = 0;
-        int j = i;
-        do
-        {
-            load += instance->get_customer_demand_(x[j]);
-            if (i == j) {
-                cost = instance->get_distance(instance->depot_, x[j]) * 2;
-            } else {
-                cost -= instance->get_distance(x[j -1], instance->depot_);
-                cost += instance->get_distance(x[j -1], x[j]);
-                cost += instance->get_distance(instance->depot_, x[j]);
-            }
-
-            if (load <= instance->max_vehicle_capa_) {
-                if (vv[i - 1] + cost < vv[j]) {
-                    vv[j] = vv[i - 1] + cost;
-                    pp[j] = i - 1;
-                }
-                j++;
-            }
-        } while (!(j >= x.size() || load >instance->max_vehicle_capa_));
+    // giant tour starts from depot (node 0)
+    temp_x[0] = 0;
+    for (int i = 0; i < n; ++i) {
+        temp_x[i + 1] = chromosome[i];
     }
 
-    vector<vector<int>> all_routes;
-    int j = static_cast<int>(x.size()) - 1;
-    while (true) {
-        int i = pp[j];
-        vector<int> temp(x.begin() + i + 1, x.begin() + j + 1);
-        all_routes.push_back(temp);
-        j = i;
-        if (i == 0) {
-            break;
+    fill(temp_vv.begin(), temp_vv.begin() + n + 1, numeric_limits<double>::max());
+    temp_vv[0] = 0.0;
+    fill(temp_pp.begin(), temp_pp.begin() + n + 1, 0);
+
+    // dynamic programming to find the shortest path
+    for (int i = 1; i <= n; ++i) {
+        int load = 0;
+        double cost = 0.0;
+        for (int j = i; j <= n; ++j) {
+            load += instance->get_customer_demand_(temp_x[j]);
+            if (load > instance->max_vehicle_capa_) break;
+
+            if (i == j) {
+                cost = depot_dist[temp_x[j]] * 2;
+            } else {
+                cost -= depot_dist[temp_x[j - 1]];
+                cost += instance->get_distance(temp_x[j - 1], temp_x[j]);
+                cost += depot_dist[temp_x[j]];
+            }
+
+            if (temp_vv[i - 1] + cost < temp_vv[j]) {
+                temp_vv[j] = temp_vv[i - 1] + cost;
+                temp_pp[j] = i - 1;
+            }
         }
     }
 
-    return all_routes;
+    // reserve and restore the routes
+    temp_all_routes.clear();
+    int j = n;
+    while (j > 0) {
+        int i = temp_pp[j];
+        temp_all_routes.emplace_back(temp_x.begin() + i + 1, temp_x.begin() + j + 1);
+        j = i;
+    }
+
+    return temp_all_routes;
 }
 
 // Hien et al., "A greedy search based evolutionary algorithm for electric vehicle routing problem", 2023.
