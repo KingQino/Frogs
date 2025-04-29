@@ -25,6 +25,9 @@ Lahc::Lahc(int seed_val, Case* instance, Preprocessor* preprocessor) : Heuristic
     global_best = make_unique<Solution>();
     global_best_upper_so_far = std::numeric_limits<double>::max();
 
+    restart_idx = 0;
+    border_flag = false;
+
     initializer = new Initializer(random_engine, instance, preprocessor);
     leader = new LeaderArray(random_engine, instance, preprocessor);
     follower = new Follower(instance, preprocessor);
@@ -52,6 +55,25 @@ void Lahc::initialize_heuristic() {
     this->ratio_successful_moves = 1.0; // the largest decimal value
 }
 
+void Lahc::restart_heuristic() {
+    delete current;
+    vector<vector<int>> routes = initializer->routes_constructor_with_split();
+    current = new Solution(instance, preprocessor, routes, instance->compute_total_distance(routes),
+                           instance->compute_demand_sum_per_route(routes));
+    routes.clear();
+    routes.shrink_to_fit();
+
+    leader->local_improve(current, border_history_list_metrics.max);
+
+    for (int i = 0; i < history_length; ++i) {
+        history_list[i] = border_dist(random_engine);
+    }
+
+    this->iter = 0L;
+    this->idle_iter = 0L;
+    this->ratio_successful_moves = 1.0; // the largest decimal value
+}
+
 void Lahc::run_heuristic() {
     leader->load_solution(current);
 
@@ -67,6 +89,13 @@ void Lahc::run_heuristic() {
 
             if (iter != 0L) {
                 ratio_successful_moves = num_moves_per_history / static_cast<double>(history_length);
+            }
+
+            // ratio_successful_moves < value, this value can be further adjusted
+            if (restart_idx == 0 && !border_flag && ratio_successful_moves <= 0.3) {
+                border_history_list_metrics = history_list_metrics;
+                border_dist = normal_distribution<double>(border_history_list_metrics.avg, border_history_list_metrics.std);
+                border_flag = true;
             }
 
             flush_row_into_evol_log();
@@ -89,7 +118,7 @@ void Lahc::run_heuristic() {
         iter++;
         duration = std::chrono::high_resolution_clock::now() - start;
 
-        if (has_moved && candidate_cost < global_best_upper_so_far * 1.10) {
+        if (ratio_successful_moves < 0.3 && has_moved && candidate_cost < global_best_upper_so_far * 1.10) {
             follower->run(current);
             if (current->lower_cost < global_best->lower_cost) {
                 global_best = std::move(make_unique<Solution>(*current));
@@ -97,6 +126,8 @@ void Lahc::run_heuristic() {
         }
 
     } while ((iter < 100'000L || idle_iter < iter / 5) && ratio_successful_moves > 0.001 && duration.count() < preprocessor->max_exec_time_);
+
+    restart_idx++;
 }
 
 void Lahc::run() {
@@ -112,13 +143,13 @@ void Lahc::run() {
     switch (stop_criteria) {
         case 0:
             while (!stop_criteria_max_evals()) {
-                initialize_heuristic();
+                restart_idx == 0 ? initialize_heuristic() : restart_heuristic();
                 run_heuristic();
             }
             break;
         case 1:
             while (!stop_criteria_max_exec_time(duration)) {
-                initialize_heuristic();
+                restart_idx == 0 ? initialize_heuristic() : restart_heuristic();
                 run_heuristic();
                 duration = std::chrono::high_resolution_clock::now() - start;
             }

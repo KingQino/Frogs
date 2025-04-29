@@ -34,6 +34,11 @@ public:
     Solution* current;                          // Current solution s
     double global_best_upper_so_far;            // The best solution found so far
 
+    int restart_idx;                            // The index of the restart
+    Indicators border_history_list_metrics;     // The statistical info of the history list
+    bool border_flag;                           // The flag for the border history list metrics
+    normal_distribution<double> border_dist;    // The normal distribution for the border history list metrics
+
     Initializer* initializer;
     LeaderArray* leader;
     Follower* follower;
@@ -44,6 +49,7 @@ public:
     ~Lahc() override;
     void run() override;
     void initialize_heuristic() override;
+    void restart_heuristic();
     void run_heuristic() override;
     void open_log_for_evolution() override;
     void close_log_for_evolution() override;
