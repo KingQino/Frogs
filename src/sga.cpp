@@ -97,7 +97,7 @@ void Sga::run_heuristic() {
 
     for (int i = 0; i < pop_size; ++i) {
         auto& ind = population[i];
-        data_logging1[i] = ind->upper_cost;
+//        data_logging1[i] = ind->upper_cost;
 
         leader->local_improve(ind.get());
         follower->run(ind.get());
@@ -125,7 +125,7 @@ void Sga::run_heuristic() {
 
     }
 
-    pop_cost_metrics = StatsInterface::calculate_statistical_indicators(data_logging1);
+//    pop_cost_metrics = StatsInterface::calculate_statistical_indicators(data_logging1);
     pop_cost_metrics_after_impro = StatsInterface::calculate_statistical_indicators(data_logging2);
     flush_row_into_evol_log();
 
@@ -144,7 +144,6 @@ void Sga::run_heuristic() {
 
 
     offspring.clear();
-    offspring.reserve(pop_size);
     // crossover and mutation
     // 10 pairs of elites
     std::shuffle(indices.begin(), indices.end(), random_engine);
@@ -203,7 +202,7 @@ void Sga::open_log_for_evolution() {
 
     const string file_name = "evols." + instance->instance_name_ + ".csv";
     log_evolution.open(directory + "/" + file_name);
-    log_evolution << "iters,global_best,min,max,mean,std,after_impro_min,max,mean,std\n";
+    log_evolution << "iters,global_best,min,max,mean,std\n";
 }
 
 void Sga::close_log_for_evolution() {
@@ -226,10 +225,6 @@ void Sga::flush_row_into_evol_log() {
 
     // Ensure fixed precision for history metrics
     oss_row_evol << std::fixed << std::setprecision(3)
-                 << pop_cost_metrics.min << ","
-                 << pop_cost_metrics.max << ","
-                 << pop_cost_metrics.avg << ","
-                 << pop_cost_metrics.std << ","
                  << pop_cost_metrics_after_impro.min << ","
                  << pop_cost_metrics_after_impro.max << ","
                  << pop_cost_metrics_after_impro.avg << ","
