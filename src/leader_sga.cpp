@@ -55,10 +55,9 @@ void LeaderSga::local_improve(Individual *ind) {
 
         bool any_move_successful = false;
         for (int i = 0; i < moves_count; ++i) {
-            int move = move_indices[i];
 
             bool has_moved = false;
-            switch (move) {
+            switch (move_indices[i]) {
                 case 0:
                     has_moved = perform_intra_move_impro([this](int* route, int length) {
                         return move1_intra_impro(route, length);
@@ -134,6 +133,11 @@ void LeaderSga::local_improve(Individual *ind) {
                         return move9_inter_impro(route1, route2, length1, length2, loading1, loading2);
                     });
                     break;
+//                case 15:
+//                    has_moved = perform_inter_move_with_empty_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+//                        return move1_inter_with_empty_route_impro(route1, route2, length1, length2, loading1, loading2);
+//                    });
+//                    break;
                 default:
                     break;
             }
@@ -373,24 +377,24 @@ bool LeaderSga::perform_inter_move_impro(const std::function<bool(int *, int *, 
     return is_successful;
 }
 
-//bool LeaderSga::perform_inter_move_with_empty_impro(
-//        const std::function<bool(int *, int *, int &, int &, int &, int &)> &move_func) {
-//    if (num_routes < 1) return false;
-//
-//    bool is_successful = false;
-//    for (int r1 = 0; r1 < num_routes; ++r1) {
-//        int r2 = num_routes; // empty route
-//
-//        bool is_moved = move_func(routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2],demand_sum_per_route[r1], demand_sum_per_route[r2]);
-//
-//        if (is_moved) {
-//            num_routes++;
-//        }
-//        is_successful = is_moved || is_successful;
-//    }
-//
-//    return is_successful;
-//}
+bool LeaderSga::perform_inter_move_with_empty_impro(
+        const std::function<bool(int *, int *, int &, int &, int &, int &)> &move_func) {
+    if (num_routes < 1) return false;
+
+    bool is_successful = false;
+    for (int r1 = 0; r1 < num_routes; ++r1) {
+        int r2 = num_routes; // empty route
+
+        bool is_moved = move_func(routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2],demand_sum_per_route[r1], demand_sum_per_route[r2]);
+
+        if (is_moved) {
+            num_routes++;
+        }
+        is_successful = is_moved || is_successful;
+    }
+
+    return is_successful;
+}
 
 bool LeaderSga::move1_intra_impro(int* route, int length) {
     if (length <= 4) return false;
@@ -1081,6 +1085,39 @@ bool LeaderSga::move9_inter_impro(int *route1, int *route2, int &length1, int &l
     }
 
     end_loops:;
+
+    return has_moved;
+}
+
+bool LeaderSga::move1_inter_with_empty_route_impro(int *route1, int *route2, int &length1, int &length2, int &loading1,
+                                                   int &loading2) {
+    if (length1 < 4 || length2 != 0) return false; // make sure it won't generate empty route
+
+    bool has_moved = false;
+
+    double original_cost, modified_cost, change;
+    for (int i = 1; i < length1 - 1; ++i) {
+        int x = route1[i];
+
+        original_cost = instance->get_distance(route1[i - 1], x) + instance->get_distance(x, route1[i + 1]);
+        modified_cost = instance->get_distance(route1[i - 1], route1[i + 1]) + instance->get_distance(route2[0], x) + instance->get_distance(x, route2[1]);
+
+        change = modified_cost - original_cost;
+        if (is_accepted_impro(change)) {
+            for (int p = i; p < length1 - 1; p++) {
+                route1[p] = route1[p + 1];
+            }
+            length1--;
+            loading1 -= instance->get_customer_demand_(x);
+
+            route2[1] = x;
+            length2 = 3;
+            loading2 += instance->get_customer_demand_(x);
+            upper_cost += change;
+
+            has_moved = true;
+        }
+    }
 
     return has_moved;
 }
