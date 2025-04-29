@@ -28,9 +28,7 @@ Initializer::~Initializer() = default;
 vector<vector<int>> Initializer::prins_split(const vector<int>& chromosome) const {
     // giant tour starts from depot (node 0)
     temp_x[0] = 0;
-    for (int i = 0; i < n; ++i) {
-        temp_x[i + 1] = chromosome[i];
-    }
+    memcpy(temp_x.data() + 1, chromosome.data(), n * sizeof(int)); // copy the chromosome to temp_x
 
     fill(temp_vv.begin(), temp_vv.begin() + n + 1, numeric_limits<double>::max());
     temp_vv[0] = 0.0;
