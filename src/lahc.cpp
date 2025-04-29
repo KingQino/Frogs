@@ -14,11 +14,11 @@ Lahc::Lahc(int seed_val, Case* instance, Preprocessor* preprocessor) : Heuristic
     idle_iter = 0L;
     ratio_successful_moves = 1.0;
     history_length = static_cast<long>(preprocessor->params.history_length);
-    if (instance->dimension_ >= 100) {
-        boundary_no_low_opt = 2 * history_length * instance->dimension_;
-    } else {
-        boundary_no_low_opt = 0L;
-    }
+//    if (instance->dimension_ >= 100) {
+//        boundary_no_low_opt = 2 * history_length * instance->dimension_;
+//    } else {
+//        boundary_no_low_opt = 0L;
+//    }
     num_moves_per_history = 0.;
     history_list = vector<double>(history_length);
     current = nullptr;
@@ -65,9 +65,10 @@ void Lahc::restart_heuristic() {
 
     leader->local_improve(current, border_history_list_metrics.max);
 
-    for (int i = 0; i < history_length; ++i) {
-        history_list[i] = border_dist(random_engine);
-    }
+    history_list = border_history_list;
+//    for (int i = 0; i < history_length; ++i) {
+//        history_list[i] = border_dist(random_engine);
+//    }
 
     this->iter = 0L;
     this->idle_iter = 0L;
@@ -92,9 +93,10 @@ void Lahc::run_heuristic() {
             }
 
             // ratio_successful_moves < value, this value can be further adjusted
-            if (restart_idx == 0 && !border_flag && ratio_successful_moves <= 0.3) {
+            if (restart_idx == 0 && !border_flag && ratio_successful_moves <= 0.4) {
                 border_history_list_metrics = history_list_metrics;
-                border_dist = normal_distribution<double>(border_history_list_metrics.avg, border_history_list_metrics.std);
+//                border_dist = normal_distribution<double>(border_history_list_metrics.avg, border_history_list_metrics.std);
+                border_history_list = history_list;
                 border_flag = true;
             }
 
@@ -118,7 +120,18 @@ void Lahc::run_heuristic() {
         iter++;
         duration = std::chrono::high_resolution_clock::now() - start;
 
-        if (ratio_successful_moves < 0.3 && has_moved && candidate_cost < global_best_upper_so_far * 1.10) {
+//        bool should_trigger_lower_decision;
+//        if (restart_idx == 0) {
+//            should_trigger_lower_decision = ratio_successful_moves < 0.4 && has_moved && candidate_cost < global_best_upper_so_far * 1.10;
+//        } else {
+//            should_trigger_lower_decision = has_moved && candidate_cost < global_best_upper_so_far * 1.10;
+//        }
+        bool should_trigger_lower_decision = has_moved &&
+                                             candidate_cost < global_best_upper_so_far * 1.10 &&
+                                             (restart_idx != 0 || ratio_successful_moves < 0.4);
+
+
+        if (should_trigger_lower_decision) {
             follower->run(current);
             if (current->lower_cost < global_best->lower_cost) {
                 global_best = std::move(make_unique<Solution>(*current));

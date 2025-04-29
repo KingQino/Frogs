@@ -22,7 +22,7 @@ public:
     bool enable_logging;
     int stop_criteria;
 
-    long boundary_no_low_opt;                   // The number of iterations without lower-level optimisation
+//    long boundary_no_low_opt;                   // The number of iterations without lower-level optimisation
     long iter;                                  // Iteration counter I
     long idle_iter;                             // Idle iteration counter
     long history_length;                        // LAHC history length Lh
@@ -38,6 +38,7 @@ public:
     Indicators border_history_list_metrics;     // The statistical info of the history list
     bool border_flag;                           // The flag for the border history list metrics
     normal_distribution<double> border_dist;    // The normal distribution for the border history list metrics
+    vector<double> border_history_list;         // The border history list
 
     Initializer* initializer;
     LeaderArray* leader;
