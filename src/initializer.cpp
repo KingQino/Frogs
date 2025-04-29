@@ -150,16 +150,15 @@ void Initializer::hien_balancing(vector<vector<int>>& routes) {
 }
 
 vector<vector<int>> Initializer::routes_constructor_with_split() {
-    temp_x.clear();
-    temp_x.push_back(instance->depot_); // 先放depot
+    vector<int> a_giant_tour(preprocessor->customer_ids_);
 
-    temp_x.insert(temp_x.end(), preprocessor->customer_ids_.begin(), preprocessor->customer_ids_.end());
-    shuffle(temp_x.begin() + 1, temp_x.end(), random_engine); // 注意 depot 不参与 shuffle
+    shuffle(a_giant_tour.begin(), a_giant_tour.end(), random_engine);
 
-    vector<vector<int>> all_routes = prins_split(temp_x); // temp_x已经带depot了
+    vector<vector<int>> all_routes = prins_split(a_giant_tour); // 这里传的是不带depot的顾客
 
     for (auto& route : all_routes) {
-        route.push_back(instance->depot_); // 只补最后一个 depot
+        route.insert(route.begin(), instance->depot_); // 加在每条路线最开头
+        route.push_back(instance->depot_); // 最后也补 depot
     }
 
     return all_routes;
