@@ -14,6 +14,12 @@
 
 
 class LeaderCbma {
+private:
+    mutable int* temp_r1 = nullptr;
+    mutable int* temp_r2 = nullptr;
+    mutable int temp_buffer_size = 0;
+
+    void prepare_temp_buffers(int required_size) const;
 public:
     Case* instance;
     Preprocessor* preprocessor;
@@ -28,6 +34,8 @@ public:
     int* demand_sum_per_route;
     double upper_cost;
     int moves_count;
+    vector<int> move_indices;
+    unordered_set<pair<int, int>, PairHash> route_pairs;
 
     void run(Individual* ind);
     void run_plus(Individual* ind);
@@ -43,7 +51,7 @@ public:
     // Operators for CBMA
     void two_opt_for_route(int* route, int length);
     void two_opt_for_sol();
-    bool two_opt_star_for_routes(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2, int* temp_r1, int* temp_r2);
+    bool two_opt_star_for_routes(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
     void two_opt_star_for_sol();
     bool node_relocation_for_route(int* route, int length);
     void node_relocation_for_sol();
