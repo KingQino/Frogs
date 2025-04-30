@@ -112,7 +112,7 @@ Individual::Individual(Case* instance, Preprocessor *preprocessor) {
     memset(this->demand_sum_per_route, 0, sizeof(int) * route_cap);
     this->num_routes = 0;
     this->upper_cost = 0.;
-    this->lower_cost = 0.;
+    this->lower_cost = numeric_limits<double>::max();
 }
 
 
@@ -139,6 +139,47 @@ Individual::~Individual() {
     delete[] routes;
     delete[] num_nodes_per_route;
     delete[] demand_sum_per_route;
+}
+
+Individual& Individual::operator=(const Individual& other) {
+    if (this == &other) return *this;
+
+    this->num_routes = other.num_routes;
+    this->upper_cost = other.upper_cost;
+    this->lower_cost = other.lower_cost;
+    for (int i = 0; i < route_cap; ++i) {
+        memcpy(this->routes[i], other.routes[i], sizeof(int) * node_cap);
+    }
+    memcpy(this->num_nodes_per_route, other.num_nodes_per_route, sizeof(int) * route_cap);
+    memcpy(this->demand_sum_per_route, other.demand_sum_per_route, sizeof(int) * route_cap);
+
+    return *this;
+}
+
+
+void Individual::clean() {
+    for (int i = 0; i < route_cap; ++i) {
+        memset(this->routes[i], 0, sizeof(int) * node_cap);
+    }
+    memset(this->num_nodes_per_route, 0, sizeof(int) * route_cap);
+    memset(this->demand_sum_per_route, 0, sizeof(int) * route_cap);
+    this->num_routes = 0;
+    this->upper_cost = 0.;
+    this->lower_cost = 0.;
+}
+
+void Individual::load_routes(const vector<vector<int>>& routs, double up_cost, const vector<int> &demand_per_route) {
+    this->upper_cost = up_cost;
+    this->num_routes = static_cast<int>(routs.size());
+    for (int i = 0; i < this->num_routes; ++i) {
+        this->num_nodes_per_route[i] = static_cast<int>(routs[i].size());
+        memcpy(this->routes[i], routs[i].data(), sizeof(int) * this->num_nodes_per_route[i]);
+    }
+    for (int i = 0; i < demand_per_route.size(); ++i) {
+        this->demand_sum_per_route[i] = demand_per_route[i];
+    }
+
+    this->lower_cost = numeric_limits<double>::max();
 }
 
 vector<int> Individual::get_chromosome() const {
