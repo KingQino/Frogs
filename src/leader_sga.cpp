@@ -1131,6 +1131,8 @@ void LeaderSga::prepare_temp_buffers(int required_size) const {
     temp_r1 = new int[required_size];
     temp_r2 = new int[required_size];
     temp_buffer_size = required_size;
+
+    temp_candidates.reserve(required_size);
 }
 
 bool LeaderSga::is_accepted_neigh(const double &change) const {
@@ -1237,96 +1239,48 @@ bool LeaderSga::move1_inter_neigh(int *route1, int *route2, int &length1, int &l
 
     bool has_moved = false;
 
-    // accelerate the function, avoid using std::vector and std::shuffle
-    // directly randomly try, avoid collecting all candidates and then shuffle
-    std::uniform_int_distribution<int> dist(1, length1 - 2);
-    const int max_attempts = length1 - 2;  // maximum attempts to find a valid move
-    int attempts = 0;
-
-    while (attempts < max_attempts) {
-        int i = dist(random_engine);
-        int demand_x = instance->get_customer_demand_(route1[i]);
-
-        // check if the node can be placed into route2
-        if (loading2 + demand_x <= instance->max_vehicle_capa_) {
-            double original_cost, modified_cost, change;
-            for (int j = 0; j < length2 - 1; ++j) {
-                original_cost = instance->get_distance(route1[i - 1], route1[i]) +
-                                instance->get_distance(route1[i], route1[i + 1]) +
-                                instance->get_distance(route2[j], route2[j + 1]);
-
-                modified_cost = instance->get_distance(route1[i - 1], route1[i + 1]) +
-                                instance->get_distance(route2[j], route1[i]) +
-                                instance->get_distance(route1[i], route2[j + 1]);
-
-                change = modified_cost - original_cost;
-
-                if (is_accepted_neigh(change)) {
-                    int x = route1[i];
-                    memmove(&route1[i], &route1[i + 1], sizeof(int) * (length1 - i - 1));
-                    length1--;
-                    loading1 -= demand_x;
-
-                    memmove(&route2[j + 2], &route2[j + 1], sizeof(int) * (length2 - j - 1));
-                    route2[j + 1] = x;
-                    length2++;
-                    loading2 += demand_x;
-
-                    upper_cost += change;
-                    has_moved = true;
-                    return true; // exit early if a move is made
-                }
-            }
+    temp_candidates.clear();
+    for (int i = 1; i < length1 - 1; ++i) {
+        if (loading2 + instance->get_customer_demand_(route1[i]) <= instance->max_vehicle_capa_) {
+            temp_candidates.push_back(i);
         }
-        attempts++;
+    }
+    if (temp_candidates.empty()) return false;
+    std::shuffle(temp_candidates.begin(), temp_candidates.end(), random_engine);  // Shuffle to pick one randomly
+    int i = temp_candidates.front();  // Pick the first after shuffling
+
+    double original_cost, modified_cost, change;
+    for (int j = 0; j < length2 - 1; ++j) {
+        original_cost = instance->get_distance(route1[i - 1], route1[i]) +
+                        instance->get_distance(route1[i], route1[i + 1]) +
+                        instance->get_distance(route2[j], route2[j + 1]);
+        modified_cost = instance->get_distance(route1[i - 1], route1[i + 1]) +
+                        instance->get_distance(route2[j], route1[i]) +
+                        instance->get_distance(route1[i], route2[j + 1]);
+
+        change = modified_cost - original_cost;
+        if (is_accepted_neigh(change)) {
+            int x = route1[i];
+            for (int p = i; p < length1 - 1; p++) {
+                route1[p] = route1[p + 1];
+            }
+            length1--;
+            loading1 -= instance->get_customer_demand_(x);
+            for (int q = length2; q > j + 1; q--) {
+                route2[q] = route2[q - 1];
+            }
+            route2[j + 1] = x;
+            length2++;
+            loading2 += instance->get_customer_demand_(x);
+            upper_cost += change;
+
+            has_moved = true;
+            break;
+        }
     }
 
     return has_moved;
 }
-
-//bool LeaderSga::move1_inter_neigh(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2) {
-//    if (length1 < 3 || length2 < 3) return false;
-//
-//    bool has_moved = false;
-//
-//    std::vector<int> candidates;
-//    for (int i = 1; i < length1 - 1; ++i) {
-//        if (loading2 + instance->get_customer_demand_(route1[i]) <= instance->max_vehicle_capa_) {
-//            candidates.push_back(i);
-//        }
-//    }
-//    if (candidates.empty()) return false;
-//    std::shuffle(candidates.begin(), candidates.end(), random_engine);  // Shuffle to pick one randomly
-//    int i = candidates.front();  // Pick the first after shuffling
-//
-//    double original_cost, modified_cost, change;
-//    for (int j = 0; j < length2 - 1; ++j) {
-//        original_cost = instance->get_distance(route1[i - 1], route1[i]) + instance->get_distance(route1[i], route1[i + 1]) + instance->get_distance(route2[j], route2[j + 1]);
-//        modified_cost = instance->get_distance(route1[i - 1], route1[i + 1]) + instance->get_distance(route2[j], route1[i]) + instance->get_distance(route1[i], route2[j + 1]);
-//
-//        change = modified_cost - original_cost;
-//        if (is_accepted_neigh(change)) {
-//            int x = route1[i];
-//            for (int p = i; p < length1 - 1; p++) {
-//                route1[p] = route1[p + 1];
-//            }
-//            length1--;
-//            loading1 -= instance->get_customer_demand_(x);
-//            for (int q = length2; q > j + 1; q--) {
-//                route2[q] = route2[q - 1];
-//            }
-//            route2[j + 1] = x;
-//            length2++;
-//            loading2 += instance->get_customer_demand_(x);
-//            upper_cost += change;
-//
-//            has_moved = true;
-//            break;
-//        }
-//    }
-//
-//    return has_moved;
-//}
 
 bool LeaderSga::move4_intra_neigh(int *route, int length) {
     if (length < 5) return false;

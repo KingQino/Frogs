@@ -18,6 +18,8 @@ private:
     mutable int* temp_r2 = nullptr;
     mutable int temp_buffer_size = 0;
 
+    mutable std::vector<int> temp_candidates;
+
     void prepare_temp_buffers(int required_size) const;
 public:
     Case* instance;

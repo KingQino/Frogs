@@ -12,8 +12,6 @@ Initializer::Initializer(std::mt19937& engine, Case *instance, Preprocessor *pre
     temp_vv.reserve(n + 1);
     temp_pp.reserve(n + 1);
 
-    temp_all_routes.reserve(preprocessor->route_cap_);
-
 
     depot_dist.resize(n + 1, 0.0);  // depot到每个点的距离
     // 预处理 depot 到每个点的距离
@@ -55,16 +53,15 @@ vector<vector<int>> Initializer::prins_split(const vector<int>& chromosome) cons
         }
     }
 
-    // reserve and restore the routes
-    temp_all_routes.clear();
+    vector<vector<int>> all_routes;
     int j = n;
     while (j > 0) {
         int i = temp_pp[j];
-        temp_all_routes.emplace_back(temp_x.begin() + i + 1, temp_x.begin() + j + 1);
+        all_routes.emplace_back(temp_x.begin() + i + 1, temp_x.begin() + j + 1);
         j = i;
     }
 
-    return temp_all_routes;
+    return all_routes;
 }
 
 // Hien et al., "A greedy search based evolutionary algorithm for electric vehicle routing problem", 2023.
