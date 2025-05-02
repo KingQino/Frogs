@@ -14,10 +14,7 @@ Sga::Sga(int seed_val, Case *instance, Preprocessor* preprocessor)
     this->pop_size = 100;
     this->gen = 0;
 
-    data_logging1 = vector<double>(pop_size);
-    data_logging2 = vector<double>(pop_size);
-    indices = vector<int>(pop_size);
-    std::iota(indices.begin(), indices.end(), 0);
+    after_local_impro = vector<double>(pop_size);
 
     uniform_int_dis = uniform_int_distribution<int>(0, pop_size - 1);
     mut_ind_prob = 0.2;
@@ -31,6 +28,8 @@ Sga::Sga(int seed_val, Case *instance, Preprocessor* preprocessor)
     elites.reserve(pop_size);
     immigrants.reserve(pop_size);
     offspring.reserve(pop_size);
+    indices = vector<int>(pop_size);
+    std::iota(indices.begin(), indices.end(), 0);
 }
 
 Sga::~Sga() {
@@ -95,15 +94,26 @@ void Sga::initialize_heuristic() {
 void Sga::run_heuristic() {
     gen++;
 
+    // Keep improving until it can't better any further
     for (int i = 0; i < pop_size; ++i) {
         auto& ind = population[i];
-//        data_logging1[i] = ind->upper_cost;
 
         leader->local_improve(ind.get());
         follower->run(ind.get());
-        data_logging2[i] = ind->upper_cost;
 
+        // make some statistics and update the global upper best
+        after_local_impro[i] = ind->upper_cost;
         global_best_upper_so_far = std::min(global_best_upper_so_far, ind->upper_cost);
+    }
+
+    elites.clear();
+    for (auto& ind : population) {
+        elites.emplace_back(std::move(ind->get_chromosome()));
+    }
+
+
+    for (int i = 0; i < pop_size; ++i) {
+        auto& ind = population[i];
 
         // for loop for neighbour exploration
         bool has_moved;
@@ -125,15 +135,9 @@ void Sga::run_heuristic() {
 
     }
 
-//    pop_cost_metrics = StatsInterface::calculate_statistical_indicators(data_logging1);
-    pop_cost_metrics_after_impro = StatsInterface::calculate_statistical_indicators(data_logging2);
+    pop_cost_metrics_after_impro = StatsInterface::calculate_statistical_indicators(after_local_impro);
     flush_row_into_evol_log();
 
-
-    elites.clear();
-    for (auto& ind : population) {
-        elites.emplace_back(std::move(ind->get_chromosome()));
-    }
 
     immigrants.clear();
     for (int i = 0; i < pop_size; ++i) {
@@ -141,7 +145,6 @@ void Sga::run_heuristic() {
         shuffle(immigrant.begin(), immigrant.end(), random_engine);
         immigrants.emplace_back(std::move(immigrant));
     }
-
 
     offspring.clear();
     // crossover and mutation
