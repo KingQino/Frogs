@@ -63,7 +63,7 @@ void Lahc::restart_heuristic() {
     routes.clear();
     routes.shrink_to_fit();
 
-    leader->local_improve(current, border_history_list_metrics.max);
+    leader->local_improve(current, border_history_list_metrics.avg);
 
     history_list = border_history_list;
 //    for (int i = 0; i < history_length; ++i) {
