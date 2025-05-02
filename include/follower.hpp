@@ -15,9 +15,9 @@
 
 #define INFEASIBLE 1'000'000'000L
 
-// This structure is used in the "enumerate stations"
-struct State {
-    int m_len{}, n_len{}, i{}, stationIdx{}; // Current state variables
+struct Station {
+    int pos;
+    int station_id;
 };
 
 // This struct is used to store the charging station information for the given route
@@ -36,6 +36,8 @@ private:
     mutable int* temp_best_chosen_pos = nullptr;
     mutable double* temp_accumulated_distance = nullptr;
     mutable int buffer_size = 0;
+
+    mutable std::vector<Station> temp_station_inserted;
 
     void prepare_temp_buffers(int required_size) const;
 public:
