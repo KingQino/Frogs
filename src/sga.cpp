@@ -94,14 +94,26 @@ void Sga::initialize_heuristic() {
 void Sga::run_heuristic() {
     gen++;
 
+    // Keep improving until it can't better any further
     for (int i = 0; i < pop_size; ++i) {
         auto& ind = population[i];
 
         leader->local_improve(ind.get());
         follower->run(ind.get());
-        after_local_impro[i] = ind->upper_cost;
 
+        // make some statistics and update the global upper best
+        after_local_impro[i] = ind->upper_cost;
         global_best_upper_so_far = std::min(global_best_upper_so_far, ind->upper_cost);
+    }
+
+    elites.clear();
+    for (auto& ind : population) {
+        elites.emplace_back(std::move(ind->get_chromosome()));
+    }
+
+
+    for (int i = 0; i < pop_size; ++i) {
+        auto& ind = population[i];
 
         // for loop for neighbour exploration
         bool has_moved;
@@ -126,11 +138,6 @@ void Sga::run_heuristic() {
     pop_cost_metrics_after_impro = StatsInterface::calculate_statistical_indicators(after_local_impro);
     flush_row_into_evol_log();
 
-
-    elites.clear();
-    for (auto& ind : population) {
-        elites.emplace_back(std::move(ind->get_chromosome()));
-    }
 
     immigrants.clear();
     for (int i = 0; i < pop_size; ++i) {
