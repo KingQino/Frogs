@@ -120,16 +120,12 @@ void Lahc::run_heuristic() {
         iter++;
         duration = std::chrono::high_resolution_clock::now() - start;
 
-//        bool should_trigger_lower_decision;
-//        if (restart_idx == 0) {
-//            should_trigger_lower_decision = ratio_successful_moves < 0.4 && has_moved && candidate_cost < global_best_upper_so_far * 1.10;
-//        } else {
-//            should_trigger_lower_decision = has_moved && candidate_cost < global_best_upper_so_far * 1.10;
-//        }
-        bool should_trigger_lower_decision = has_moved &&
-                                             candidate_cost < global_best_upper_so_far * 1.10 &&
-                                             (restart_idx != 0 || ratio_successful_moves < 0.4);
-
+        bool should_trigger_lower_decision;
+        if (restart_idx == 0) {
+            should_trigger_lower_decision = ratio_successful_moves < 0.4 && has_moved && candidate_cost < global_best_upper_so_far * 1.10;
+        } else {
+            should_trigger_lower_decision = has_moved && candidate_cost < global_best_upper_so_far * 1.10;
+        }
 
         if (should_trigger_lower_decision) {
             follower->run(current);
