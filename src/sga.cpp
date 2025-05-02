@@ -14,8 +14,7 @@ Sga::Sga(int seed_val, Case *instance, Preprocessor* preprocessor)
     this->pop_size = 100;
     this->gen = 0;
 
-    data_logging1 = vector<double>(pop_size);
-    data_logging2 = vector<double>(pop_size);
+    after_local_impro = vector<double>(pop_size);
 
     uniform_int_dis = uniform_int_distribution<int>(0, pop_size - 1);
     mut_ind_prob = 0.2;
@@ -29,6 +28,8 @@ Sga::Sga(int seed_val, Case *instance, Preprocessor* preprocessor)
     elites.reserve(pop_size);
     immigrants.reserve(pop_size);
     offspring.reserve(pop_size);
+    indices = vector<int>(pop_size);
+    std::iota(indices.begin(), indices.end(), 0);
 }
 
 Sga::~Sga() {
@@ -95,17 +96,17 @@ void Sga::run_heuristic() {
 
     for (int i = 0; i < pop_size; ++i) {
         auto& ind = population[i];
-        data_logging1[i] = ind->upper_cost;
 
         leader->local_improve(ind.get());
         follower->run(ind.get());
-        data_logging2[i] = ind->upper_cost;
+        after_local_impro[i] = ind->upper_cost;
 
         global_best_upper_so_far = std::min(global_best_upper_so_far, ind->upper_cost);
 
         // for loop for neighbour exploration
+        bool has_moved;
         for (int j = 0; j < max_neigh_attempts; ++j) {
-            bool has_moved = leader->neighbour_explore(global_best_upper_so_far * 1.1, partial_sol);
+            has_moved = leader->neighbour_explore(global_best_upper_so_far * 1.1, partial_sol);
             if (has_moved) {
                 follower->run(partial_sol);
 
@@ -122,8 +123,7 @@ void Sga::run_heuristic() {
 
     }
 
-    pop_cost_metrics = StatsInterface::calculate_statistical_indicators(data_logging1);
-    pop_cost_metrics_after_impro = StatsInterface::calculate_statistical_indicators(data_logging2);
+    pop_cost_metrics_after_impro = StatsInterface::calculate_statistical_indicators(after_local_impro);
     flush_row_into_evol_log();
 
 
@@ -139,17 +139,13 @@ void Sga::run_heuristic() {
         immigrants.emplace_back(std::move(immigrant));
     }
 
-    vector<int> indices(pop_size);
-    std::iota(indices.begin(), indices.end(), 0);
-
     offspring.clear();
     // crossover and mutation
     // 10 pairs of elites
+    std::shuffle(indices.begin(), indices.end(), random_engine);
     for (int i = 0; i < 10; ++i) {
-        int parent1_idx = i , parent2_idx = pop_size - 1 - i;
-
-        vector<int> parent1 = elites[parent1_idx];
-        vector<int> parent2 = elites[parent2_idx];
+        auto parent1 = elites[indices[i]];
+        auto parent2 = elites[indices[pop_size - 1 - i]];
 
         cx_partially_matched(parent1, parent2);
 
@@ -162,9 +158,11 @@ void Sga::run_heuristic() {
     // 25 pairs of elite and immigrants
     std::shuffle(indices.begin(), indices.end(), random_engine);
     for (int i = 0; i < 25; ++i) {
-        vector<int> parent1 = elites[i];
-        vector<int> parent2 = immigrants[i];
+        auto parent1 = elites[indices[i]];
+        auto parent2 = immigrants[indices[i]];
+
         cx_partially_matched(parent1, parent2);
+
         mut_shuffle_indexes(parent1, mut_ind_prob);
         mut_shuffle_indexes(parent2, mut_ind_prob);
 
@@ -174,8 +172,8 @@ void Sga::run_heuristic() {
     // 15 pairs of immigrants
     std::shuffle(indices.begin(), indices.end(), random_engine);
     for (int i = 0; i < 15; ++i) {
-        offspring.emplace_back(std::move(immigrants[i]));
-        offspring.emplace_back(std::move(immigrants[pop_size - 1 - i]));
+        offspring.emplace_back(std::move(immigrants[indices[i]]));
+        offspring.emplace_back(std::move(immigrants[indices[pop_size - 1 - i]]));
     }
 
 
@@ -200,7 +198,7 @@ void Sga::open_log_for_evolution() {
 
     const string file_name = "evols." + instance->instance_name_ + ".csv";
     log_evolution.open(directory + "/" + file_name);
-    log_evolution << "iters,global_best,min,max,mean,std,after_impro_min,max,mean,std\n";
+    log_evolution << "iters,global_best,min,max,mean,std\n";
 }
 
 void Sga::close_log_for_evolution() {
@@ -223,10 +221,6 @@ void Sga::flush_row_into_evol_log() {
 
     // Ensure fixed precision for history metrics
     oss_row_evol << std::fixed << std::setprecision(3)
-                 << pop_cost_metrics.min << ","
-                 << pop_cost_metrics.max << ","
-                 << pop_cost_metrics.avg << ","
-                 << pop_cost_metrics.std << ","
                  << pop_cost_metrics_after_impro.min << ","
                  << pop_cost_metrics_after_impro.max << ","
                  << pop_cost_metrics_after_impro.avg << ","

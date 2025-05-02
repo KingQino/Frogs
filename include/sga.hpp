@@ -20,6 +20,8 @@ private:
     std::vector<std::vector<int>> elites;
     std::vector<std::vector<int>> immigrants;
     std::vector<std::vector<int>> offspring;
+
+    vector<int> indices;
 public:
     static const std::string ALGORITHM;
 
@@ -36,8 +38,7 @@ public:
     double mut_ind_prob; // Probability of mutation for each individual
     int max_neigh_attempts;
 
-    vector<double> data_logging1;
-    vector<double> data_logging2;
+    vector<double> after_local_impro;
     Indicators pop_cost_metrics;
     Indicators pop_cost_metrics_after_impro; // The statistical info of the population cost metrics
 
