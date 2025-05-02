@@ -16,6 +16,11 @@
 using namespace std;
 
 class Cbma final : public HeuristicInterface, public StatsInterface {
+private:
+    std::vector<std::vector<int>> elites;
+    std::vector<std::vector<int>> offspring;
+    vector<int> indices;
+
 public:
     static const std::string ALGORITHM;
 
@@ -25,14 +30,13 @@ public:
     vector<shared_ptr<Individual>> population;
     std::unique_ptr<Individual> global_best;      // Global best solution found so far
     std::unique_ptr<Individual> iter_best;
-    double global_best_upper_so_far;            // The best solution found so far
 
     int pop_size;
     double elite_ratio;
     double immigrants_ratio;
     double crossover_prob;
     double mutation_prob;
-    double mutation_ind_prob;
+    double mut_ind_prob;
 
     int gen; // iteration num
     double gammaL; // confidence ratio of local search: 调大可以增加local search的解的个数
@@ -41,9 +45,9 @@ public:
     deque<double> P; // list for confidence intervals of local search
     double r; // confidence interval is used to judge whether an upper-level sub-solution should make the charging process
 
-    Indicators S_stats;
-    Indicators S1_stats;
-    Indicators S3_stats;
+    Indicators before_up_opt;
+    Indicators after_up_opt;
+    Indicators after_low_opt;
 
     Initializer* initializer;
     LeaderCbma* leader;

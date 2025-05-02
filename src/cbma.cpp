@@ -14,8 +14,8 @@ Cbma::Cbma(int seed_val, Case *instance, Preprocessor *preprocessor) : Heuristic
     elite_ratio = 0.01;
     immigrants_ratio = 0.05;
     crossover_prob = 1.0;
-    mutation_prob = 0.5;
-    mutation_ind_prob = 0.2;
+    mutation_prob = 0.8;
+    mut_ind_prob = 0.2;
 
     gen = 0;
     gammaL = 1.2;
@@ -26,6 +26,11 @@ Cbma::Cbma(int seed_val, Case *instance, Preprocessor *preprocessor) : Heuristic
     initializer = new Initializer(random_engine, instance, preprocessor);
     leader = new LeaderCbma(random_engine, instance, preprocessor);
     follower = new Follower(instance, preprocessor);
+
+    elites.reserve(pop_size);
+    offspring.reserve(pop_size);
+    indices = vector<int>(pop_size);
+    std::iota(indices.begin(), indices.end(), 0);
 }
 
 Cbma::~Cbma() {
@@ -64,6 +69,7 @@ void Cbma::run() {
     }
 
     if (enable_logging) {
+        flush_row_into_evol_log();
         close_log_for_evolution();  // Close log if logging is enabled
         save_log_for_solution();    // Save the log if logging is enabled
     }
@@ -74,12 +80,13 @@ void Cbma::initialize_heuristic() {
     population.reserve(pop_size);
     for (int i = 0; i < pop_size; ++i) {
         vector<vector<int>> routes = initializer->routes_constructor_with_hien_method();
-        auto ind = make_shared<Individual>(instance, preprocessor, routes,
-                                         instance->compute_total_distance(routes),
-                                         instance->compute_demand_sum_per_route(routes));
-        population.push_back(ind);
-        routes.clear();
-        routes.shrink_to_fit();
+
+        auto cost = instance->compute_total_distance(routes);
+        auto demand = instance->compute_demand_sum_per_route(routes);
+
+        auto ind = std::make_shared<Individual>(instance, preprocessor, routes, cost,
+                                                demand);
+        population.push_back(std::move(ind));
     }
 
     global_best = make_unique<Individual>(*population[0]);
@@ -87,97 +94,24 @@ void Cbma::initialize_heuristic() {
 }
 
 void Cbma::run_heuristic() {
-    vector<double> data = get_fitness_vector_from_upper_group(population);
-    S_stats = calculate_statistical_indicators(get_fitness_vector_from_upper_group(population));
+    before_up_opt = calculate_statistical_indicators(get_fitness_vector_from_upper_group(population));
 
-    vector<shared_ptr<Individual>> S1 = population;
-    double v1 = 0;
-    double v2;
-    shared_ptr<Individual> talented_ind = select_best_upper_individual(population);
-    if (gen > delta) { //  switch off - False
-        // when the generations are greater than the threshold, part of the upper-level sub-solutions S1 will be selected for local search
-        double old_cost = talented_ind->upper_cost;
-        leader->run_plus(talented_ind.get());
-        double new_cost = talented_ind->upper_cost;
-        v1 = old_cost - new_cost;
-        v2 = *std::max_element(P.begin(), P.end());
-        if (v2 < v1) {
-            v2 = v1 * gammaL;
-        }
-
-        S1.clear();
-        for (auto& ind:population) {
-            if (ind->upper_cost - v2 <= new_cost) S1.push_back(ind);
-        }
-
-        auto it = std::find(S1.begin(), S1.end(), talented_ind);
-        // If genius_upper is found, remove it from S2
-        if (it != S1.end()) {
-            S1.erase(it);
-        }
-    }
-
-    // make local search on S1
-    v2 = 0;
-    for(auto& ind : S1) {
-        double old_cost = ind->upper_cost;
-
+    for(auto& ind : population) {
         leader->run_plus(ind.get());
-
-        if (v2 < old_cost - ind->upper_cost)
-            v2 = old_cost - ind->upper_cost;
     }
-    v2 = (v1 > v2) ? v1 : v2;
-    P.push_back(v2);
-    if (P.size() > delta)  P.pop_front();
-    if (gen > delta) S1.push_back(talented_ind); //  *** switch off ***
 
-    S1_stats = calculate_statistical_indicators(get_fitness_vector_from_upper_group(S1));
+    after_up_opt = calculate_statistical_indicators(get_fitness_vector_from_upper_group(population));
 
-    // Current S1 has been selected and local search.
-    // Pick a portion of the upper sub-solutions to go for recharging process, by the difference between before and after charging of the best solution in S1
-    vector<shared_ptr<Individual>> S2 = S1;
-    double v3;
-    shared_ptr<Individual> outstanding_upper = select_best_upper_individual(S1);
-    if (gen > 0) { // Switch = off False
-        double old_cost = outstanding_upper->upper_cost; // fitness without recharging f
-        follower->run(outstanding_upper.get());
-        double new_cost = outstanding_upper->lower_cost; // fitness with recharging f
-        v3 = new_cost - old_cost;
-        if (r > v3) r = v3 * gammaR;
-
-        S2.clear();
-        for (auto& ind:S1) {
-            if (ind->upper_cost + r <= new_cost)
-                S2.push_back(ind);
-        }
-
-        auto it = std::find(S2.begin(), S2.end(), outstanding_upper);
-        // If genius_upper is found, remove it from S2
-        if (it != S2.end()) {
-            S2.erase(it);
-        }
-    }
 
     // Current S2 has been selected and ready for recharging, make recharging on S2
-    vector<shared_ptr<Individual>> S3;
-    S3.push_back(outstanding_upper); //  *** switch off ***
-    for (auto& ind:S2) {
-        double old_cost = ind->upper_cost;
+    for (auto& ind:population) {
         follower->run(ind.get());
-        double new_cost = ind->lower_cost;
-        S3.push_back(ind);
-        if (v3 > new_cost - old_cost)
-            v3 = new_cost - old_cost;
-    }
-    if (r == 0 || r > v3) {
-        r = v3;
     }
 
-    S3_stats = calculate_statistical_indicators(get_fitness_vector_from_lower_group(S3));
+    after_low_opt = calculate_statistical_indicators(get_fitness_vector_from_lower_group(population));
 
     // statistics
-    iter_best = make_unique<Individual>(*select_best_lower_individual(S3));
+    iter_best = make_unique<Individual>(*select_best_lower_individual(population));
     if (global_best->lower_cost > iter_best->lower_cost) {
         global_best = make_unique<Individual>(*iter_best);
     }
@@ -186,93 +120,56 @@ void Cbma::run_heuristic() {
     }
 
 
-    // Selection
-    vector<vector<int>> promising_seqs;
-    promising_seqs.reserve(S3.size());
-    for(auto& sol : S3) {
-        promising_seqs.push_back(sol->get_chromosome()); // encoding
+    offspring.clear();
+    elites.clear();
+    for(auto& ind_ptr : population) {
+        elites.emplace_back(std::move(ind_ptr->get_chromosome()));
     }
 
-    vector<vector<int>> average_seqs;
-    for(auto& sol : population) {
-        // judge whether sol in S3 or not
-        auto it = std::find(S3.begin(), S3.end(), sol);
-        if (it != S3.end()) continue;
-        average_seqs.push_back(sol->get_chromosome()); // encoding
+    std::shuffle(indices.begin(), indices.end(), random_engine);
+    for (int i = 0; i < 10; ++i) {
+        auto parent1 = elites[indices[i]];
+        auto parent2 = elites[indices[pop_size - 1 - i]];
+
+        cx_partially_matched(parent1, parent2);
+
+        offspring.emplace_back(std::move(parent1));
+        offspring.emplace_back(std::move(parent2));
+    }
+    std::shuffle(indices.begin(), indices.end(), random_engine);
+    for (int i = 0; i < 40; ++i) {
+        auto elite = std::move(elites[indices[i]]);
+
+        vector<int> immigrant(preprocessor->customer_ids_);
+        shuffle(immigrant.begin(), immigrant.end(), random_engine);
+
+        cx_partially_matched(elite, immigrant);
+
+        offspring.emplace_back(std::move(elite));
+        offspring.emplace_back(std::move(immigrant));
     }
 
-    vector<vector<int>> chromosomes;
-    if (promising_seqs.size() == 1) {
-        const vector<int>& father = promising_seqs[0];
-        // 90% - elite x non-elites
-        for (int i = 0; i < int (0.45 * pop_size); ++i) {
-            vector<int> _father(father);
-            vector<int> mother = select_random(average_seqs, 1)[0];
-            cx_partially_matched(_father, mother);
-            chromosomes.push_back(std::move(_father));
-            chromosomes.push_back(std::move(mother));
-        }
-        // 9%  - elite x immigrants
-        for (int i = 0; i < int(0.05 * pop_size); ++i) {
-            vector<int> _father(father);
-            vector<int> mother(preprocessor->customer_ids_);
-            shuffle(mother.begin(), mother.end(), random_engine);
-            cx_partially_matched(_father, mother);
-            chromosomes.push_back(std::move(_father));
-            chromosomes.push_back(std::move(mother));
-        }
-//        chromosomes.pop_back();
-        // free 1 space  - best ind
-    } else {
-        // part of elites x elites
-        int num_promising_seqs = static_cast<int>(promising_seqs.size());
-        int loop_num = int(num_promising_seqs / 2.0) <= (pop_size/2) ? int(num_promising_seqs / 2.0) : int(pop_size/4);
-        for (int i = 0; i < loop_num; ++i) {
-            vector<vector<int>> parents = select_random(promising_seqs, 2);
-            cx_partially_matched(parents[0], parents[1]);
-            chromosomes.push_back(std::move(parents[0]));
-            chromosomes.push_back(std::move(parents[1]));
-        }
-        // portion of elites x non-elites
-        int num_promising_x_average = pop_size - static_cast<int>(chromosomes.size());
-        for (int i = 0; i < int(num_promising_x_average / 2.0); ++i) {
-            vector<int> parent1 = select_random(promising_seqs, 1)[0];
-            vector<int> parent2 = select_random(average_seqs, 1)[0];
-            cx_partially_matched(parent1, parent2);
-            chromosomes.push_back(std::move(parent1));
-            chromosomes.push_back(std::move(parent2));
-        }
-    }
-
-    for (auto& chromosome: chromosomes) {
+    for (auto& chromosome: offspring) {
         if (uniform_real_dist(random_engine) < mutation_prob) {
-            mut_shuffle_indexes(chromosome, mutation_ind_prob);
+            mut_shuffle_indexes(chromosome, mut_ind_prob);
         }
     }
-
-    // destroy all the individual objects
-    S3.clear();
-    S2.clear();
-    S1.clear();
-    population.clear();
-    population.shrink_to_fit();
 
 
     // update population
-    population.reserve(pop_size);
-    population.push_back(make_shared<Individual>(*iter_best));
-    for (int i = 0; i < pop_size - 1; ++i) {
-        vector<vector<int>> dumb_routes = initializer->prins_split(chromosomes[i]);
+    population[0] = make_shared<Individual>(*iter_best);
+    for (int i = 1; i < pop_size; ++i) {
+        population[i]->clean();
 
+        vector<vector<int>> dumb_routes = initializer->prins_split(offspring[i]);
         for (auto& route : dumb_routes) {
             route.insert(route.begin(), instance->depot_);
             route.push_back(instance->depot_);
         }
 
-        population.push_back(make_shared<Individual>(instance, preprocessor,dumb_routes,
-                                                   instance->compute_total_distance(dumb_routes),
-                                                   instance->compute_demand_sum_per_route(dumb_routes))
-        );
+        population[i]->load_routes(dumb_routes,
+                                   instance->compute_total_distance(dumb_routes),
+                                   instance->compute_demand_sum_per_route(dumb_routes));
     }
 
     gen++;
@@ -285,9 +182,7 @@ void Cbma::open_log_for_evolution() {
     const string file_name = "evols." + instance->instance_name_ + ".csv";
     log_evolution.open(directory + "/" + file_name);
     log_evolution << "gen,g_best,"
-                     "S_min,S_avg,S_max,S_std,"
-                     "up_size,S1_min,S1_avg,S1_max,S1_std,"
-                     "low_size,"
+                     "af_up_min,avg,max,std,"
                      "evals\n";
 }
 
@@ -299,9 +194,7 @@ void Cbma::close_log_for_evolution() {
 
 void Cbma::flush_row_into_evol_log() {
     oss_row_evol << std::fixed << std::setprecision(3) << gen << "," << global_best->lower_cost <<","
-                 << S_stats.min << "," << S_stats.avg << "," << S_stats.max << "," << S_stats.std << ","
-                 << S1_stats.size << "," << S1_stats.min << "," << S1_stats.avg << "," << S1_stats.max << "," << S1_stats.std << ","
-                 << S3_stats.size << ","
+                 << after_up_opt.min << "," << after_up_opt.avg << "," << after_up_opt.max << "," << after_up_opt.std << ","
                  << instance->get_evals() << "\n";
 }
 

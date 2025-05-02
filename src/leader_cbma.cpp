@@ -37,6 +37,9 @@ LeaderCbma::~LeaderCbma() {
     delete[] routes;
     delete[] num_nodes_per_route;
     delete[] demand_sum_per_route;
+
+    delete[] temp_r1;
+    delete[] temp_r2;
 }
 
 void LeaderCbma::prepare_temp_buffers(int required_size) const {
