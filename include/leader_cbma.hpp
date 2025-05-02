@@ -36,6 +36,9 @@ public:
     int moves_count;
     vector<int> move_indices;
     unordered_set<pair<int, int>, PairHash> route_pairs;
+    int k_active_moves;
+    uniform_int_distribution<int> k_active_moves_dist;
+    vector<int> active_moves;
 
     void run(Individual* ind);
     void run_plus(Individual* ind);
@@ -43,6 +46,8 @@ public:
     void export_individual(Individual* ind) const;
     LeaderCbma(std::mt19937& engine, Case* instance, Preprocessor* preprocessor);
     ~LeaderCbma();
+
+    int get_luby(int j) const;
 
     void clean();
     void clean_empty_routes(int r1, int r2); // clean possible empty routes after move
