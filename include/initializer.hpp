@@ -14,7 +14,6 @@ private:
     mutable vector<int> temp_x;
     mutable vector<double> temp_vv;
     mutable vector<int> temp_pp;
-    mutable vector<vector<int>> temp_all_routes;
 
     mutable vector<double> depot_dist;
 

@@ -12,12 +12,11 @@ Initializer::Initializer(std::mt19937& engine, Case *instance, Preprocessor *pre
     temp_vv.reserve(n + 1);
     temp_pp.reserve(n + 1);
 
-    temp_all_routes.reserve(preprocessor->route_cap_);
 
-
-    depot_dist.resize(n + 1, 0.0);  // depot到每个点的距离
-    // 预处理 depot 到每个点的距离
+    // cache the distance from depot to each customer node
+    depot_dist.resize(n + 1, 0.0);
     for (int i = 1; i <= n; ++i) {
+        // i represents the customer id
         depot_dist[i] = instance->get_distance(instance->depot_, preprocessor->customer_ids_[i - 1]);
     }
 }
@@ -28,11 +27,12 @@ Initializer::~Initializer() = default;
 vector<vector<int>> Initializer::prins_split(const vector<int>& chromosome) const {
     // giant tour starts from depot (node 0)
     temp_x[0] = 0;
-    memcpy(temp_x.data() + 1, chromosome.data(), n * sizeof(int)); // copy the chromosome to temp_x
+    copy(chromosome.begin(), chromosome.end(), temp_x.begin() + 1);
 
     fill(temp_vv.begin(), temp_vv.begin() + n + 1, numeric_limits<double>::max());
-    temp_vv[0] = 0.0;
     fill(temp_pp.begin(), temp_pp.begin() + n + 1, 0);
+    temp_vv[0] = 0.0;
+
 
     // dynamic programming to find the shortest path
     for (int i = 1; i <= n; ++i) {
@@ -55,32 +55,30 @@ vector<vector<int>> Initializer::prins_split(const vector<int>& chromosome) cons
         }
     }
 
-    // reserve and restore the routes
-    temp_all_routes.clear();
+    vector<vector<int>> all_routes;
     int j = n;
     while (j > 0) {
         int i = temp_pp[j];
-        temp_all_routes.emplace_back(temp_x.begin() + i + 1, temp_x.begin() + j + 1);
+        all_routes.emplace_back(temp_x.begin() + i + 1, temp_x.begin() + j + 1);
         j = i;
     }
 
-    return temp_all_routes;
+    return all_routes;
 }
 
 // Hien et al., "A greedy search based evolutionary algorithm for electric vehicle routing problem", 2023.
 vector<vector<int>> Initializer::hien_clustering() {
     vector<int> chromosome = preprocessor->customer_ids_;
 
-    std::shuffle(chromosome.begin(), chromosome.end(), random_engine);
-
+    // Clustering
+    std::shuffle(chromosome.begin(),chromosome.end(), random_engine);
     vector<vector<int>> routes;
     vector<int> route;
-    route.reserve(instance->num_customer_); // 预留，防止反复扩容
-
     while (!chromosome.empty()) {
         route.clear();
-        int anchor = chromosome.back();
-        chromosome.pop_back();
+
+        int anchor = chromosome.front();
+        chromosome.erase(chromosome.begin());
         route.push_back(anchor);
 
         int cap = instance->get_customer_demand_(anchor);
@@ -98,7 +96,7 @@ vector<vector<int>> Initializer::hien_clustering() {
             }
 
             if (cap >= instance->max_vehicle_capa_) {
-                break; // 提前剪枝，满了就停
+                break;
             }
         }
 
@@ -154,11 +152,10 @@ vector<vector<int>> Initializer::routes_constructor_with_split() {
 
     shuffle(a_giant_tour.begin(), a_giant_tour.end(), random_engine);
 
-    vector<vector<int>> all_routes = prins_split(a_giant_tour); // 这里传的是不带depot的顾客
-
+    vector<vector<int>> all_routes = prins_split(a_giant_tour);
     for (auto& route : all_routes) {
-        route.insert(route.begin(), instance->depot_); // 加在每条路线最开头
-        route.push_back(instance->depot_); // 最后也补 depot
+        route.insert(route.begin(), instance->depot_);
+        route.push_back(instance->depot_);
     }
 
     return all_routes;
