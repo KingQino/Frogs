@@ -20,6 +20,8 @@ private:
     mutable int temp_buffer_size = 0;
 
     void prepare_temp_buffers(int required_size) const;
+
+    int luby_counter = 1;
 public:
     Case* instance;
     Preprocessor* preprocessor;

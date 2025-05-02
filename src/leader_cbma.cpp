@@ -76,7 +76,8 @@ void LeaderCbma::run(Individual *ind) {
 void LeaderCbma::run_plus(Individual *ind) {
     load_individual(ind);
 
-    k_active_moves = k_active_moves_dist(random_engine);
+    k_active_moves = get_luby(luby_counter++);
+    k_active_moves = std::min(k_active_moves, moves_count); // 避免越界
     active_moves = move_indices;
     shuffle(active_moves.begin(), active_moves.end(), random_engine);
     active_moves.resize(k_active_moves); // 保留前k个算子
