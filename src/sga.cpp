@@ -21,9 +21,14 @@ Sga::Sga(int seed_val, Case *instance, Preprocessor* preprocessor)
     max_neigh_attempts = preprocessor->params.max_neigh_attempts;
 
     initializer = new Initializer(random_engine, instance, preprocessor);
-    leader = new LeaderSga(random_engine, instance, preprocessor);
-    follower = new Follower(instance, preprocessor);
-    partial_sol = new PartialSolution();
+    leaders.reserve(pop_size);
+    followers.reserve(pop_size);
+    partial_sols.reserve(pop_size);
+    for (int i = 0; i < pop_size; ++i) {
+        leaders.emplace_back(std::make_unique<LeaderSga>(random_engine, instance, preprocessor));
+        followers.emplace_back(std::make_unique<Follower>(instance, preprocessor));
+        partial_sols.emplace_back(std::make_unique<PartialSolution>());
+    }
 
     elites.reserve(pop_size);
     immigrants.reserve(pop_size);
@@ -34,9 +39,6 @@ Sga::Sga(int seed_val, Case *instance, Preprocessor* preprocessor)
 
 Sga::~Sga() {
     delete initializer;
-    delete leader;
-    delete follower;
-    delete partial_sol;
 }
 
 void Sga::run() {
@@ -94,50 +96,64 @@ void Sga::initialize_heuristic() {
 void Sga::run_heuristic() {
     gen++;
 
-    // Keep improving until it can't better any further
+    local_improve_phase();
+    neighbour_exploration_phase();
+    evolutionary_phase();
+}
+
+void Sga::local_improve_phase() {
+    #pragma omp parallel for schedule(dynamic) default(none) shared(population, leaders, followers, after_local_impro, global_best_upper_so_far)
     for (int i = 0; i < pop_size; ++i) {
         auto& ind = population[i];
 
-        leader->local_improve(ind.get());
-        follower->run(ind.get());
+        // Keep improving until it can't better any further
+        leaders[i]->local_improve(ind.get());
+        followers[i]->run(ind.get());
 
-        // make some statistics and update the global upper best
         after_local_impro[i] = ind->upper_cost;
-        global_best_upper_so_far = std::min(global_best_upper_so_far, ind->upper_cost);
+
+        #pragma omp critical
+        {
+            if (ind->upper_cost < global_best_upper_so_far) {
+                global_best_upper_so_far = ind->upper_cost;
+            }
+        }
     }
 
+    pop_cost_metrics_after_impro = StatsInterface::calculate_statistical_indicators(after_local_impro);
+}
+
+void Sga::neighbour_exploration_phase() {
+    #pragma omp parallel for schedule(dynamic) default(none) shared(population, leaders, followers, partial_sols, global_best, global_best_upper_so_far)
+    for (int i = 0; i < pop_size; ++i) {
+        auto& ind = population[i];
+
+        for (int j = 0; j < max_neigh_attempts; ++j) {
+            bool has_moved = leaders[i]->neighbour_explore(global_best_upper_so_far * 1.1, partial_sols[i].get());
+            if (has_moved) {
+                followers[i]->run(partial_sols[i].get());
+                leaders[i]->export_individual(ind.get());
+                followers[i]->export_individual(ind.get());
+
+                #pragma omp critical
+                {
+                    if (ind->lower_cost < global_best->lower_cost) {
+                        *global_best = *ind;  // copy the content of ind to global_best, not deep copy
+                    }
+                }
+            }
+            partial_sols[i]->clean();
+        }
+    }
+
+    flush_row_into_evol_log();
+}
+
+void Sga::evolutionary_phase() {
     elites.clear();
     for (auto& ind : population) {
         elites.emplace_back(std::move(ind->get_chromosome()));
     }
-
-
-    for (int i = 0; i < pop_size; ++i) {
-        auto& ind = population[i];
-
-        // for loop for neighbour exploration
-        bool has_moved;
-        for (int j = 0; j < max_neigh_attempts; ++j) {
-            has_moved = leader->neighbour_explore(global_best_upper_so_far * 1.1, partial_sol);
-            if (has_moved) {
-                follower->run(partial_sol);
-
-                leader->export_individual(ind.get());
-                follower->export_individual(ind.get());
-
-                if (ind->lower_cost < global_best->lower_cost) {
-                    *global_best = *ind;  // copy the content of ind to global_best, not deep copy
-                }
-            }
-
-            partial_sol->clean();
-        }
-
-    }
-
-    pop_cost_metrics_after_impro = StatsInterface::calculate_statistical_indicators(after_local_impro);
-    flush_row_into_evol_log();
-
 
     immigrants.clear();
     for (int i = 0; i < pop_size; ++i) {
@@ -147,55 +163,49 @@ void Sga::run_heuristic() {
     }
 
     offspring.clear();
-    // crossover and mutation
-    // 10 pairs of elites
     std::shuffle(indices.begin(), indices.end(), random_engine);
+
+    // elite × elite
     for (int i = 0; i < 10; ++i) {
-        auto parent1 = elites[indices[i]];
-        auto parent2 = elites[indices[pop_size - 1 - i]];
-
-        cx_partially_matched(parent1, parent2);
-
-        mut_shuffle_indexes(parent1, mut_ind_prob);
-        mut_shuffle_indexes(parent2, mut_ind_prob);
-
-        offspring.emplace_back(std::move(parent1));
-        offspring.emplace_back(std::move(parent2));
+        auto p1 = elites[indices[i]];
+        auto p2 = elites[indices[pop_size - 1 - i]];
+        cx_partially_matched(p1, p2);
+        mut_shuffle_indexes(p1, mut_ind_prob);
+        mut_shuffle_indexes(p2, mut_ind_prob);
+        offspring.emplace_back(std::move(p1));
+        offspring.emplace_back(std::move(p2));
     }
-    // 25 pairs of elite and immigrants
+
+    // elite × immigrant
     std::shuffle(indices.begin(), indices.end(), random_engine);
     for (int i = 0; i < 25; ++i) {
-        auto parent1 = elites[indices[i]];
-        auto parent2 = immigrants[indices[i]];
-
-        cx_partially_matched(parent1, parent2);
-
-        mut_shuffle_indexes(parent1, mut_ind_prob);
-        mut_shuffle_indexes(parent2, mut_ind_prob);
-
-        offspring.emplace_back(std::move(parent1));
-        offspring.emplace_back(std::move(parent2));
+        auto p1 = elites[indices[i]];
+        auto p2 = immigrants[indices[i]];
+        cx_partially_matched(p1, p2);
+        mut_shuffle_indexes(p1, mut_ind_prob);
+        mut_shuffle_indexes(p2, mut_ind_prob);
+        offspring.emplace_back(std::move(p1));
+        offspring.emplace_back(std::move(p2));
     }
-    // 15 pairs of immigrants
+
+    // immigrant × immigrant
     std::shuffle(indices.begin(), indices.end(), random_engine);
     for (int i = 0; i < 15; ++i) {
         offspring.emplace_back(std::move(immigrants[indices[i]]));
         offspring.emplace_back(std::move(immigrants[indices[pop_size - 1 - i]]));
     }
 
-
     for (int i = 0; i < pop_size; ++i) {
         population[i]->clean();
-
-        vector<vector<int>> dumb_routes = initializer->prins_split(offspring[i]);
-        for (auto& route : dumb_routes) {
+        vector<vector<int>> routes = initializer->prins_split(offspring[i]);
+        for (auto& route : routes) {
             route.insert(route.begin(), instance->depot_);
             route.push_back(instance->depot_);
         }
 
-        population[i]->load_routes(dumb_routes,
-                                   instance->compute_total_distance(dumb_routes),
-                                   instance->compute_demand_sum_per_route(dumb_routes));
+        population[i]->load_routes(routes,
+                                   instance->compute_total_distance(routes),
+                                   instance->compute_demand_sum_per_route(routes));
     }
 }
 
@@ -242,10 +252,10 @@ void Sga::save_log_for_solution() {
 
     log_solution.open(directory + "/" + file_name);
     log_solution << fixed << setprecision(5) << global_best->lower_cost << endl;
-    follower->run(global_best.get());
-    for (int i = 0; i < follower->num_routes; ++i) {
-        for (int j = 0; j < follower->lower_num_nodes_per_route[i]; ++j) {
-            log_solution << follower->lower_routes[i][j] << ",";
+    followers[0]->run(global_best.get());
+    for (int i = 0; i < followers[0]->num_routes; ++i) {
+        for (int j = 0; j < followers[0]->lower_num_nodes_per_route[i]; ++j) {
+            log_solution << followers[0]->lower_routes[i][j] << ",";
         }
         log_solution << endl;
     }

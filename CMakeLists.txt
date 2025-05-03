@@ -7,13 +7,17 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-# Enable optimization flags for Release mode
+# Conditionally set compilers for Release mode
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+    set(CMAKE_C_COMPILER /opt/homebrew/bin/mpicc)
+    set(CMAKE_CXX_COMPILER /opt/homebrew/bin/mpic++)
 endif()
 
-# Find OpenMP
-find_package(OpenMP REQUIRED)
+# Enable optimization flags for Release mode
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_compile_options(-O3 -march=native -funroll-loops)
+endif()
+
 
 set(DEPENDENCIES
         include/case.hpp
@@ -51,17 +55,26 @@ set(DEPENDENCIES
 add_executable(Run main.cpp ${DEPENDENCIES})
 
 # Include directories
-target_include_directories(Run PRIVATE include external/include)
+include_directories(include external/include)
 
-# Enable multithreading with OpenMP
+# Find and link OpenMP
+find_package(OpenMP REQUIRED)
 if(OpenMP_CXX_FOUND)
     target_link_libraries(Run PRIVATE OpenMP::OpenMP_CXX)
 endif()
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    add_subdirectory(external/googletest) # Use pre-existing GoogleTest
-    include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
+# Find and link MPI (only in Release)
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    find_package(MPI REQUIRED)
+    if (MPI_CXX_FOUND)
+        target_include_directories(Run PRIVATE ${MPI_INCLUDE_PATH})
+        target_link_libraries(Run PRIVATE MPI::MPI_CXX)
+    endif()
+endif()
 
+# Testing setup for Debug mode only
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_subdirectory(external/googletest)
     enable_testing()
     add_executable(Tests tests/test_main.cpp
             ${DEPENDENCIES}
@@ -79,14 +92,10 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_include_directories(Tests PRIVATE include external/include)
     target_link_libraries(Tests PRIVATE gtest gtest_main OpenMP::OpenMP_CXX)
 
-    # Custom target to run Valgrind on the test executable
     add_custom_target(valgrind_tests
             COMMAND valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --log-file=valgrind_tests.log ./Tests
             DEPENDS Tests
-            COMMENT "Running Valgrind on test executable..."
-    )
-    
-    # Register tests
+            COMMENT "Running Valgrind on test executable...")
+
     add_test(NAME FrogsTests COMMAND Tests)
 endif()
-
