@@ -10,6 +10,7 @@
 #include "individual.hpp"
 #include <functional>  // For std::function
 #include <unordered_set>
+#include <assert.h> // TODO: remove this
 
 
 class LeaderSga {

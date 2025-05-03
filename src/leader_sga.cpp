@@ -1173,6 +1173,26 @@ bool LeaderSga::perform_inter_move_neigh(
             r2 = dist(random_engine);
         } while (r1 == r2);
 
+        // TODO: DELETE
+        // Debug check block
+        if (r1 >= num_routes || r2 >= num_routes || num_nodes_per_route[r1] < 3 || num_nodes_per_route[r2] < 3 ||
+            demand_sum_per_route[r1] == 0 || demand_sum_per_route[r2] == 0 || routes[r1] == nullptr || routes[r2] == nullptr) {
+            std::cerr << "Error: route invalid\n";
+            std::cerr << "r1 = " << r1 << " r2 = " << r2 << "\n";
+            std::cerr << *this << "\n"; // ⚠️ 有潜在格式化崩溃风险
+        }
+        assert(r1 < num_routes);
+        assert(r2 < num_routes);
+        assert(routes[r1] != nullptr);
+        assert(routes[r2] != nullptr);
+        assert(num_nodes_per_route[r1] >= 3);
+        assert(num_nodes_per_route[r2] >= 3);
+
+        if (routes[r1] == nullptr || routes[r2] == nullptr) {
+            std::cerr << "Nullptr route pointer: r1 = " << r1 << " r2 = " << r2 << std::endl;
+            std::abort();
+        }
+
         is_moved = move_func(routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2],demand_sum_per_route[r1], demand_sum_per_route[r2]);
 
         if (is_moved) {
