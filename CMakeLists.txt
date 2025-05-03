@@ -7,12 +7,6 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-# Conditionally set compilers for Release mode
-if (CMAKE_BUILD_TYPE STREQUAL "Release")
-    set(CMAKE_C_COMPILER /opt/homebrew/bin/mpicc)
-    set(CMAKE_CXX_COMPILER /opt/homebrew/bin/mpic++)
-endif()
-
 # Enable optimization flags for Release mode
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_compile_options(-O3 -march=native -funroll-loops)
