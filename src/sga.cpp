@@ -25,7 +25,7 @@ Sga::Sga(int seed_val, Case *instance, Preprocessor* preprocessor)
     followers.reserve(pop_size);
     partial_sols.reserve(pop_size);
     for (int i = 0; i < pop_size; ++i) {
-        leaders.emplace_back(std::make_unique<LeaderSga>(random_engine, instance, preprocessor));
+        leaders.emplace_back(std::make_unique<LeaderSga>(instance, preprocessor));
         followers.emplace_back(std::make_unique<Follower>(instance, preprocessor));
         partial_sols.emplace_back(std::make_unique<PartialSolution>());
     }

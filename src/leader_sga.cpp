@@ -4,10 +4,13 @@
 
 #include "leader_sga.hpp"
 
-LeaderSga::LeaderSga(std::mt19937& engine, Case *instance, Preprocessor *preprocessor)
+namespace {
+    thread_local std::mt19937 thread_rng(std::random_device{}());
+}
+
+LeaderSga::LeaderSga(Case *instance, Preprocessor *preprocessor)
         : instance(instance),
           preprocessor(preprocessor),
-          random_engine(engine),
           uniform_int_dis(0, 6) {
 
     this->partial_sol = nullptr;
@@ -52,7 +55,7 @@ void LeaderSga::local_improve(Individual *ind) {
     int loop_count = 0;
     bool improvement_found = true;
     while (improvement_found) {
-        shuffle(move_indices.begin(), move_indices.end(), random_engine);
+        shuffle(move_indices.begin(), move_indices.end(), thread_rng);
 
         bool any_move_successful = false;
         for (int i = 0; i < moves_count; ++i) {
@@ -156,7 +159,7 @@ bool LeaderSga::neighbour_explore(const double& border_val, PartialSolution* par
     partial_sol = partial_ind;
 
     bool has_moved = false;
-    switch (uniform_int_dis(random_engine)) {
+    switch (uniform_int_dis(thread_rng)) {
         case 0:
             has_moved = perform_intra_move_neigh([this](int* route, int length) {
                 return move1_intra_neigh(route, length);
@@ -244,9 +247,11 @@ void LeaderSga::clean_empty_routes(int r1, int r2) {
     auto remove_if_empty = [&](int route) {
         if (demand_sum_per_route[route] == 0 && num_routes > 0) {
             int last = num_routes - 1;
-            std::swap(routes[route], routes[last]);
-            std::swap(demand_sum_per_route[route], demand_sum_per_route[last]);
-            std::swap(num_nodes_per_route[route], num_nodes_per_route[last]);
+            if (route != last) {
+                std::swap(routes[route], routes[last]);
+                std::swap(demand_sum_per_route[route], demand_sum_per_route[last]);
+                std::swap(num_nodes_per_route[route], num_nodes_per_route[last]);
+            }
             memset(routes[last], 0, sizeof(int) * node_cap);
             num_nodes_per_route[last] = 0;
             num_routes--;
@@ -1135,7 +1140,7 @@ bool LeaderSga::is_accepted_neigh(const double &change) const {
     return upper_cost + change < border_cost; // border_cost for example, is the best upper cost so far * 1.1
 }
 
-bool LeaderSga::perform_intra_move_neigh(const std::function<bool(int *, int)> &move_func) {
+bool LeaderSga::perform_intra_move_neigh(const std::function<bool(int *, int)> &move_func) const {
     if (num_routes < 1) return false;
 
     bool is_moved = false;
@@ -1143,7 +1148,16 @@ bool LeaderSga::perform_intra_move_neigh(const std::function<bool(int *, int)> &
 
     std::uniform_int_distribution<int> dist(0, num_routes - 1);
     while (!is_moved && search_depth < max_search_depth) {
-        int random_route_idx = dist(random_engine);
+        int random_route_idx = dist(thread_rng);
+
+        if (!routes[random_route_idx] || num_nodes_per_route[random_route_idx] < 3) {
+            std::cerr << "Error: invalid route or length in intra_move" << std::endl;
+            return false;
+        }
+        if (random_route_idx >= num_routes || routes[random_route_idx] == nullptr) {
+            std::cerr << "Sanity check failed in intra_move: route_idx=" << random_route_idx << "\n";
+            return false;
+        }
 
         is_moved = move_func(routes[random_route_idx], num_nodes_per_route[random_route_idx]);
         if (is_moved) {
@@ -1159,7 +1173,8 @@ bool LeaderSga::perform_intra_move_neigh(const std::function<bool(int *, int)> &
 
 bool LeaderSga::perform_inter_move_neigh(
         const std::function<bool(int *, int *, int &, int &, int &, int &)> &move_func) {
-    if (num_routes <= 1) return false;
+//    if (num_routes <= 1) return false;
+    if (routes == nullptr || num_routes <= 1) return false;
 
     bool is_moved = false;
     int search_depth = 0;
@@ -1168,9 +1183,9 @@ bool LeaderSga::perform_inter_move_neigh(
     while (!is_moved && search_depth < max_search_depth) {
         // randomly generate two different route indices
         std::uniform_int_distribution<int> dist(0, num_routes - 1);
-        r1 = dist(random_engine);
+        r1 = dist(thread_rng);
         do {
-            r2 = dist(random_engine);
+            r2 = dist(thread_rng);
         } while (r1 == r2);
 
         // TODO: DELETE
@@ -1191,6 +1206,14 @@ bool LeaderSga::perform_inter_move_neigh(
         if (routes[r1] == nullptr || routes[r2] == nullptr) {
             std::cerr << "Nullptr route pointer: r1 = " << r1 << " r2 = " << r2 << std::endl;
             std::abort();
+        }
+
+        // 添加保护检查，确保 routes 指针有效
+        for (int i = 0; i < num_routes; ++i) {
+            if (routes[i] == nullptr) {
+                std::cerr << "[Fatal] routes[" << i << "] is nullptr in neighbour_explore(). Aborting.\n";
+                return false;
+            }
         }
 
         is_moved = move_func(routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2],demand_sum_per_route[r1], demand_sum_per_route[r2]);
@@ -1215,7 +1238,7 @@ bool LeaderSga::move1_intra_neigh(int *route, int length) {
     bool has_moved = false;
 
     std::uniform_int_distribution<int> dist(1, length - 2);
-    int i = dist(random_engine);
+    int i = dist(thread_rng);
 
     double original_cost, modified_cost, change;
     for (int j = 1; j < length - 1; j++) {
@@ -1262,7 +1285,7 @@ bool LeaderSga::move1_inter_neigh(int *route1, int *route2, int &length1, int &l
         }
     }
     if (temp_candidates.empty()) return false;
-    std::shuffle(temp_candidates.begin(), temp_candidates.end(), random_engine);  // Shuffle to pick one randomly
+    std::shuffle(temp_candidates.begin(), temp_candidates.end(), thread_rng);  // Shuffle to pick one randomly
     int i = temp_candidates.front();  // Pick the first after shuffling
 
     double original_cost, modified_cost, change;
@@ -1304,7 +1327,7 @@ bool LeaderSga::move4_intra_neigh(int *route, int length) {
     bool has_moved = false;
 
     std::uniform_int_distribution<int> distI(1, length - 3);
-    const int i = distI(random_engine);
+    const int i = distI(thread_rng);
     double original_cost, modified_cost, change;
     for (int j = i + 1; j < length - 1; ++j) {
         if (j == i + 1) {
@@ -1336,7 +1359,7 @@ bool LeaderSga::move4_inter_neigh(int *route1, int *route2, int length1, int len
     bool has_moved = false;
 
     std::uniform_int_distribution<int> distI(1, length1 - 2);
-    const int i = distI(random_engine);
+    const int i = distI(thread_rng);
     double original_cost, modified_cost, change;
     for (int j = 1; j < length2 - 1; ++j) {
         const int demand_I = instance->get_customer_demand_(route1[i]);
@@ -1370,7 +1393,7 @@ bool LeaderSga::move7_intra_neigh(int *route, int length) {
     bool has_moved = false;
 
     std::uniform_int_distribution<int> distI(1, length - 3);
-    const int i = distI(random_engine);
+    const int i = distI(thread_rng);
 
     double original_cost, modified_cost, change;
     for (int j = i + 1; j < length - 1; ++j) {
@@ -1401,7 +1424,7 @@ bool LeaderSga::move8_inter_neigh(int *route1, int *route2, int &length1, int &l
     bool has_moved = false;
 
     std::uniform_int_distribution<int> distN1(0, length1 - 2);
-    int n1 = distN1(random_engine);
+    int n1 = distN1(thread_rng);
     int partial_dem_r1 = 0; // the partial demand of route r1, i.e., the head partial route
     for (int i = 0; i <= n1; i++) {
         partial_dem_r1 += instance->get_customer_demand_(route1[i]);
@@ -1459,7 +1482,7 @@ bool LeaderSga::move9_inter_neigh(int *route1, int *route2, int &length1, int &l
     bool has_moved = false;
 
     std::uniform_int_distribution<int> distN1(0, length1 - 2);
-    int n1 = distN1(random_engine);
+    int n1 = distN1(thread_rng);
     int partial_dem_r1 = 0; // the partial demand of route r1, i.e., the head partial route
     for (int i = 0; i <= n1; i++) {
         partial_dem_r1 += instance->get_customer_demand_(route1[i]);

@@ -25,7 +25,6 @@ private:
 public:
     Case* instance;
     Preprocessor* preprocessor;
-    std::mt19937& random_engine;   // Random number generator
     uniform_int_distribution<int> uniform_int_dis;// Uniform distribution for random integers
 
     PartialSolution* partial_sol;
@@ -48,7 +47,7 @@ public:
     void run(Individual* ind);
     void load_individual(Individual* ind);
     void export_individual(Individual* ind) const;
-    LeaderSga(std::mt19937& engine, Case* instance, Preprocessor* preprocessor);
+    LeaderSga(Case* instance, Preprocessor* preprocessor);
     ~LeaderSga();
 
 
@@ -84,7 +83,7 @@ public:
     /* Neighbourhood exploration attempts all possible neighbour solutions - it jumps to any neighbouring solution whose cost is below a given threshold */
     [[nodiscard]] bool is_accepted_neigh(const double& change) const;
     // wrapper function - random single route or route pair
-    bool perform_intra_move_neigh(const std::function<bool(int*, int)>& move_func);
+    bool perform_intra_move_neigh(const std::function<bool(int*, int)>& move_func) const;
     bool perform_inter_move_neigh(const std::function<bool(int*, int*, int&, int&, int&, int&)>& move_func);
     // basic operators - neighbourhood size O(n), random node u
     bool move1_intra_neigh(int* route, int length); // if U is ahead of V, then move U to the behind of V; otherwise, move U to the ahead of V
