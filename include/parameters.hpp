@@ -27,6 +27,8 @@ struct Parameters {
     bool is_duration_constraint;// Whether to consider duration constraint
     int history_length;         // LAHC history length
     int max_search_depth;       // LAHC max_search_depth determines how many times the neighbourhood (random) will be explored
+    double low_opt_trigger_threshold; // LAHC: The threshold to trigger the lower-level optimisation
+
     int max_neigh_attempts;     // Maximum attempts for neighbourhood exploration
 
     // experimental parameters
@@ -47,6 +49,7 @@ struct Parameters {
         is_duration_constraint = false;
         history_length = 5'000;
         max_search_depth = 200;
+        low_opt_trigger_threshold = 0.3;
         max_neigh_attempts = 10'000;
         runtime_multiplier = 1;
     }

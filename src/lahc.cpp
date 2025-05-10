@@ -13,6 +13,7 @@ Lahc::Lahc(int seed_val, Case* instance, Preprocessor* preprocessor) : Heuristic
     iter = 0L;
     idle_iter = 0L;
     ratio_successful_moves = 1.0;
+    low_opt_trigger_threshold = preprocessor->params.low_opt_trigger_threshold;
     history_length = static_cast<long>(preprocessor->params.history_length);
     if (instance->dimension_ >= 100) {
         boundary_no_low_opt = 2 * history_length * instance->dimension_;
