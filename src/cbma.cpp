@@ -27,10 +27,13 @@ Cbma::Cbma(int seed_val, Case *instance, Preprocessor *preprocessor) : Heuristic
     leader = new LeaderCbma(random_engine, instance, preprocessor);
     follower = new Follower(instance, preprocessor);
 
-//    elites.reserve(pop_size);
-//    offspring.reserve(pop_size);
-//    indices = vector<int>(pop_size);
-//    std::iota(indices.begin(), indices.end(), 0);
+    promising_seqs.reserve(pop_size);
+    average_seqs.reserve(pop_size);
+    offspring.reserve(pop_size);
+
+    S1.reserve(pop_size);
+    S2.reserve(pop_size);
+    S3.reserve(pop_size);
 }
 
 Cbma::~Cbma() {
@@ -97,7 +100,7 @@ void Cbma::run_heuristic() {
     vector<double> data = get_fitness_vector_from_upper_group(population);
     before_up_opt = calculate_statistical_indicators(get_fitness_vector_from_upper_group(population));
 
-    vector<shared_ptr<Individual>> S1 = population;
+    S1 = population;
     double v1 = 0;
     double v2;
     shared_ptr<Individual> talented_ind = select_best_upper_individual(population);
@@ -143,7 +146,7 @@ void Cbma::run_heuristic() {
 
     // Current S1 has been selected and local search.
     // Pick a portion of the upper sub-solutions to go for recharging process, by the difference between before and after charging of the best solution in S1
-    vector<shared_ptr<Individual>> S2 = S1;
+    S2 = S1;
     double v3;
     shared_ptr<Individual> outstanding_upper = select_best_upper_individual(S1);
     if (gen > 0) { // Switch = off False
@@ -167,7 +170,6 @@ void Cbma::run_heuristic() {
     }
 
     // Current S2 has been selected and ready for recharging, make recharging on S2
-    vector<shared_ptr<Individual>> S3;
     S3.push_back(outstanding_upper); //  *** switch off ***
     for (auto& ind:S2) {
         double old_cost = ind->upper_cost;
@@ -194,13 +196,12 @@ void Cbma::run_heuristic() {
 
 
     // Selection
-    vector<vector<int>> promising_seqs;
-    promising_seqs.reserve(S3.size());
+    promising_seqs.clear();
     for(auto& sol : S3) {
         promising_seqs.push_back(sol->get_chromosome()); // encoding
     }
 
-    vector<vector<int>> average_seqs;
+    average_seqs.clear();
     for(auto& sol : population) {
         // judge whether sol in S3 or not
         auto it = std::find(S3.begin(), S3.end(), sol);
@@ -208,8 +209,7 @@ void Cbma::run_heuristic() {
         average_seqs.push_back(sol->get_chromosome()); // encoding
     }
 
-    vector<vector<int>> chromosomes;
-    chromosomes.reserve(pop_size);
+    offspring.clear();
     if (promising_seqs.size() == 1) {
         const vector<int>& father = promising_seqs[0];
         // 90% - elite x non-elites
@@ -217,8 +217,8 @@ void Cbma::run_heuristic() {
             vector<int> _father(father);
             vector<int> mother = select_random(average_seqs, 1)[0];
             cx_partially_matched(_father, mother);
-            chromosomes.push_back(std::move(_father));
-            chromosomes.push_back(std::move(mother));
+            offspring.push_back(std::move(_father));
+            offspring.push_back(std::move(mother));
         }
         // 9%  - elite x immigrants
         for (int i = 0; i < int(0.05 * pop_size); ++i) {
@@ -226,8 +226,8 @@ void Cbma::run_heuristic() {
             vector<int> mother(preprocessor->customer_ids_);
             shuffle(mother.begin(), mother.end(), random_engine);
             cx_partially_matched(_father, mother);
-            chromosomes.push_back(std::move(_father));
-            chromosomes.push_back(std::move(mother));
+            offspring.push_back(std::move(_father));
+            offspring.push_back(std::move(mother));
         }
 //        chromosomes.pop_back();
         // free 1 space  - best ind
@@ -238,21 +238,21 @@ void Cbma::run_heuristic() {
         for (int i = 0; i < loop_num; ++i) {
             vector<vector<int>> parents = select_random(promising_seqs, 2);
             cx_partially_matched(parents[0], parents[1]);
-            chromosomes.push_back(std::move(parents[0]));
-            chromosomes.push_back(std::move(parents[1]));
+            offspring.push_back(std::move(parents[0]));
+            offspring.push_back(std::move(parents[1]));
         }
         // portion of elites x non-elites
-        int num_promising_x_average = pop_size - static_cast<int>(chromosomes.size());
+        int num_promising_x_average = pop_size - static_cast<int>(offspring.size());
         for (int i = 0; i < int(num_promising_x_average / 2.0); ++i) {
             vector<int> parent1 = select_random(promising_seqs, 1)[0];
             vector<int> parent2 = select_random(average_seqs, 1)[0];
             cx_partially_matched(parent1, parent2);
-            chromosomes.push_back(std::move(parent1));
-            chromosomes.push_back(std::move(parent2));
+            offspring.push_back(std::move(parent1));
+            offspring.push_back(std::move(parent2));
         }
     }
 
-    for (auto& chromosome: chromosomes) {
+    for (auto& chromosome: offspring) {
         if (uniform_real_dist(random_engine) < mutation_prob) {
             mut_shuffle_indexes(chromosome, mut_ind_prob);
         }
@@ -269,7 +269,7 @@ void Cbma::run_heuristic() {
     for (int i = 1; i < pop_size; ++i) {
         population[i]->clean();
 
-        vector<vector<int>> dumb_routes = initializer->prins_split(chromosomes[i]);
+        vector<vector<int>> dumb_routes = initializer->prins_split(offspring[i]);
         for (auto& route : dumb_routes) {
             route.insert(route.begin(), instance->depot_);
             route.push_back(instance->depot_);

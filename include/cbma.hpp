@@ -16,10 +16,12 @@
 using namespace std;
 
 class Cbma final : public HeuristicInterface, public StatsInterface {
-//private:
-//    std::vector<std::vector<int>> elites;
-//    std::vector<std::vector<int>> offspring;
-//    vector<int> indices;
+private:
+    vector<vector<int>> promising_seqs;
+    vector<vector<int>> average_seqs;
+    std::vector<std::vector<int>> offspring;
+    vector<shared_ptr<Individual>> S1, S2, S3;
+
 
 public:
     static const std::string ALGORITHM;
