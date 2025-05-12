@@ -36,6 +36,9 @@ public:
     int moves_count;
     vector<int> move_indices;
     unordered_set<pair<int, int>, PairHash> route_pairs;
+    int k_active_moves;
+    uniform_int_distribution<int> k_active_moves_dist;
+    vector<int> active_moves;
 
     void run(Individual* ind);
     void run_plus(Individual* ind);
