@@ -13,6 +13,8 @@ LeaderCbma::LeaderCbma(std::mt19937& engine, Case *instance, Preprocessor *prepr
     this->route_cap = preprocessor->route_cap_;
     this->node_cap  = preprocessor->node_cap_;
     this->moves_count = 15;
+    this->move_indices.resize(moves_count);
+    std::iota(move_indices.begin(), move_indices.end(), 0);
     this->num_routes = 0;
     this->upper_cost = 0.;
     this->routes = new int *[route_cap];
@@ -24,6 +26,8 @@ LeaderCbma::LeaderCbma(std::mt19937& engine, Case *instance, Preprocessor *prepr
     memset(this->num_nodes_per_route, 0, sizeof(int) * route_cap);
     this->demand_sum_per_route = new int [route_cap];
     memset(this->demand_sum_per_route, 0, sizeof(int) * route_cap);
+
+    prepare_temp_buffers(node_cap);
 }
 
 LeaderCbma::~LeaderCbma() {
@@ -33,6 +37,20 @@ LeaderCbma::~LeaderCbma() {
     delete[] routes;
     delete[] num_nodes_per_route;
     delete[] demand_sum_per_route;
+
+    delete[] temp_r1;
+    delete[] temp_r2;
+}
+
+void LeaderCbma::prepare_temp_buffers(int required_size) const {
+    if (temp_buffer_size >= required_size) return;
+
+    delete[] temp_r1;
+    delete[] temp_r2;
+
+    temp_r1 = new int[required_size];
+    temp_r2 = new int[required_size];
+    temp_buffer_size = required_size;
 }
 
 void LeaderCbma::run(Individual *ind) {
@@ -47,9 +65,6 @@ void LeaderCbma::run(Individual *ind) {
 
 void LeaderCbma::run_plus(Individual *ind) {
     load_individual(ind);
-
-    vector<int> move_indices(moves_count);
-    iota(move_indices.begin(), move_indices.end(), 0);
 
     int loop_count = 0;
     bool improvement_found = true;
@@ -157,7 +172,7 @@ void LeaderCbma::run_plus(Individual *ind) {
 void LeaderCbma::load_individual(Individual *ind) {
     clean();
 
-    this->upper_cost = ind->upper_cost;;
+    this->upper_cost = ind->upper_cost;
     this->num_routes = ind->num_routes;
     memcpy(this->num_nodes_per_route, ind->num_nodes_per_route, sizeof(int) * ind->route_cap);
     memcpy(this->demand_sum_per_route, ind->demand_sum_per_route, sizeof(int) * ind->route_cap);
@@ -268,7 +283,7 @@ void LeaderCbma::two_opt_for_sol() {
 }
 
 bool LeaderCbma::two_opt_star_for_routes(int *route1, int *route2, int &length1, int &length2, int &loading1,
-                                          int &loading2, int* temp_r1, int* temp_r2) {
+                                          int &loading2) {
     if (length1 < 3 || length2 < 3) return false;
     bool improved = true;
 
@@ -364,8 +379,6 @@ bool LeaderCbma::two_opt_star_for_routes(int *route1, int *route2, int &length1,
 void LeaderCbma::two_opt_star_for_sol() {
     if (num_routes == 1) return;
 
-    int* temp_r1 = new int[node_cap];
-    int* temp_r2 = new int[node_cap];
     memset(temp_r1, 0, sizeof(int) * node_cap);
     memset(temp_r2, 0, sizeof(int) * node_cap);
 
@@ -381,7 +394,7 @@ void LeaderCbma::two_opt_star_for_sol() {
         }
     };
 
-    unordered_set<pair<int, int>, PairHash> route_pairs;
+    route_pairs.clear();
     for (int i = 0; i < num_routes - 1; i++) {
         for (int j = i + 1; j < num_routes; j++) {
             route_pairs.insert(make_pair(i, j));
@@ -393,7 +406,9 @@ void LeaderCbma::two_opt_star_for_sol() {
         auto [r1, r2] = *route_pairs.begin();
         route_pairs.erase(route_pairs.begin());
 
-        has_moved = two_opt_star_for_routes(routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2], demand_sum_per_route[r1], demand_sum_per_route[r2], temp_r1, temp_r2);
+        has_moved = two_opt_star_for_routes(routes[r1], routes[r2], num_nodes_per_route[r1],
+                                            num_nodes_per_route[r2], demand_sum_per_route[r1],
+                                            demand_sum_per_route[r2]);
 
         if (has_moved) {
             for (int i = 0; i < r1; i++) {
@@ -416,9 +431,6 @@ void LeaderCbma::two_opt_star_for_sol() {
             std::fill(demand_sum_per_route + num_routes, demand_sum_per_route + route_cap, 0);
         }
     }
-
-    delete[] temp_r1;
-    delete[] temp_r2;
 }
 
 bool LeaderCbma::node_relocation_for_route(int *route, int length) {
@@ -515,7 +527,7 @@ bool LeaderCbma::perform_inter_move_impro(const std::function<bool(int *, int *,
         }
     };
 
-    unordered_set<pair<int, int>, PairHash> route_pairs;
+    route_pairs.clear();
     for (int i = 0; i < num_routes - 1; i++) {
         for (int j = i + 1; j < num_routes; j++) {
             route_pairs.insert(make_pair(i, j));
@@ -1169,8 +1181,6 @@ bool LeaderCbma::move7_intra_impro(int *route, int length) {
 bool LeaderCbma::move8_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
     if (length1 < 3 || length2 < 3) return false;
 
-    int* temp_r1 = new int[node_cap];
-    int* temp_r2 = new int[node_cap];
     memset(temp_r1, 0, sizeof(int) * node_cap);
     memset(temp_r2, 0, sizeof(int) * node_cap);
 
@@ -1225,16 +1235,12 @@ bool LeaderCbma::move8_inter_impro(int* route1, int* route2, int& length1, int& 
 
     end_loops:;
 
-    delete[] temp_r1;
-    delete[] temp_r2;
-
     return has_moved;
 }
 
 bool LeaderCbma::move9_inter_impro(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2) {
     if (length1 < 3 || length2 < 3) return false;
 
-    int* temp_r1 = new int[node_cap];
     memset(temp_r1, 0, sizeof(int) * node_cap);
 
     bool has_moved = false;
@@ -1282,8 +1288,6 @@ bool LeaderCbma::move9_inter_impro(int *route1, int *route2, int &length1, int &
     }
 
     end_loops:;
-
-    delete[] temp_r1;
 
     return has_moved;
 }

@@ -15,7 +15,7 @@ Cbma::Cbma(int seed_val, Case *instance, Preprocessor *preprocessor) : Heuristic
     immigrants_ratio = 0.05;
     crossover_prob = 1.0;
     mutation_prob = 0.5;
-    mutation_ind_prob = 0.2;
+    mut_ind_prob = 0.2;
 
     gen = 0;
     gammaL = 1.2;
@@ -26,6 +26,11 @@ Cbma::Cbma(int seed_val, Case *instance, Preprocessor *preprocessor) : Heuristic
     initializer = new Initializer(random_engine, instance, preprocessor);
     leader = new LeaderCbma(random_engine, instance, preprocessor);
     follower = new Follower(instance, preprocessor);
+
+//    elites.reserve(pop_size);
+//    offspring.reserve(pop_size);
+//    indices = vector<int>(pop_size);
+//    std::iota(indices.begin(), indices.end(), 0);
 }
 
 Cbma::~Cbma() {
@@ -64,6 +69,7 @@ void Cbma::run() {
     }
 
     if (enable_logging) {
+        flush_row_into_evol_log();
         close_log_for_evolution();  // Close log if logging is enabled
         save_log_for_solution();    // Save the log if logging is enabled
     }
@@ -74,12 +80,13 @@ void Cbma::initialize_heuristic() {
     population.reserve(pop_size);
     for (int i = 0; i < pop_size; ++i) {
         vector<vector<int>> routes = initializer->routes_constructor_with_hien_method();
-        auto ind = make_shared<Individual>(instance, preprocessor, routes,
-                                         instance->compute_total_distance(routes),
-                                         instance->compute_demand_sum_per_route(routes));
-        population.push_back(ind);
-        routes.clear();
-        routes.shrink_to_fit();
+
+        auto cost = instance->compute_total_distance(routes);
+        auto demand = instance->compute_demand_sum_per_route(routes);
+
+        auto ind = std::make_shared<Individual>(instance, preprocessor, routes, cost,
+                                                demand);
+        population.push_back(std::move(ind));
     }
 
     global_best = make_unique<Individual>(*population[0]);
@@ -88,7 +95,7 @@ void Cbma::initialize_heuristic() {
 
 void Cbma::run_heuristic() {
     vector<double> data = get_fitness_vector_from_upper_group(population);
-    S_stats = calculate_statistical_indicators(get_fitness_vector_from_upper_group(population));
+    before_up_opt = calculate_statistical_indicators(get_fitness_vector_from_upper_group(population));
 
     vector<shared_ptr<Individual>> S1 = population;
     double v1 = 0;
@@ -132,7 +139,7 @@ void Cbma::run_heuristic() {
     if (P.size() > delta)  P.pop_front();
     if (gen > delta) S1.push_back(talented_ind); //  *** switch off ***
 
-    S1_stats = calculate_statistical_indicators(get_fitness_vector_from_upper_group(S1));
+    after_up_opt = calculate_statistical_indicators(get_fitness_vector_from_upper_group(S1));
 
     // Current S1 has been selected and local search.
     // Pick a portion of the upper sub-solutions to go for recharging process, by the difference between before and after charging of the best solution in S1
@@ -174,7 +181,7 @@ void Cbma::run_heuristic() {
         r = v3;
     }
 
-    S3_stats = calculate_statistical_indicators(get_fitness_vector_from_lower_group(S3));
+    after_low_opt = calculate_statistical_indicators(get_fitness_vector_from_lower_group(S3));
 
     // statistics
     iter_best = make_unique<Individual>(*select_best_lower_individual(S3));
@@ -202,6 +209,7 @@ void Cbma::run_heuristic() {
     }
 
     vector<vector<int>> chromosomes;
+    chromosomes.reserve(pop_size);
     if (promising_seqs.size() == 1) {
         const vector<int>& father = promising_seqs[0];
         // 90% - elite x non-elites
@@ -246,7 +254,7 @@ void Cbma::run_heuristic() {
 
     for (auto& chromosome: chromosomes) {
         if (uniform_real_dist(random_engine) < mutation_prob) {
-            mut_shuffle_indexes(chromosome, mutation_ind_prob);
+            mut_shuffle_indexes(chromosome, mut_ind_prob);
         }
     }
 
@@ -254,25 +262,22 @@ void Cbma::run_heuristic() {
     S3.clear();
     S2.clear();
     S1.clear();
-    population.clear();
-    population.shrink_to_fit();
 
 
     // update population
-    population.reserve(pop_size);
-    population.push_back(make_shared<Individual>(*iter_best));
-    for (int i = 0; i < pop_size - 1; ++i) {
-        vector<vector<int>> dumb_routes = initializer->prins_split(chromosomes[i]);
+    population[0] = make_shared<Individual>(*iter_best);
+    for (int i = 1; i < pop_size; ++i) {
+        population[i]->clean();
 
+        vector<vector<int>> dumb_routes = initializer->prins_split(chromosomes[i]);
         for (auto& route : dumb_routes) {
             route.insert(route.begin(), instance->depot_);
             route.push_back(instance->depot_);
         }
 
-        population.push_back(make_shared<Individual>(instance, preprocessor,dumb_routes,
-                                                   instance->compute_total_distance(dumb_routes),
-                                                   instance->compute_demand_sum_per_route(dumb_routes))
-        );
+        population[i]->load_routes(dumb_routes,
+                                   instance->compute_total_distance(dumb_routes),
+                                   instance->compute_demand_sum_per_route(dumb_routes));
     }
 
     gen++;
@@ -285,9 +290,7 @@ void Cbma::open_log_for_evolution() {
     const string file_name = "evols." + instance->instance_name_ + ".csv";
     log_evolution.open(directory + "/" + file_name);
     log_evolution << "gen,g_best,"
-                     "S_min,S_avg,S_max,S_std,"
-                     "up_size,S1_min,S1_avg,S1_max,S1_std,"
-                     "low_size,"
+                     "af_up_min,avg,max,std,"
                      "evals\n";
 }
 
@@ -299,10 +302,8 @@ void Cbma::close_log_for_evolution() {
 
 void Cbma::flush_row_into_evol_log() {
     oss_row_evol << std::fixed << std::setprecision(3) << gen << "," << global_best->lower_cost <<","
-                 << S_stats.min << "," << S_stats.avg << "," << S_stats.max << "," << S_stats.std << ","
-                 << S1_stats.size << "," << S1_stats.min << "," << S1_stats.avg << "," << S1_stats.max << "," << S1_stats.std << ","
-                 << S3_stats.size << ","
-                 << instance->get_evals() << "\n";
+    << after_up_opt.min << "," << after_up_opt.avg << "," << after_up_opt.max << "," << after_up_opt.std << ","
+    << instance->get_evals() << "\n";
 }
 
 void Cbma::save_log_for_solution() {
