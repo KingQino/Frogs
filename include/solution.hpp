@@ -37,6 +37,8 @@ public:
     ~Solution();
 
     [[nodiscard]] vector<int> get_chromosome() const;
+
+    friend ostream& operator<<(ostream& os, const Solution& solution);
 };
 
 #endif //FROGS_SOLUTION_HPP

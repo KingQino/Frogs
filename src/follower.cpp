@@ -11,6 +11,8 @@ Follower::Follower(Case* instance, Preprocessor* preprocessor) {
     route_cap = preprocessor->route_cap_;
     node_cap = preprocessor->node_cap_;
 
+    prepare_temp_buffers(node_cap);
+
     this->num_routes = 0;
     this->lower_routes = new int *[route_cap];
     for (int i = 0; i < route_cap; ++i) {
@@ -31,6 +33,11 @@ Follower::~Follower() {
     delete[] this->lower_routes;
     delete[] this->lower_num_nodes_per_route;
     delete[] this->lower_cost_per_route;
+
+    delete[] temp_route;
+    delete[] temp_chosen_pos;
+    delete[] temp_best_chosen_pos;
+    delete[] temp_accumulated_distance;
 }
 
 void Follower::clean() {
@@ -198,191 +205,158 @@ void Follower::export_individual(Individual* ind) const {
     ind->lower_cost = this->lower_cost;
 }
 
+void Follower::prepare_temp_buffers(int required_size) const {
+    if (buffer_size >= required_size) return;
+
+    // delete old memory
+    delete[] temp_route;
+    delete[] temp_chosen_pos;
+    delete[] temp_best_chosen_pos;
+    delete[] temp_accumulated_distance;
+
+    // allocate new memory
+    buffer_size = required_size;
+    temp_route = new int[buffer_size];
+    temp_chosen_pos = new int[buffer_size];
+    temp_best_chosen_pos = new int[buffer_size];
+    temp_accumulated_distance = new double[buffer_size];
+
+    temp_station_inserted.reserve(buffer_size);
+}
+
 double Follower::insert_station_by_simple_enum(int* repaired_route, int& repaired_length) const {
     const int length = repaired_length;
-    int* route = new int[length];
-    memcpy(route, repaired_route, sizeof(int) * length);
 
-    vector<double> accumulated_distance(length, 0);
-    for (int i = 1; i < length; i++) {
-        accumulated_distance[i] = accumulated_distance[i - 1] + instance->get_distance(route[i], route[i - 1]);
-    }
-    if (accumulated_distance.back() <= preprocessor->max_cruise_distance_) {
-        delete[] route;
-        return accumulated_distance.back();
+    memcpy(temp_route, repaired_route, sizeof(int) * length);
+
+    temp_accumulated_distance[0] = 0;
+    for (int i = 1; i < length; ++i) {
+        temp_accumulated_distance[i] = temp_accumulated_distance[i - 1] +
+                                       instance->get_distance(temp_route[i], temp_route[i - 1]);
     }
 
-    int upper_bound = static_cast<int>((accumulated_distance.back() / preprocessor->max_cruise_distance_ + 1));
-    int lower_bound = static_cast<int>((accumulated_distance.back() / preprocessor->max_cruise_distance_));
-    int* chosen_pos = new int[length];
-    int* best_chosen_pos = new int[length]; // customized variable
+    if (temp_accumulated_distance[length - 1] <= preprocessor->max_cruise_distance_) {
+        repaired_length = length;
+        return temp_accumulated_distance[length - 1];
+    }
+
+    int upper_bound = static_cast<int>((temp_accumulated_distance[length - 1] / preprocessor->max_cruise_distance_ + 1));
+    int lower_bound = static_cast<int>((temp_accumulated_distance[length - 1] / preprocessor->max_cruise_distance_));
     double final_cost = numeric_limits<double>::max();
-    double best_cost = final_cost; // customized variable
-    for (int i = lower_bound; i <= upper_bound; i++) {
-        recursive_charging_placement(0, i, chosen_pos, best_chosen_pos, final_cost, i, route, length, accumulated_distance);
+    for (int i = lower_bound; i <= upper_bound; ++i) {
+        recursive_charging_placement(0, i, temp_chosen_pos, temp_best_chosen_pos,
+                                     final_cost, i, temp_route, length,
+                                     temp_accumulated_distance);
 
-        if (final_cost < best_cost) {
-            memset(repaired_route, 0, sizeof(int) * repaired_length);
-            int currentIndex = 0;
+        if (final_cost != numeric_limits<double>::max()) {
+            int current_index = 0;
             int idx = 0;
             for (int j = 0; j < i; ++j) {
-                int from = route[best_chosen_pos[j]];
-                int to = route[best_chosen_pos[j] + 1];
+                int from = temp_route[temp_best_chosen_pos[j]];
+                int to = temp_route[temp_best_chosen_pos[j] + 1];
                 int station = preprocessor->best_station_[from][to];
 
-                int numElementsToCopy = best_chosen_pos[j] + 1 - idx;
-                memcpy(&repaired_route[currentIndex], &route[idx], numElementsToCopy * sizeof(int));
+                int num_elements_to_copy = temp_best_chosen_pos[j] + 1 - idx;
+                memcpy(&repaired_route[current_index], &temp_route[idx], num_elements_to_copy * sizeof(int));
 
-                currentIndex += numElementsToCopy;
-
-                repaired_route[currentIndex++] = station;
-                idx = best_chosen_pos[j] + 1;
+                current_index += num_elements_to_copy;
+                repaired_route[current_index++] = station;
+                idx = temp_best_chosen_pos[j] + 1;
             }
 
-            int remainingElementsToCopy = length - idx;
-            memcpy(&repaired_route[currentIndex], &route[idx], remainingElementsToCopy * sizeof(int));
-            repaired_length = currentIndex + remainingElementsToCopy;
+            int remaining_elements_to_copy = length - idx;
+            memcpy(&repaired_route[current_index], &temp_route[idx], remaining_elements_to_copy * sizeof(int));
+            repaired_length = current_index + remaining_elements_to_copy;
 
-            best_cost = final_cost;
+            break;
         }
     }
-    delete[] chosen_pos;
-    delete[] best_chosen_pos;
-    delete[] route;
-    return (final_cost != std::numeric_limits<double>::max()) ? final_cost : -1;
+
+    return (final_cost != numeric_limits<double>::max()) ? final_cost : -1;
 }
 
 double Follower::insert_station_by_remove_enum(int* repaired_route, int& repaired_length) const {
     const int length = repaired_length;
-    int* route = new int [length];
-    memcpy(route, repaired_route, sizeof(int) * length);
+    memcpy(temp_route, repaired_route, sizeof(int) * length);
 
-    list<pair<int, int>> stationInserted;
-    for (int i = 0; i < length - 1; i++) {
-        double allowedDis = preprocessor->max_cruise_distance_;
-        if (i != 0) {
-            allowedDis = preprocessor->max_cruise_distance_ - instance->get_distance(stationInserted.back().second, route[i]);
+    temp_station_inserted.clear();
+
+    // Step 1: Initial greedy insertion
+    for (int i = 0; i < length - 1; ++i) {
+        double allowed_dis = preprocessor->max_cruise_distance_;
+        if (!temp_station_inserted.empty()) {
+            allowed_dis -= instance->get_distance(temp_station_inserted.back().station_id, temp_route[i]);
         }
-        int onestation = preprocessor->get_best_and_feasible_station(route[i], route[i + 1], allowedDis);
-        if (onestation == -1) {
-            delete[] route;
-            return -1;
-        }
-        stationInserted.emplace_back(i, onestation);
+
+        int station = preprocessor->get_best_and_feasible_station(temp_route[i], temp_route[i + 1], allowed_dis);
+        if (station == -1) return -1;
+        temp_station_inserted.push_back({i, station});
     }
-    while (!stationInserted.empty())
-    {
-        bool change = false;
-        auto delone = stationInserted.begin();
-        double savedis = 0;
-        auto itr = stationInserted.begin();
-        auto next = itr;
-        next++;
-        if (next != stationInserted.end()) {
-            int endInd = next->first;
-            int endstation = next->second;
-            double sumdis = 0;
-            for (int i = 0; i < endInd; i++) {
-                sumdis += instance->get_distance(route[i], route[i + 1]);
+
+    // Step 2: Remove redundant stations
+    while (true) {
+        int best_idx = -1;
+        double max_saved = 0.0;
+
+        for (int k = 0; k < temp_station_inserted.size(); ++k) {
+            int from_node = (k == 0) ? temp_route[0] : temp_station_inserted[k - 1].station_id;
+            int to_node   = (k + 1 < temp_station_inserted.size()) ? temp_station_inserted[k + 1].station_id : temp_route[length - 1];
+            int begin_idx = (k == 0) ? 0 : temp_station_inserted[k - 1].pos + 1;
+            int end_idx   = (k + 1 < temp_station_inserted.size()) ? temp_station_inserted[k + 1].pos : length - 1;
+
+            double segment_dis = instance->get_distance(from_node, temp_route[begin_idx]);
+            for (int i = begin_idx; i < end_idx; ++i) {
+                segment_dis += instance->get_distance(temp_route[i], temp_route[i + 1]);
             }
-            sumdis += instance->get_distance(route[endInd], endstation);
-            if (sumdis <= preprocessor->max_cruise_distance_) {
-                savedis = instance->get_distance(route[itr->first], itr->second)
-                          + instance->get_distance(itr->second, route[itr->first + 1])
-                          - instance->get_distance(route[itr->first], route[itr->first + 1]);
-            }
-        }
-        else {
-            double sumdis = 0;
-            for (int i = 0; i < length - 1; i++) {
-                sumdis += instance->get_distance(route[i], route[i + 1]);
-            }
-            if (sumdis <= preprocessor->max_cruise_distance_) {
-                savedis = instance->get_distance(route[itr->first], itr->second)
-                          + instance->get_distance(itr->second, route[itr->first + 1])
-                          - instance->get_distance(route[itr->first], route[itr->first + 1]);
-            }
-        }
-        itr++;
-        while (itr != stationInserted.end())
-        {
-            int startInd, endInd;
-            next = itr;
-            next++;
-            auto prev = itr;
-            prev--;
-            double sumdis = 0;
-            if (next != stationInserted.end()) {
-                startInd = prev->first + 1;
-                endInd = next->first;
-                sumdis += instance->get_distance(prev->second, route[startInd]);
-                for (int i = startInd; i < endInd; i++) {
-                    sumdis += instance->get_distance(route[i], route[i + 1]);
-                }
-                sumdis += instance->get_distance(route[endInd], next->second);
-                if (sumdis <= preprocessor->max_cruise_distance_) {
-                    double savedistemp = instance->get_distance(route[itr->first], itr->second)
-                                         + instance->get_distance(itr->second, route[itr->first + 1])
-                                         - instance->get_distance(route[itr->first], route[itr->first + 1]);
-                    if (savedistemp > savedis) {
-                        savedis = savedistemp;
-                        delone = itr;
-                    }
+            segment_dis += instance->get_distance(temp_route[end_idx], to_node);
+
+            if (segment_dis <= preprocessor->max_cruise_distance_) {
+                int pos = temp_station_inserted[k].pos;
+                int station = temp_station_inserted[k].station_id;
+                double with_station = instance->get_distance(temp_route[pos], station) + instance->get_distance(station, temp_route[pos + 1]);
+                double direct = instance->get_distance(temp_route[pos], temp_route[pos + 1]);
+
+                double saved = with_station - direct;
+                if (saved > max_saved) {
+                    max_saved = saved;
+                    best_idx = k;
                 }
             }
-            else {
-                startInd = prev->first + 1;
-                sumdis += instance->get_distance(prev->second, route[startInd]);
-                for (int i = startInd; i < length - 1; i++) {
-                    sumdis += instance->get_distance(route[i], route[i + 1]);
-                }
-                if (sumdis <= preprocessor->max_cruise_distance_) {
-                    double savedistemp = instance->get_distance(route[itr->first], itr->second)
-                                         + instance->get_distance(itr->second, route[itr->first + 1])
-                                         - instance->get_distance(route[itr->first], route[itr->first + 1]);
-                    if (savedistemp > savedis) {
-                        savedis = savedistemp;
-                        delone = itr;
-                    }
-                }
-            }
-            itr++;
         }
-        if (savedis != 0) {
-            stationInserted.erase(delone);
-            change = true;
-        }
-        if (!change) {
-            break;
-        }
+
+        if (best_idx == -1) break;
+        temp_station_inserted.erase(temp_station_inserted.begin() + best_idx);
     }
-    double sum = 0;
-    for (int i = 0; i < length - 1; i++) {
-        sum += instance->get_distance(route[i], route[i + 1]);
+
+    // Step 3: Reconstruct repaired route
+    int current_idx = 0;
+    int last_pos = 0;
+    double total_cost = 0.0;
+
+    for (const auto& ins : temp_station_inserted) {
+        int pos = ins.pos;
+        int station = ins.station_id;
+
+        int len = pos + 1 - last_pos;
+        memcpy(repaired_route + current_idx, temp_route + last_pos, len * sizeof(int));
+        current_idx += len;
+        repaired_route[current_idx++] = station;
+        last_pos = pos + 1;
+
+        total_cost -= instance->get_distance(temp_route[pos], temp_route[pos + 1]);
+        total_cost += instance->get_distance(temp_route[pos], station) + instance->get_distance(station, temp_route[pos + 1]);
     }
-    int currentIndex = 0;
-    int idx = 0;
-    for (auto& e : stationInserted) {
-        int pos = e.first;
-        int stat = e.second;
-        sum -= instance->get_distance(route[pos], route[pos + 1]);
-        sum += instance->get_distance(route[pos], stat);
-        sum += instance->get_distance(stat, route[pos + 1]);
 
-        int numElementsToCopy = pos + 1 - idx;
-        memcpy(&repaired_route[currentIndex], &route[idx], numElementsToCopy * sizeof(int));
-        currentIndex += numElementsToCopy;
+    int remain_len = length - last_pos;
+    memcpy(repaired_route + current_idx, temp_route + last_pos, remain_len * sizeof(int));
+    repaired_length = current_idx + remain_len;
 
-        repaired_route[currentIndex++] = stat;
-
-        idx = pos + 1;
+    // Add base route cost (only once)
+    for (int i = 0; i < length - 1; ++i) {
+        total_cost += instance->get_distance(temp_route[i], temp_route[i + 1]);
     }
-    int remainingElementsToCopy = length - idx;
-    memcpy(&repaired_route[currentIndex], &route[idx], remainingElementsToCopy * sizeof(int));
-    repaired_length = currentIndex + remainingElementsToCopy;
 
-    delete[] route;
-    return sum;
+    return total_cost;
 }
 
 //void Follower::recursive_charging_placement(int m_len, int n_len, int* chosen_pos, int* best_chosen_pos, double& final_cost, int cur_upper_bound, int* route, int length, vector<double>& accumulated_distance) {
@@ -436,8 +410,9 @@ double Follower::insert_station_by_remove_enum(int* repaired_route, int& repaire
  * This stack-based implementation consumes more memory than the recursive one in my experiments.
  * This probably due to the fact that the recursive one will be automatically optimised by the compiler, C++, machine.
  */
-void Follower::recursive_charging_placement(int m_len, int n_len, int* chosen_pos, int* best_chosen_pos, double& final_cost,
-                                            int cur_upper_bound, int* route, int length, vector<double>& accumulated_distance) const {
+void Follower::recursive_charging_placement(int m_len, int n_len, int* chosen_pos, int* best_chosen_pos,
+                                            double& final_cost, int cur_upper_bound, int* route, int length,
+                                            const double* accumulated_distance) const {
     struct State {
         int m_len;
         int n_len;
@@ -451,15 +426,15 @@ void Follower::recursive_charging_placement(int m_len, int n_len, int* chosen_po
         auto& s = stk.top();
 
         if (s.n_len == 0) {
-            stk.pop();
-            double dis_sum = accumulated_distance.back();
-            for (int j = 0; j < cur_upper_bound; j++) {
+            double dis_sum = accumulated_distance[length - 1];
+            for (int j = 0; j < cur_upper_bound; ++j) {
                 int first_node = route[chosen_pos[j]];
                 int second_node = route[chosen_pos[j] + 1];
-                int the_station = preprocessor->best_station_[first_node][second_node];
+                int station = preprocessor->best_station_[first_node][second_node];
+
                 dis_sum -= instance->get_distance(first_node, second_node);
-                dis_sum += instance->get_distance(first_node, the_station);
-                dis_sum += instance->get_distance(the_station, second_node);
+                dis_sum += instance->get_distance(first_node, station);
+                dis_sum += instance->get_distance(station, second_node);
             }
             if (dis_sum < final_cost) {
                 final_cost = dis_sum;
@@ -467,39 +442,50 @@ void Follower::recursive_charging_placement(int m_len, int n_len, int* chosen_po
                     best_chosen_pos[j] = chosen_pos[j];
                 }
             }
+            stk.pop(); // pop at the end
             continue;
         }
 
+        bool should_pop = false; // mark if we should pop
+
         if (s.i <= length - 1 - s.n_len) {
+            int first_node = route[s.i];
+            int second_node = route[s.i + 1];
+            int station = preprocessor->best_station_[first_node][second_node];
+
             if (cur_upper_bound == s.n_len) {
-                double one_dis = instance->get_distance(route[s.i], preprocessor->best_station_[route[s.i]][route[s.i + 1]]);
+                double one_dis = instance->get_distance(first_node, station);
                 if (accumulated_distance[s.i] + one_dis > preprocessor->max_cruise_distance_) {
-                    stk.pop();
-                    continue;
+                    should_pop = true;
                 }
             } else {
                 int last_pos = chosen_pos[cur_upper_bound - s.n_len - 1];
                 double one_dis = instance->get_distance(route[last_pos + 1], preprocessor->best_station_[route[last_pos]][route[last_pos + 1]]);
-                double two_dis = instance->get_distance(route[s.i], preprocessor->best_station_[route[s.i]][route[s.i + 1]]);
-                if (accumulated_distance[s.i] - accumulated_distance[last_pos + 1] + one_dis + two_dis > preprocessor->max_cruise_distance_) {
-                    stk.pop();
-                    continue;
+                double two_dis = instance->get_distance(first_node, station);
+                double dist = accumulated_distance[s.i] - accumulated_distance[last_pos + 1];
+                if (dist + one_dis + two_dis > preprocessor->max_cruise_distance_) {
+                    should_pop = true;
                 }
             }
-            if (s.n_len == 1) {
-                double one_dis = accumulated_distance.back() - accumulated_distance[s.i + 1] + instance->get_distance(preprocessor->best_station_[route[s.i]][route[s.i + 1]], route[s.i + 1]);
+
+            if (!should_pop && s.n_len == 1) {
+                double one_dis = accumulated_distance[length - 1] - accumulated_distance[s.i + 1]
+                                 + instance->get_distance(station, route[s.i + 1]);
                 if (one_dis > preprocessor->max_cruise_distance_) {
                     s.i++;
                     continue;
                 }
             }
 
-            chosen_pos[cur_upper_bound - s.n_len] = s.i;
-            stk.push({s.i + 1, s.n_len - 1, s.i + 1});
-            s.i++;
-        } else {
-            stk.pop();
+            if (!should_pop) {
+                chosen_pos[cur_upper_bound - s.n_len] = s.i;
+                stk.push({s.i + 1, s.n_len - 1, s.i + 1});
+                s.i++;
+                continue;
+            }
         }
+
+        stk.pop(); // only pop here
     }
 }
 
@@ -555,6 +541,11 @@ ChargingMeta Follower::try_enumerate_n_stations_to_route(int m_len, int n_len, i
                                                          double &cost, int cur_upper_bound, int *route, int length,
                                                          vector<double> &accumulated_distance) const {
     ChargingMeta meta;
+
+    // This structure is used in the "enumerate stations"
+    struct State {
+        int m_len{}, n_len{}, i{}, stationIdx{}; // Current state variables
+    };
 
     stack<State> stk;
 

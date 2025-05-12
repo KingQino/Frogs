@@ -52,6 +52,7 @@ public:
     int num_customer_{};
     int num_station_{};
     int num_vehicle_{};
+    int dimension_{};
     int problem_size_{};                    // Total number of customers, charging stations and depot
     int max_vehicle_capa_{};                // maximum capacity of the vehicle
     double max_service_time_{};             // maximum service time of the driver

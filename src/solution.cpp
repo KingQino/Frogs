@@ -83,3 +83,35 @@ vector<int> Solution::get_chromosome() const {
     }
     return chromosome;
 }
+
+std::ostream& operator<<(std::ostream& os, const Solution& sol) {
+    os << "Individual Details:\n";
+    os << "Route Capacity: " << sol.route_cap << "\n";
+    os << "Node Capacity: " << sol.node_cap << "\n";
+    os << "Number of Routes: " << sol.num_routes << "\n";
+    os << "Upper Cost: " << sol.upper_cost << "\n";
+    os << "Lower Cost: " << sol.lower_cost << "\n";
+
+    os << "Number of Nodes per route (upper): ";
+    for (int i = 0; i < sol.route_cap; ++i) {
+        os << sol.num_nodes_per_route[i] << " ";
+    }
+    os << "\n";
+
+    os << "Demand sum per route: ";
+    for (int i = 0; i < sol.route_cap; ++i) {
+        os << sol.demand_sum_per_route[i] << " ";
+    }
+    os << "\n";
+
+    os << "Upper Routes: \n";
+    for (int i = 0; i < sol.num_routes; ++i) {
+        os << "Route " << i << ": ";
+        for (int j = 0; j < sol.num_nodes_per_route[i]; ++j) {
+            os << sol.routes[i][j] << " ";
+        }
+        os << "\n";
+    }
+
+    return os;
+}

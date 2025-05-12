@@ -27,6 +27,11 @@ LeaderSga::LeaderSga(std::mt19937& engine, Case *instance, Preprocessor *preproc
     memset(this->num_nodes_per_route, 0, sizeof(int) * route_cap);
     this->demand_sum_per_route = new int [route_cap];
     memset(this->demand_sum_per_route, 0, sizeof(int) * route_cap);
+
+    move_indices.resize(moves_count);
+    std::iota(move_indices.begin(), move_indices.end(), 0);
+
+    prepare_temp_buffers(node_cap);
 }
 
 LeaderSga::~LeaderSga() {
@@ -36,13 +41,13 @@ LeaderSga::~LeaderSga() {
     delete[] routes;
     delete[] num_nodes_per_route;
     delete[] demand_sum_per_route;
+
+    delete[] temp_r1;
+    delete[] temp_r2;
 }
 
 void LeaderSga::local_improve(Individual *ind) {
     load_individual(ind);
-
-    vector<int> move_indices(moves_count);
-    iota(move_indices.begin(), move_indices.end(), 0);
 
     int loop_count = 0;
     bool improvement_found = true;
@@ -51,10 +56,9 @@ void LeaderSga::local_improve(Individual *ind) {
 
         bool any_move_successful = false;
         for (int i = 0; i < moves_count; ++i) {
-            int move = move_indices[i];
 
             bool has_moved = false;
-            switch (move) {
+            switch (move_indices[i]) {
                 case 0:
                     has_moved = perform_intra_move_impro([this](int* route, int length) {
                         return move1_intra_impro(route, length);
@@ -206,7 +210,7 @@ void LeaderSga::run(Individual *ind) {
 void LeaderSga::load_individual(Individual* ind) {
     clean();
 
-    this->upper_cost = ind->upper_cost;;
+    this->upper_cost = ind->upper_cost;
     this->num_routes = ind->num_routes;
     memcpy(this->num_nodes_per_route, ind->num_nodes_per_route, sizeof(int) * ind->route_cap);
     memcpy(this->demand_sum_per_route, ind->demand_sum_per_route, sizeof(int) * ind->route_cap);
@@ -316,7 +320,7 @@ bool LeaderSga::perform_inter_move_impro(const std::function<bool(int *, int *, 
         }
     };
 
-    unordered_set<pair<int, int>, PairHash> route_pairs;
+    route_pairs.clear();
     for (int i = 0; i < num_routes - 1; i++) {
         for (int j = i + 1; j < num_routes; j++) {
             route_pairs.insert(make_pair(i, j));
@@ -369,24 +373,24 @@ bool LeaderSga::perform_inter_move_impro(const std::function<bool(int *, int *, 
     return is_successful;
 }
 
-//bool LeaderSga::perform_inter_move_with_empty_impro(
-//        const std::function<bool(int *, int *, int &, int &, int &, int &)> &move_func) {
-//    if (num_routes < 1) return false;
-//
-//    bool is_successful = false;
-//    for (int r1 = 0; r1 < num_routes; ++r1) {
-//        int r2 = num_routes; // empty route
-//
-//        bool is_moved = move_func(routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2],demand_sum_per_route[r1], demand_sum_per_route[r2]);
-//
-//        if (is_moved) {
-//            num_routes++;
-//        }
-//        is_successful = is_moved || is_successful;
-//    }
-//
-//    return is_successful;
-//}
+bool LeaderSga::perform_inter_move_with_empty_impro(
+        const std::function<bool(int *, int *, int &, int &, int &, int &)> &move_func) {
+    if (num_routes < 1) return false;
+
+    bool is_successful = false;
+    for (int r1 = 0; r1 < num_routes; ++r1) {
+        int r2 = num_routes; // empty route
+
+        bool is_moved = move_func(routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2],demand_sum_per_route[r1], demand_sum_per_route[r2]);
+
+        if (is_moved) {
+            num_routes++;
+        }
+        is_successful = is_moved || is_successful;
+    }
+
+    return is_successful;
+}
 
 bool LeaderSga::move1_intra_impro(int* route, int length) {
     if (length <= 4) return false;
@@ -970,8 +974,6 @@ bool LeaderSga::move7_intra_impro(int *route, int length) {
 bool LeaderSga::move8_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
     if (length1 < 3 || length2 < 3) return false;
 
-    int* temp_r1 = new int[node_cap];
-    int* temp_r2 = new int[node_cap];
     memset(temp_r1, 0, sizeof(int) * node_cap);
     memset(temp_r2, 0, sizeof(int) * node_cap);
 
@@ -1026,16 +1028,12 @@ bool LeaderSga::move8_inter_impro(int* route1, int* route2, int& length1, int& l
 
     end_loops:;
 
-    delete[] temp_r1;
-    delete[] temp_r2;
-
     return has_moved;
 }
 
 bool LeaderSga::move9_inter_impro(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2) {
     if (length1 < 3 || length2 < 3) return false;
 
-    int* temp_r1 = new int[node_cap];
     memset(temp_r1, 0, sizeof(int) * node_cap);
 
     bool has_moved = false;
@@ -1084,9 +1082,53 @@ bool LeaderSga::move9_inter_impro(int *route1, int *route2, int &length1, int &l
 
     end_loops:;
 
-    delete[] temp_r1;
+    return has_moved;
+}
+
+bool LeaderSga::move1_inter_with_empty_route_impro(int *route1, int *route2, int &length1, int &length2, int &loading1,
+                                                   int &loading2) {
+    if (length1 < 4 || length2 != 0) return false; // make sure it won't generate empty route
+
+    bool has_moved = false;
+
+    double original_cost, modified_cost, change;
+    for (int i = 1; i < length1 - 1; ++i) {
+        int x = route1[i];
+
+        original_cost = instance->get_distance(route1[i - 1], x) + instance->get_distance(x, route1[i + 1]);
+        modified_cost = instance->get_distance(route1[i - 1], route1[i + 1]) + instance->get_distance(route2[0], x) + instance->get_distance(x, route2[1]);
+
+        change = modified_cost - original_cost;
+        if (is_accepted_impro(change)) {
+            for (int p = i; p < length1 - 1; p++) {
+                route1[p] = route1[p + 1];
+            }
+            length1--;
+            loading1 -= instance->get_customer_demand_(x);
+
+            route2[1] = x;
+            length2 = 3;
+            loading2 += instance->get_customer_demand_(x);
+            upper_cost += change;
+
+            has_moved = true;
+        }
+    }
 
     return has_moved;
+}
+
+void LeaderSga::prepare_temp_buffers(int required_size) const {
+    if (temp_buffer_size >= required_size) return;
+
+    delete[] temp_r1;
+    delete[] temp_r2;
+
+    temp_r1 = new int[required_size];
+    temp_r2 = new int[required_size];
+    temp_buffer_size = required_size;
+
+    temp_candidates.reserve(required_size);
 }
 
 bool LeaderSga::is_accepted_neigh(const double &change) const {
@@ -1099,8 +1141,8 @@ bool LeaderSga::perform_intra_move_neigh(const std::function<bool(int *, int)> &
     bool is_moved = false;
     int search_depth = 0;
 
+    std::uniform_int_distribution<int> dist(0, num_routes - 1);
     while (!is_moved && search_depth < max_search_depth) {
-        std::uniform_int_distribution<int> dist(0, num_routes - 1);
         int random_route_idx = dist(random_engine);
 
         is_moved = move_func(routes[random_route_idx], num_nodes_per_route[random_route_idx]);
@@ -1155,7 +1197,7 @@ bool LeaderSga::move1_intra_neigh(int *route, int length) {
     std::uniform_int_distribution<int> dist(1, length - 2);
     int i = dist(random_engine);
 
-    double original_cost, modified_cost;
+    double original_cost, modified_cost, change;
     for (int j = 1; j < length - 1; j++) {
         if (i == j) continue;
 
@@ -1175,7 +1217,7 @@ bool LeaderSga::move1_intra_neigh(int *route, int length) {
                             instance->get_distance(route[i - 1], route[i + 1]);
         }
 
-        double change = modified_cost - original_cost;
+        change = modified_cost - original_cost;
         if (is_accepted_neigh(change)) {
             moveItoJ(route, i, j);
             upper_cost += change;
@@ -1193,20 +1235,24 @@ bool LeaderSga::move1_inter_neigh(int *route1, int *route2, int &length1, int &l
 
     bool has_moved = false;
 
-    std::vector<int> candidates;
+    temp_candidates.clear();
     for (int i = 1; i < length1 - 1; ++i) {
         if (loading2 + instance->get_customer_demand_(route1[i]) <= instance->max_vehicle_capa_) {
-            candidates.push_back(i);
+            temp_candidates.push_back(i);
         }
     }
-    if (candidates.empty()) return false;
-    std::shuffle(candidates.begin(), candidates.end(), random_engine);  // Shuffle to pick one randomly
-    int i = candidates.front();  // Pick the first after shuffling
+    if (temp_candidates.empty()) return false;
+    std::shuffle(temp_candidates.begin(), temp_candidates.end(), random_engine);  // Shuffle to pick one randomly
+    int i = temp_candidates.front();  // Pick the first after shuffling
 
     double original_cost, modified_cost, change;
     for (int j = 0; j < length2 - 1; ++j) {
-        original_cost = instance->get_distance(route1[i - 1], route1[i]) + instance->get_distance(route1[i], route1[i + 1]) + instance->get_distance(route2[j], route2[j + 1]);
-        modified_cost = instance->get_distance(route1[i - 1], route1[i + 1]) + instance->get_distance(route2[j], route1[i]) + instance->get_distance(route1[i], route2[j + 1]);
+        original_cost = instance->get_distance(route1[i - 1], route1[i]) +
+                        instance->get_distance(route1[i], route1[i + 1]) +
+                        instance->get_distance(route2[j], route2[j + 1]);
+        modified_cost = instance->get_distance(route1[i - 1], route1[i + 1]) +
+                        instance->get_distance(route2[j], route1[i]) +
+                        instance->get_distance(route1[i], route2[j + 1]);
 
         change = modified_cost - original_cost;
         if (is_accepted_neigh(change)) {
@@ -1238,22 +1284,20 @@ bool LeaderSga::move4_intra_neigh(int *route, int length) {
     bool has_moved = false;
 
     std::uniform_int_distribution<int> distI(1, length - 3);
-    int i = distI(random_engine);
+    const int i = distI(random_engine);
     double original_cost, modified_cost, change;
     for (int j = i + 1; j < length - 1; ++j) {
         if (j == i + 1) {
             original_cost = instance->get_distance(route[i - 1], route[i]) + instance->get_distance(route[j], route[j + 1]);
             modified_cost = instance->get_distance(route[i - 1], route[j]) + instance->get_distance(route[i], route[j + 1]);
-            change = modified_cost - original_cost;
         } else {
             original_cost = instance->get_distance(route[i - 1], route[i]) + instance->get_distance(route[i], route[i + 1])
                             + instance->get_distance(route[j - 1], route[j]) + instance->get_distance(route[j], route[j + 1]);
             modified_cost = instance->get_distance(route[i - 1], route[j]) + instance->get_distance(route[j], route[i + 1])
                             + instance->get_distance(route[j - 1], route[i]) + instance->get_distance(route[i], route[j + 1]);
-
-            change = modified_cost - original_cost;
         }
 
+        change = modified_cost - original_cost;
         if (is_accepted_neigh(change)) {
             swap(route[i], route[j]);
             upper_cost += change;
@@ -1272,11 +1316,11 @@ bool LeaderSga::move4_inter_neigh(int *route1, int *route2, int length1, int len
     bool has_moved = false;
 
     std::uniform_int_distribution<int> distI(1, length1 - 2);
-    int i = distI(random_engine);
+    const int i = distI(random_engine);
     double original_cost, modified_cost, change;
     for (int j = 1; j < length2 - 1; ++j) {
-        int demand_I = instance->get_customer_demand_(route1[i]);
-        int demand_J = instance->get_customer_demand_(route2[j]);
+        const int demand_I = instance->get_customer_demand_(route1[i]);
+        const int demand_J = instance->get_customer_demand_(route2[j]);
         if (loading1 - demand_I + demand_J <= instance->max_vehicle_capa_ && loading2 - demand_J + demand_I <= instance->max_vehicle_capa_) {
             original_cost = instance->get_distance(route1[i - 1], route1[i]) + instance->get_distance(route1[i], route1[i + 1]) +
                             instance->get_distance(route2[j - 1], route2[j]) + instance->get_distance(route2[j], route2[j + 1]);
@@ -1306,7 +1350,7 @@ bool LeaderSga::move7_intra_neigh(int *route, int length) {
     bool has_moved = false;
 
     std::uniform_int_distribution<int> distI(1, length - 3);
-    int i = distI(random_engine);
+    const int i = distI(random_engine);
 
     double original_cost, modified_cost, change;
     for (int j = i + 1; j < length - 1; ++j) {
@@ -1331,8 +1375,6 @@ bool LeaderSga::move7_intra_neigh(int *route, int length) {
 bool LeaderSga::move8_inter_neigh(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2) {
     if (length1 < 3 || length2 < 3) return false;
 
-    int* temp_r1 = new int[node_cap];
-    int* temp_r2 = new int[node_cap];
     memset(temp_r1, 0, sizeof(int) * node_cap);
     memset(temp_r2, 0, sizeof(int) * node_cap);
 
@@ -1386,16 +1428,12 @@ bool LeaderSga::move8_inter_neigh(int *route1, int *route2, int &length1, int &l
         }
     }
 
-    delete[] temp_r1;
-    delete[] temp_r2;
-
     return has_moved;
 }
 
 bool LeaderSga::move9_inter_neigh(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2) {
     if (length1 < 3 || length2 < 3) return false;
 
-    int* temp_r1 = new int[node_cap];
     memset(temp_r1, 0, sizeof(int) * node_cap);
 
     bool has_moved = false;
@@ -1443,8 +1481,6 @@ bool LeaderSga::move9_inter_neigh(int *route1, int *route2, int &length1, int &l
             break;
         }
     }
-
-    delete[] temp_r1;
 
     return has_moved;
 }

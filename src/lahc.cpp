@@ -12,15 +12,26 @@ Lahc::Lahc(int seed_val, Case* instance, Preprocessor* preprocessor) : Heuristic
 
     iter = 0L;
     idle_iter = 0L;
+    ratio_successful_moves = 1.0;
     history_length = static_cast<long>(preprocessor->params.history_length);
+//    if (instance->dimension_ >= 100) {
+//        boundary_no_low_opt = 2 * history_length * instance->dimension_;
+//    } else {
+//        boundary_no_low_opt = 0L;
+//    }
     num_moves_per_history = 0.;
     history_list = vector<double>(history_length);
     current = nullptr;
     global_best = make_unique<Solution>();
+    global_best_upper_so_far = std::numeric_limits<double>::max();
+
+    restart_idx = 0;
+    border_flag = false;
 
     initializer = new Initializer(random_engine, instance, preprocessor);
     leader = new LeaderArray(random_engine, instance, preprocessor);
     follower = new Follower(instance, preprocessor);
+    partial_sol = new PartialSolution();
 }
 
 Lahc::~Lahc() {
@@ -28,6 +39,7 @@ Lahc::~Lahc() {
     delete leader;
     delete follower;
     delete current;
+    delete partial_sol;
 }
 
 void Lahc::initialize_heuristic() {
@@ -40,6 +52,27 @@ void Lahc::initialize_heuristic() {
     history_list.assign(history_length, current->upper_cost);
     this->iter = 0L;
     this->idle_iter = 0L;
+    this->ratio_successful_moves = 1.0; // the largest decimal value
+}
+
+void Lahc::restart_heuristic() {
+    delete current;
+    vector<vector<int>> routes = initializer->routes_constructor_with_split();
+    current = new Solution(instance, preprocessor, routes, instance->compute_total_distance(routes),
+                           instance->compute_demand_sum_per_route(routes));
+    routes.clear();
+    routes.shrink_to_fit();
+
+    leader->local_improve(current, border_history_list_metrics.max);
+
+    history_list = border_history_list;
+//    for (int i = 0; i < history_length; ++i) {
+//        history_list[i] = border_dist(random_engine);
+//    }
+
+    this->iter = 0L;
+    this->idle_iter = 0L;
+    this->ratio_successful_moves = 1.0; // the largest decimal value
 }
 
 void Lahc::run_heuristic() {
@@ -52,35 +85,62 @@ void Lahc::run_heuristic() {
         auto v = iter % history_length;
         double history_cost = history_list[v];
 
+        if (v == 0L) {
+            history_list_metrics = StatsInterface::calculate_statistical_indicators(history_list);
+
+            if (iter != 0L) {
+                ratio_successful_moves = num_moves_per_history / static_cast<double>(history_length);
+            }
+
+            // ratio_successful_moves < value, this value can be further adjusted
+            if (restart_idx == 0 && !border_flag && ratio_successful_moves <= 0.4) {
+                border_history_list_metrics = history_list_metrics;
+//                border_dist = normal_distribution<double>(border_history_list_metrics.avg, border_history_list_metrics.std);
+                border_history_list = history_list;
+                border_flag = true;
+            }
+
+            flush_row_into_evol_log();
+            num_moves_per_history = 0.;
+        }
+
         bool has_moved = leader->neighbour_explore(history_cost);
         if (has_moved) {
             leader->export_solution(current);
             num_moves_per_history++;
         }
         double candidate_cost = leader->upper_cost;
+        global_best_upper_so_far = std::min(global_best_upper_so_far, candidate_cost);
 
         // idle judgement and counting
         idle_iter = candidate_cost >= current_cost ? idle_iter + 1 : 0;
         // update the history list
         history_list[v] = std::min(candidate_cost, history_cost);
 
-        if (v == 0L) {
-            history_list_metrics = StatsInterface::calculate_statistical_indicators(history_list);
-            flush_row_into_evol_log();
-            num_moves_per_history = 0.;
-        }
-
         iter++;
         duration = std::chrono::high_resolution_clock::now() - start;
 
-        if (has_moved) {
+//        bool should_trigger_lower_decision;
+//        if (restart_idx == 0) {
+//            should_trigger_lower_decision = ratio_successful_moves < 0.4 && has_moved && candidate_cost < global_best_upper_so_far * 1.10;
+//        } else {
+//            should_trigger_lower_decision = has_moved && candidate_cost < global_best_upper_so_far * 1.10;
+//        }
+        bool should_trigger_lower_decision = has_moved &&
+                                             candidate_cost < global_best_upper_so_far * 1.10 &&
+                                             (restart_idx != 0 || ratio_successful_moves < 0.4);
+
+
+        if (should_trigger_lower_decision) {
             follower->run(current);
-        }
-        if (current->lower_cost < global_best->lower_cost) {
-            global_best = std::move(make_unique<Solution>(*current));
+            if (current->lower_cost < global_best->lower_cost) {
+                global_best = std::move(make_unique<Solution>(*current));
+            }
         }
 
-    } while ((iter < 100'000L || idle_iter < iter / 5) && duration.count() < preprocessor->max_exec_time_);
+    } while ((iter < 100'000L || idle_iter < iter / 5) && ratio_successful_moves > 0.001 && duration.count() < preprocessor->max_exec_time_);
+
+    restart_idx++;
 }
 
 void Lahc::run() {
@@ -96,13 +156,13 @@ void Lahc::run() {
     switch (stop_criteria) {
         case 0:
             while (!stop_criteria_max_evals()) {
-                initialize_heuristic();
+                restart_idx == 0 ? initialize_heuristic() : restart_heuristic();
                 run_heuristic();
             }
             break;
         case 1:
             while (!stop_criteria_max_exec_time(duration)) {
-                initialize_heuristic();
+                restart_idx == 0 ? initialize_heuristic() : restart_heuristic();
                 run_heuristic();
                 duration = std::chrono::high_resolution_clock::now() - start;
             }
@@ -153,7 +213,7 @@ void Lahc::flush_row_into_evol_log() {
                  << history_list_metrics.max << ","
                  << history_list_metrics.avg << ","
                  << history_list_metrics.std << ","
-                 << num_moves_per_history / static_cast<double>(history_length)
+                 << ((iter == 0L)? 0.0 : ratio_successful_moves)
                  << "\n";
 }
 

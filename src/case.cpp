@@ -35,8 +35,8 @@ void Case::read_problem(const std::string &file_path) {
         stringstream ss;
         if (line.find("DIMENSION:") != string::npos) {
             ss << extract_value(line);
-            ss >> this->num_customer_;
-            this->num_customer_--;  // Adjusting the customer number
+            ss >> this->dimension_;
+            this->num_customer_ = this->dimension_ - 1;  // Adjusting the customer number
         }
         else if (line.find("STATIONS:") != string::npos) {
             ss << extract_value(line);

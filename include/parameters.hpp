@@ -26,6 +26,7 @@ struct Parameters {
     bool is_hard_constraint;    // Hard constraint
     bool is_duration_constraint;// Whether to consider duration constraint
     int history_length;         // LAHC history length
+    int max_search_depth;       // LAHC max_search_depth determines how many times the neighbourhood (random) will be explored
     int max_neigh_attempts;     // Maximum attempts for neighbourhood exploration
 
     // experimental parameters
@@ -45,8 +46,9 @@ struct Parameters {
         is_hard_constraint = true;
         is_duration_constraint = false;
         history_length = 5'000;
-        runtime_multiplier = 1;
+        max_search_depth = 200;
         max_neigh_attempts = 10'000;
+        runtime_multiplier = 1;
     }
 };
 
