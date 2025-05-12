@@ -66,105 +66,93 @@ void LeaderCbma::run(Individual *ind) {
 void LeaderCbma::run_plus(Individual *ind) {
     load_individual(ind);
 
-    int loop_count = 0;
-    bool improvement_found = true;
-    while (improvement_found) {
-        shuffle(move_indices.begin(), move_indices.end(), random_engine);
+    shuffle(move_indices.begin(), move_indices.end(), random_engine);
 
-        bool any_move_successful = false;
-        for (int i = 0; i < moves_count; ++i) {
-            int move = move_indices[i];
+    for (int i = 0; i < moves_count; ++i) {
+        int move = move_indices[i];
 
-            bool has_moved = false;
-            switch (move) {
-                case 0:
-                    has_moved = perform_intra_move_impro([this](int* route, int length) {
-                        return move1_intra_impro(route, length);
-                    });
-                    break;
-                case 1:
-                    has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                        return move1_inter_impro(route1, route2, length1, length2, loading1, loading2);
-                    });
-                    break;
-                case 2:
-                    has_moved = perform_intra_move_impro([this](int* route, int length) {
-                        return move2_intra_impro(route, length);
-                    });
-                    break;
-                case 3:
-                    has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                        return move2_inter_impro(route1, route2, length1, length2, loading1, loading2);
-                    });
-                    break;
-                case 4:
-                    has_moved = perform_intra_move_impro([this](int* route, int length) {
-                        return move3_intra_impro(route, length);
-                    });
-                    break;
-                case 5:
-                    has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                        return move3_inter_impro(route1, route2, length1, length2, loading1, loading2);
-                    });
-                    break;
-                case 6:
-                    has_moved = perform_intra_move_impro([this](int* route, int length) {
-                        return move4_intra_impro(route, length);
-                    });
-                    break;
-                case 7:
-                    has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                        return move4_inter_impro(route1, route2, length1, length2, loading1, loading2);
-                    });
-                    break;
-                case 8:
-                    has_moved = perform_intra_move_impro([this](int* route, int length) {
-                        return move5_intra_impro(route, length);
-                    });
-                    break;
-                case 9:
-                    has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                        return move5_inter_impro(route1, route2, length1, length2, loading1, loading2);
-                    });
-                    break;
-                case 10:
-                    has_moved = perform_intra_move_impro([this](int* route, int length) {
-                        return move6_intra_impro(route, length);
-                    });
-                    break;
-                case 11:
-                    has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                        return move6_inter_impro(route1, route2, length1, length2, loading1, loading2);
-                    });
-                    break;
-                case 12:
-                    has_moved = perform_intra_move_impro([this](int* route, int length) {
-                        return move7_intra_impro(route, length);
-                    });
-                    break;
-                case 13:
-                    has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                        return move8_inter_impro(route1, route2, length1, length2, loading1, loading2);
-                    });
-                    break;
-                case 14:
-                    has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                        return move9_inter_impro(route1, route2, length1, length2, loading1, loading2);
-                    });
-                    break;
-                default:
-                    break;
-            }
-
-            if (has_moved) {
-                any_move_successful = true;
-            }
+        bool has_moved = false;
+        switch (move) {
+            case 0:
+                has_moved = perform_intra_move_impro([this](int* route, int length) {
+                    return move1_intra_impro(route, length);
+                });
+                break;
+            case 1:
+                has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                    return move1_inter_impro(route1, route2, length1, length2, loading1, loading2);
+                });
+                break;
+            case 2:
+                has_moved = perform_intra_move_impro([this](int* route, int length) {
+                    return move2_intra_impro(route, length);
+                });
+                break;
+            case 3:
+                has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                    return move2_inter_impro(route1, route2, length1, length2, loading1, loading2);
+                });
+                break;
+            case 4:
+                has_moved = perform_intra_move_impro([this](int* route, int length) {
+                    return move3_intra_impro(route, length);
+                });
+                break;
+            case 5:
+                has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                    return move3_inter_impro(route1, route2, length1, length2, loading1, loading2);
+                });
+                break;
+            case 6:
+                has_moved = perform_intra_move_impro([this](int* route, int length) {
+                    return move4_intra_impro(route, length);
+                });
+                break;
+            case 7:
+                has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                    return move4_inter_impro(route1, route2, length1, length2, loading1, loading2);
+                });
+                break;
+            case 8:
+                has_moved = perform_intra_move_impro([this](int* route, int length) {
+                    return move5_intra_impro(route, length);
+                });
+                break;
+            case 9:
+                has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                    return move5_inter_impro(route1, route2, length1, length2, loading1, loading2);
+                });
+                break;
+            case 10:
+                has_moved = perform_intra_move_impro([this](int* route, int length) {
+                    return move6_intra_impro(route, length);
+                });
+                break;
+            case 11:
+                has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                    return move6_inter_impro(route1, route2, length1, length2, loading1, loading2);
+                });
+                break;
+            case 12:
+                has_moved = perform_intra_move_impro([this](int* route, int length) {
+                    return move7_intra_impro(route, length);
+                });
+                break;
+            case 13:
+                has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                    return move8_inter_impro(route1, route2, length1, length2, loading1, loading2);
+                });
+                break;
+            case 14:
+                has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                    return move9_inter_impro(route1, route2, length1, length2, loading1, loading2);
+                });
+                break;
+            default:
+                break;
         }
 
-        improvement_found = any_move_successful;
-        loop_count++;
     }
-
 
     export_individual(ind);
 }
