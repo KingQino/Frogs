@@ -17,12 +17,11 @@ using namespace std;
 
 class Cbma final : public HeuristicInterface, public StatsInterface {
 private:
-    vector<vector<int>> promising_seqs;
-    vector<vector<int>> average_seqs;
+    std::vector<std::vector<int>> elites;
+    std::vector<std::vector<int>> non_elites;
+    std::vector<std::vector<int>> immigrants;
     std::vector<std::vector<int>> offspring;
-    vector<shared_ptr<Individual>> S1, S2, S3;
-
-
+    vector<int> indices;
 public:
     static const std::string ALGORITHM;
 
@@ -48,14 +47,18 @@ public:
     deque<double> P; // list for confidence intervals of local search
     double r; // confidence interval is used to judge whether an upper-level sub-solution should make the charging process
 
-    Indicators before_up_opt;
-    Indicators after_up_opt;
-    Indicators after_low_opt;
+    int max_neigh_attempts;
+    int max_chain_length;
+
+    Indicators after_local_opt;
+    Indicators after_neighbour_explore;
 
     Initializer* initializer;
-    LeaderCbma* leader;
-    Follower* follower;
+    std::vector<std::unique_ptr<LeaderCbma>> leaders;
+    std::vector<std::unique_ptr<Follower>> followers;
+    std::vector<std::unique_ptr<PartialSolution>> partial_sols;
 
+    int get_luby(int j) const;
 
     Cbma(int seed, Case *instance, Preprocessor* preprocessor);
     ~Cbma() override;

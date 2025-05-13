@@ -23,23 +23,41 @@ Cbma::Cbma(int seed_val, Case *instance, Preprocessor *preprocessor) : Heuristic
     delta = 30;
     r = 0.0;
 
+    max_neigh_attempts = preprocessor->params.max_neigh_attempts;
+    max_chain_length = 256;
+
+    indices = vector<int>(pop_size);
+    std::iota(indices.begin(), indices.end(), 0);
+
     initializer = new Initializer(random_engine, instance, preprocessor);
-    leader = new LeaderCbma(random_engine, instance, preprocessor);
-    follower = new Follower(instance, preprocessor);
+    leaders.reserve(pop_size);
+    followers.reserve(pop_size);
+    partial_sols.reserve(pop_size);
+    for (int i = 0; i < pop_size; ++i) {
+        leaders.emplace_back(std::make_unique<LeaderCbma>(instance, preprocessor));
+        followers.emplace_back(std::make_unique<Follower>(instance, preprocessor));
+        partial_sols.emplace_back(std::make_unique<PartialSolution>());
+    }
 
-    promising_seqs.reserve(pop_size);
-    average_seqs.reserve(pop_size);
+    population.reserve(pop_size);
+
+    elites.reserve(pop_size);
+    non_elites.reserve(pop_size);
+    immigrants.reserve(pop_size);
     offspring.reserve(pop_size);
-
-    S1.reserve(pop_size);
-    S2.reserve(pop_size);
-    S3.reserve(pop_size);
 }
 
 Cbma::~Cbma() {
     delete initializer;
-    delete leader;
-    delete follower;
+}
+
+int Cbma::get_luby(int j) const {
+    int k = 1;
+    while ((1 << k) - 1 < j) ++k;
+    int val = (1 << (k - 1));
+    if (val >= max_chain_length) return max_chain_length;
+    if ((1 << k) - 1 == j) return val;
+    return get_luby(j - val + 1);
 }
 
 void Cbma::run() {
@@ -79,8 +97,6 @@ void Cbma::run() {
 }
 
 void Cbma::initialize_heuristic() {
-    population.clear();
-    population.reserve(pop_size);
     for (int i = 0; i < pop_size; ++i) {
         vector<vector<int>> routes = initializer->routes_constructor_with_hien_method();
 
@@ -93,163 +109,134 @@ void Cbma::initialize_heuristic() {
     }
 
     global_best = make_unique<Individual>(*population[0]);
-    iter_best = make_unique<Individual>(*population[0]);
 }
 
 void Cbma::run_heuristic() {
-    vector<double> data = get_fitness_vector_from_upper_group(population);
-    before_up_opt = calculate_statistical_indicators(get_fitness_vector_from_upper_group(population));
+    for (int i = 0; i < pop_size; ++i) {
+        auto& ind = population[i];
 
-    S1 = population;
-    double v1 = 0;
-    double v2;
-    shared_ptr<Individual> talented_ind = select_best_upper_individual(population);
-    if (gen > delta) { //  switch off - False
-        // when the generations are greater than the threshold, part of the upper-level sub-solutions S1 will be selected for local search
-        double old_cost = talented_ind->upper_cost;
-        leader->run_plus(talented_ind.get());
-        double new_cost = talented_ind->upper_cost;
-        v1 = old_cost - new_cost;
-        v2 = *std::max_element(P.begin(), P.end());
-        if (v2 < v1) {
-            v2 = v1 * gammaL;
-        }
+        leaders[i]->run_plus(ind.get());
+        followers[i]->run(ind.get());
 
-        S1.clear();
-        for (auto& ind:population) {
-            if (ind->upper_cost - v2 <= new_cost) S1.push_back(ind);
-        }
-
-        auto it = std::find(S1.begin(), S1.end(), talented_ind);
-        // If genius_upper is found, remove it from S2
-        if (it != S1.end()) {
-            S1.erase(it);
+        if (ind->lower_cost < global_best->lower_cost) {
+            *global_best = *ind;  // copy the content of ind to global_best, not deep copy
         }
     }
 
-    // make local search on S1
-    v2 = 0;
-    for(auto& ind : S1) {
-        double old_cost = ind->upper_cost;
+    after_local_opt = calculate_statistical_indicators(get_fitness_vector_from_upper_group(population));
 
-        leader->run_plus(ind.get());
+    for (int i = 0; i < pop_size; ++i) {
+        auto& ind = population[i];
 
-        if (v2 < old_cost - ind->upper_cost)
-            v2 = old_cost - ind->upper_cost;
-    }
-    v2 = (v1 > v2) ? v1 : v2;
-    P.push_back(v2);
-    if (P.size() > delta)  P.pop_front();
-    if (gen > delta) S1.push_back(talented_ind); //  *** switch off ***
+        int k = 1; // index for Luby sequence
+        int no_improve_counter = 0;
 
-    after_up_opt = calculate_statistical_indicators(get_fitness_vector_from_upper_group(S1));
+        Individual best_ind = *population[i];
 
-    // Current S1 has been selected and local search.
-    // Pick a portion of the upper sub-solutions to go for recharging process, by the difference between before and after charging of the best solution in S1
-    S2 = S1;
-    double v3;
-    shared_ptr<Individual> outstanding_upper = select_best_upper_individual(S1);
-    if (gen > 0) { // Switch = off False
-        double old_cost = outstanding_upper->upper_cost; // fitness without recharging f
-        follower->run(outstanding_upper.get());
-        double new_cost = outstanding_upper->lower_cost; // fitness with recharging f
-        v3 = new_cost - old_cost;
-        if (r > v3) r = v3 * gammaR;
+        for (int j = 0; j < max_neigh_attempts; ++j) {
+            // local search move
+            // only accepts better moves
+            bool has_moved = leaders[i]->local_search_move(partial_sols[i].get());
 
-        S2.clear();
-        for (auto& ind:S1) {
-            if (ind->upper_cost + r <= new_cost)
-                S2.push_back(ind);
+            if (has_moved) {
+                followers[i]->run(partial_sols[i].get());
+
+                leaders[i]->export_individual(ind.get());
+                followers[i]->export_individual(ind.get());
+
+                if (ind->upper_cost < best_ind.upper_cost) {
+                    best_ind = *ind;
+                }
+                if (ind->lower_cost < global_best->lower_cost) {
+                    *global_best = *ind;  // copy the content of ind to global_best, not deep copy
+                }
+
+                no_improve_counter = 0;
+                k = 1;
+            } else {
+                no_improve_counter += 1;
+            }
+
+            partial_sols[i]->clean();
+
+            // If the number of consecutive unimprovements reaches Luby(k), a perturbation is triggered
+            int strength = get_luby(k);
+            if (no_improve_counter >= strength) {
+//                cout << " Escape triggered with strength " << strength << " at iter " << j << endl;
+
+                leaders[i]->load_individual(&best_ind);
+                leaders[i]->strong_perturbation(strength);
+                leaders[i]->export_individual(ind.get());
+                followers[i]->run(ind.get());
+
+                no_improve_counter = 0;
+                k += 1;
+
+//                if (strength >= max_chain_length) k = 1;
+            }
         }
-
-        auto it = std::find(S2.begin(), S2.end(), outstanding_upper);
-        // If genius_upper is found, remove it from S2
-        if (it != S2.end()) {
-            S2.erase(it);
-        }
     }
 
-    // Current S2 has been selected and ready for recharging, make recharging on S2
-    S3.push_back(outstanding_upper); //  *** switch off ***
-    for (auto& ind:S2) {
-        double old_cost = ind->upper_cost;
-        follower->run(ind.get());
-        double new_cost = ind->lower_cost;
-        S3.push_back(ind);
-        if (v3 > new_cost - old_cost)
-            v3 = new_cost - old_cost;
-    }
-    if (r == 0 || r > v3) {
-        r = v3;
-    }
+    after_neighbour_explore = calculate_statistical_indicators(get_fitness_vector_from_upper_group(population));
 
-    after_low_opt = calculate_statistical_indicators(get_fitness_vector_from_lower_group(S3));
-
-    // statistics
-    iter_best = make_unique<Individual>(*select_best_lower_individual(S3));
-    if (global_best->lower_cost > iter_best->lower_cost) {
-        global_best = make_unique<Individual>(*iter_best);
-    }
     if (gen % 100 == 0) {
         flush_row_into_evol_log();
     }
 
+    std::sort(population.begin(), population.end(),
+              [](const std::shared_ptr<Individual>& a, const std::shared_ptr<Individual>& b) {
+                  return a->upper_cost < b->upper_cost;
+              });
 
-    // Selection
-    promising_seqs.clear();
-    for(auto& sol : S3) {
-        promising_seqs.push_back(sol->get_chromosome()); // encoding
+
+    elites.clear();
+    for (int i = 0; i < 10; ++i) {
+        elites.emplace_back(std::move(population[i]->get_chromosome()));
     }
-
-    average_seqs.clear();
-    for(auto& sol : population) {
-        // judge whether sol in S3 or not
-        auto it = std::find(S3.begin(), S3.end(), sol);
-        if (it != S3.end()) continue;
-        average_seqs.push_back(sol->get_chromosome()); // encoding
+    non_elites.clear();
+    for (int i = 10; i < pop_size; ++i) {
+        non_elites.emplace_back(std::move(population[i]->get_chromosome()));
+    }
+    immigrants.clear();
+    for (int i = 0; i < 20; ++i) {
+        vector<int> immigrant(preprocessor->customer_ids_);
+        shuffle(immigrant.begin(), immigrant.end(), random_engine);
+        immigrants.emplace_back(std::move(immigrant));
     }
 
     offspring.clear();
-    if (promising_seqs.size() == 1) {
-        const vector<int>& father = promising_seqs[0];
-        // 90% - elite x non-elites
-        for (int i = 0; i < int (0.45 * pop_size); ++i) {
-            vector<int> _father(father);
-            vector<int> mother = select_random(average_seqs, 1)[0];
-            cx_partially_matched(_father, mother);
-            offspring.push_back(std::move(_father));
-            offspring.push_back(std::move(mother));
-        }
-        // 9%  - elite x immigrants
-        for (int i = 0; i < int(0.05 * pop_size); ++i) {
-            vector<int> _father(father);
-            vector<int> mother(preprocessor->customer_ids_);
-            shuffle(mother.begin(), mother.end(), random_engine);
-            cx_partially_matched(_father, mother);
-            offspring.push_back(std::move(_father));
-            offspring.push_back(std::move(mother));
-        }
-//        chromosomes.pop_back();
-        // free 1 space  - best ind
-    } else {
-        // part of elites x elites
-        int num_promising_seqs = static_cast<int>(promising_seqs.size());
-        int loop_num = int(num_promising_seqs / 2.0) <= (pop_size/2) ? int(num_promising_seqs / 2.0) : int(pop_size/4);
-        for (int i = 0; i < loop_num; ++i) {
-            vector<vector<int>> parents = select_random(promising_seqs, 2);
-            cx_partially_matched(parents[0], parents[1]);
-            offspring.push_back(std::move(parents[0]));
-            offspring.push_back(std::move(parents[1]));
-        }
-        // portion of elites x non-elites
-        int num_promising_x_average = pop_size - static_cast<int>(offspring.size());
-        for (int i = 0; i < int(num_promising_x_average / 2.0); ++i) {
-            vector<int> parent1 = select_random(promising_seqs, 1)[0];
-            vector<int> parent2 = select_random(average_seqs, 1)[0];
-            cx_partially_matched(parent1, parent2);
-            offspring.push_back(std::move(parent1));
-            offspring.push_back(std::move(parent2));
-        }
+    // crossover and mutation
+    // 5 pairs of elite and elite
+    for (int i = 0; i < 5; ++i) {
+        auto parents = select_random(elites, 2);
+        auto& parent1 = parents[0];
+        auto& parent2 = parents[1];
+
+        cx_partially_matched(parent1, parent2);
+
+        offspring.emplace_back(std::move(parent1));
+        offspring.emplace_back(std::move(parent2));
+    }
+    // 25 pairs of elite and non_elite
+    std::shuffle(non_elites.begin(), non_elites.end(), random_engine);
+    for (int i = 0; i < 25; ++i) {
+        auto parent1 = select_random(elites, 1)[0];
+        auto& parent2 = non_elites[i];
+
+        cx_partially_matched(parent1, parent2);
+
+        offspring.emplace_back(std::move(parent1));
+        offspring.emplace_back(std::move(parent2));
+    }
+    // 20 pairs of elite and immigrant
+    for (int i = 0; i < 20; ++i) {
+        auto parent1 = select_random(elites, 1)[0];
+        auto& parent2 = immigrants[i];
+
+        cx_partially_matched(parent1, parent2);
+
+        offspring.emplace_back(std::move(parent1));
+        offspring.emplace_back(std::move(parent2));
     }
 
     for (auto& chromosome: offspring) {
@@ -258,15 +245,9 @@ void Cbma::run_heuristic() {
         }
     }
 
-    // destroy all the individual objects
-    S3.clear();
-    S2.clear();
-    S1.clear();
-
 
     // update population
-    population[0] = make_shared<Individual>(*iter_best);
-    for (int i = 1; i < pop_size; ++i) {
+    for (int i = 0; i < pop_size; ++i) {
         population[i]->clean();
 
         vector<vector<int>> dumb_routes = initializer->prins_split(offspring[i]);
@@ -290,7 +271,8 @@ void Cbma::open_log_for_evolution() {
     const string file_name = "evols." + instance->instance_name_ + ".csv";
     log_evolution.open(directory + "/" + file_name);
     log_evolution << "gen,g_best,"
-                     "af_up_min,avg,max,std,"
+                     "af_opt_min,avg,max,std,"
+                     "af_ne_min,avg,max,std,"
                      "evals\n";
 }
 
@@ -302,7 +284,8 @@ void Cbma::close_log_for_evolution() {
 
 void Cbma::flush_row_into_evol_log() {
     oss_row_evol << std::fixed << std::setprecision(3) << gen << "," << global_best->lower_cost <<","
-    << after_up_opt.min << "," << after_up_opt.avg << "," << after_up_opt.max << "," << after_up_opt.std << ","
+    << after_local_opt.min << "," << after_local_opt.avg << "," << after_local_opt.max << "," << after_local_opt.std << ","
+    << after_neighbour_explore.min << "," << after_neighbour_explore.avg << "," << after_neighbour_explore.max << "," << after_neighbour_explore.std << ","
     << instance->get_evals() << "\n";
 }
 
@@ -313,10 +296,10 @@ void Cbma::save_log_for_solution() {
 
     log_solution.open(directory + "/" + file_name);
     log_solution << fixed << setprecision(5) << global_best->lower_cost << endl;
-    follower->run(global_best.get());
-    for (int i = 0; i < follower->num_routes; ++i) {
-        for (int j = 0; j < follower->lower_num_nodes_per_route[i]; ++j) {
-            log_solution << follower->lower_routes[i][j] << ",";
+    followers[0]->run(global_best.get());
+    for (int i = 0; i < followers[0]->num_routes; ++i) {
+        for (int j = 0; j < followers[0]->lower_num_nodes_per_route[i]; ++j) {
+            log_solution << followers[0]->lower_routes[i][j] << ",";
         }
         log_solution << endl;
     }
@@ -353,6 +336,7 @@ shared_ptr<Individual> Cbma::select_best_lower_individual(const vector<shared_pt
 
 vector<vector<int>>  Cbma::select_random(const vector<vector<int>> &chromosomes, int k) {
     vector<vector<int>> selectedSeqs;
+    selectedSeqs.reserve(k);
 
     std::uniform_int_distribution<std::size_t> distribution(0, chromosomes.size() - 1);
     for (int i = 0; i < k; ++i) {
@@ -360,7 +344,7 @@ vector<vector<int>>  Cbma::select_random(const vector<vector<int>> &chromosomes,
         selectedSeqs.push_back(chromosomes[randomIndex]);
     }
 
-    return selectedSeqs;
+    return std::move(selectedSeqs);
 }
 
 void Cbma::cx_partially_matched(vector<int>& parent1, vector<int>& parent2) {

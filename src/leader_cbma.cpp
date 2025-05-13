@@ -4,12 +4,16 @@
 
 #include "leader_cbma.hpp"
 
-LeaderCbma::LeaderCbma(std::mt19937& engine, Case *instance, Preprocessor *preprocessor)
+namespace {
+    thread_local std::mt19937 thread_rng(std::random_device{}());
+}
+
+LeaderCbma::LeaderCbma(Case *instance, Preprocessor *preprocessor)
         : instance(instance),
           preprocessor(preprocessor),
-          random_engine(engine),
           uniform_int_dis(0, 7) {
 
+    this->partial_sol = nullptr;
     this->route_cap = preprocessor->route_cap_;
     this->node_cap  = preprocessor->node_cap_;
     this->moves_count = 15;
@@ -32,6 +36,8 @@ LeaderCbma::LeaderCbma(std::mt19937& engine, Case *instance, Preprocessor *prepr
     k_active_moves_dist = uniform_int_distribution<int>(1, moves_count);
     active_moves.reserve(moves_count);
     max_chain_length = 512;
+    local_search_dist = uniform_int_distribution<int>(0, 14);
+    perturbation_dist = uniform_int_distribution<int>(0, 15);
 }
 
 LeaderCbma::~LeaderCbma() {
@@ -82,7 +88,7 @@ void LeaderCbma::run_plus(Individual *ind) {
     int loop_count = 0;
     bool improvement_found = true;
     while (improvement_found) {
-        shuffle(move_indices.begin(), move_indices.end(), random_engine);
+        shuffle(move_indices.begin(), move_indices.end(), thread_rng);
 
         bool any_move_successful = false;
         for (int i = 0; i < moves_count; ++i) {
@@ -180,6 +186,184 @@ void LeaderCbma::run_plus(Individual *ind) {
 
 
     export_individual(ind);
+}
+
+bool LeaderCbma::local_search_move(PartialSolution *partial_ind) {
+    partial_sol = partial_ind;
+
+    bool has_moved = false;
+    switch (local_search_dist(thread_rng)) {
+        case 0:
+            has_moved = perform_intra_move_neigh([this](int* route, int length) {
+                return move1_intra_impro(route, length);
+            });
+            break;
+        case 1:
+            has_moved = perform_inter_move_neigh([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                return move1_inter_impro(route1, route2, length1, length2, loading1, loading2);
+            });
+            break;
+        case 2:
+            has_moved = perform_intra_move_neigh([this](int* route, int length) {
+                return move2_intra_impro(route, length);
+            });
+            break;
+        case 3:
+            has_moved = perform_inter_move_neigh([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                return move2_inter_impro(route1, route2, length1, length2, loading1, loading2);
+            });
+            break;
+        case 4:
+            has_moved = perform_intra_move_neigh([this](int* route, int length) {
+                return move3_intra_impro(route, length);
+            });
+            break;
+        case 5:
+            has_moved = perform_inter_move_neigh([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                return move3_inter_impro(route1, route2, length1, length2, loading1, loading2);
+            });
+            break;
+        case 6:
+            has_moved = perform_intra_move_neigh([this](int* route, int length) {
+                return move4_intra_impro(route, length);
+            });
+            break;
+        case 7:
+            has_moved = perform_inter_move_neigh([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                return move4_inter_impro(route1, route2, length1, length2, loading1, loading2);
+            });
+            break;
+        case 8:
+            has_moved = perform_intra_move_neigh([this](int* route, int length) {
+                return move5_intra_impro(route, length);
+            });
+            break;
+        case 9:
+            has_moved = perform_inter_move_neigh([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                return move5_inter_impro(route1, route2, length1, length2, loading1, loading2);
+            });
+            break;
+        case 10:
+            has_moved = perform_intra_move_neigh([this](int* route, int length) {
+                return move6_intra_impro(route, length);
+            });
+            break;
+        case 11:
+            has_moved = perform_inter_move_neigh([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                return move6_inter_impro(route1, route2, length1, length2, loading1, loading2);
+            });
+            break;
+        case 12:
+            has_moved = perform_intra_move_neigh([this](int* route, int length) {
+                return move7_intra_impro(route, length);
+            });
+            break;
+        case 13:
+            has_moved = perform_inter_move_neigh([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                return move8_inter_impro(route1, route2, length1, length2, loading1, loading2);
+            });
+            break;
+        case 14:
+            has_moved = perform_inter_move_neigh([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                return move9_inter_impro(route1, route2, length1, length2, loading1, loading2);
+            });
+            break;
+        default:
+            break;
+    }
+
+    return has_moved;
+}
+
+void LeaderCbma::strong_perturbation(int strength) {
+    for (int i = 0; i < strength; ++i) {
+
+        bool has_moved = false;
+        switch (perturbation_dist(thread_rng)) {
+            case 0:
+                has_moved = perform_intra_move_pert([this](int* route, int length) {
+                    return move1_intra_pert(route, length);
+                });
+                break;
+            case 1:
+                has_moved = perform_inter_move_pert([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                    return move1_inter_pert(route1, route2, length1, length2, loading1, loading2);
+                });
+                break;
+            case 2:
+                has_moved = perform_inter_move_with_empty_pert([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                    return move1_inter_with_empty_route_pert(route1, route2, length1, length2, loading1, loading2);
+                });
+                break;
+            case 3:
+                has_moved = perform_intra_move_pert([this](int* route, int length) {
+                    return move2_intra_pert(route, length);
+                });
+                break;
+            case 4:
+                has_moved = perform_inter_move_pert([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                    return move2_inter_pert(route1, route2, length1, length2, loading1, loading2);
+                });
+                break;
+            case 5:
+                has_moved = perform_intra_move_pert([this](int* route, int length) {
+                    return move3_intra_pert(route, length);
+                });
+                break;
+            case 6:
+                has_moved = perform_inter_move_pert([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                    return move3_inter_pert(route1, route2, length1, length2, loading1, loading2);
+                });
+                break;
+            case 7:
+                has_moved = perform_intra_move_pert([this](int* route, int length) {
+                    return move4_intra_pert(route, length);
+                });
+                break;
+            case 8:
+                has_moved = perform_inter_move_pert([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                    return move4_inter_pert(route1, route2, length1, length2, loading1, loading2);
+                });
+                break;
+            case 9:
+                has_moved = perform_intra_move_pert([this](int* route, int length) {
+                    return move5_intra_pert(route, length);
+                });
+                break;
+            case 10:
+                has_moved = perform_inter_move_pert([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                    return move5_inter_pert(route1, route2, length1, length2, loading1, loading2);
+                });
+                break;
+            case 11:
+                has_moved = perform_intra_move_pert([this](int* route, int length) {
+                    return move6_intra_pert(route, length);
+                });
+                break;
+            case 12:
+                has_moved = perform_inter_move_pert([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                    return move6_inter_pert(route1, route2, length1, length2, loading1, loading2);
+                });
+                break;
+            case 13:
+                has_moved = perform_intra_move_pert([this](int* route, int length) {
+                    return move7_intra_pert(route, length);
+                });
+                break;
+            case 14:
+                has_moved = perform_inter_move_pert([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                    return move8_inter_pert(route1, route2, length1, length2, loading1, loading2);
+                });
+                break;
+            case 15:
+                has_moved = perform_inter_move_pert([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+                    return move9_inter_pert(route1, route2, length1, length2, loading1, loading2);
+                });
+                break;
+            default:
+                break;
+        }
+    }
 }
 
 void LeaderCbma::load_individual(Individual *ind) {
@@ -505,6 +689,49 @@ void LeaderCbma::node_relocation_for_sol() {
 
 bool LeaderCbma::is_accepted_impro(const double &change) {
     return change < - 1.0e-8;
+}
+
+bool LeaderCbma::perform_intra_move_neigh(const std::function<bool(int *, int)> &move_func) const {
+    if (num_routes < 1) return false;
+
+    bool is_moved = false;
+
+    std::uniform_int_distribution<int> dist(0, num_routes - 1);
+    int random_route_idx = dist(thread_rng);
+
+    is_moved = move_func(routes[random_route_idx], num_nodes_per_route[random_route_idx]);
+    if (is_moved) {
+        partial_sol->set_intra_route(random_route_idx, routes[random_route_idx],num_nodes_per_route[random_route_idx]);
+        partial_sol->num_routes = num_routes;
+    }
+
+    return is_moved;
+}
+
+bool LeaderCbma::perform_inter_move_neigh(
+        const std::function<bool(int *, int *, int &, int &, int &, int &)> &move_func) {
+    if (routes == nullptr || num_routes <= 1) return false;
+
+    bool is_moved = false;
+
+    int r1, r2;
+    std::uniform_int_distribution<int> dist(0, num_routes - 1);
+    r1 = dist(thread_rng);
+    do {
+        r2 = dist(thread_rng);
+    } while (r1 == r2);
+
+    is_moved = move_func(routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2],demand_sum_per_route[r1], demand_sum_per_route[r2]);
+
+    if (is_moved) {
+        // clean the route beyond the length
+        partial_sol->set_inter_route(r1, routes[r1], num_nodes_per_route[r1], demand_sum_per_route[r1] == 0,
+                                     r2, routes[r2], num_nodes_per_route[r2], demand_sum_per_route[r2] == 0);
+        clean_empty_routes(r1, r2);
+        partial_sol->num_routes = num_routes;
+    }
+
+    return is_moved;
 }
 
 bool LeaderCbma::perform_intra_move_impro(const std::function<bool(int*, int)>& move_func) const {
@@ -1305,11 +1532,11 @@ bool LeaderCbma::move9_inter_impro(int *route1, int *route2, int &length1, int &
     return has_moved;
 }
 
-bool LeaderCbma::perform_intra_move_pert(const std::function<bool(int *, int)> &move_func) {
+bool LeaderCbma::perform_intra_move_pert(const std::function<bool(int *, int)> &move_func) const {
     if (num_routes < 1) return false;
 
     std::uniform_int_distribution<int> dist(0, num_routes - 1);
-    int random_route_idx = dist(random_engine);
+    int random_route_idx = dist(thread_rng);
 
     bool is_moved = move_func(routes[random_route_idx], num_nodes_per_route[random_route_idx]);
 
@@ -1322,9 +1549,9 @@ bool LeaderCbma::perform_inter_move_pert(
 
     int r1, r2;
     std::uniform_int_distribution<int> dist(0, num_routes - 1);
-    r1 = dist(random_engine);
+    r1 = dist(thread_rng);
     do {
-        r2 = dist(random_engine);
+        r2 = dist(thread_rng);
     } while (r1 == r2);
 
     bool is_moved = move_func(routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2],
@@ -1343,7 +1570,7 @@ bool LeaderCbma::perform_inter_move_with_empty_pert(
 
     int r1, r2;
     std::uniform_int_distribution<int> dist(0, num_routes - 1);
-    r1 = dist(random_engine);
+    r1 = dist(thread_rng);
     r2 = num_routes; // empty route
 
     bool is_moved = move_func(routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2],
@@ -1362,10 +1589,10 @@ bool LeaderCbma::move1_intra_pert(int *route, int length) {
     bool has_moved = false;
 
     std::uniform_int_distribution<int> dist(1, length - 2);
-    int i = dist(random_engine);
+    int i = dist(thread_rng);
     int j;
     do {
-        j = dist(random_engine);
+        j = dist(thread_rng);
     } while (i == j);
 
     double original_cost, modified_cost, change;
@@ -1405,10 +1632,10 @@ bool LeaderCbma::move1_inter_pert(int *route1, int *route2, int &length1, int &l
         }
     }
     if (candidates.empty()) return false;
-    std::shuffle(candidates.begin(), candidates.end(), random_engine);  // Shuffle to pick one randomly
+    std::shuffle(candidates.begin(), candidates.end(), thread_rng);  // Shuffle to pick one randomly
     int i = candidates.front();  // Pick the first after shuffling
     std::uniform_int_distribution<int> dist(0, length2 - 2);
-    int j = dist(random_engine);
+    int j = dist(thread_rng);
 
     double original_cost, modified_cost, change;
     original_cost = instance->get_distance(route1[i - 1], route1[i]) +
@@ -1445,7 +1672,7 @@ bool LeaderCbma::move1_inter_with_empty_route_pert(int *route1, int *route2, int
     bool has_moved = false;
 
     std::uniform_int_distribution<int> dist(1, length1 - 2);
-    int i = dist(random_engine);
+    int i = dist(thread_rng);
     int x = route1[i];
 
     double original_cost = instance->get_distance(route1[i - 1], x) +
@@ -1477,10 +1704,10 @@ bool LeaderCbma::move2_intra_pert(int *route, int length) {
 
     std::uniform_int_distribution<int> dist1(1, length - 3);
     std::uniform_int_distribution<int> dist2(0, length - 2);
-    int i = dist1(random_engine);
+    int i = dist1(thread_rng);
     int j;
     do {
-        j = dist2(random_engine);
+        j = dist2(thread_rng);
     } while (j == i - 1 || j == i || j == i + 1);
 
 
@@ -1536,10 +1763,10 @@ bool LeaderCbma::move2_inter_pert(int *route1, int *route2, int &length1, int &l
         }
     }
     if (candidates.empty()) return false;
-    std::shuffle(candidates.begin(), candidates.end(), random_engine);  // Shuffle to pick one randomly
+    std::shuffle(candidates.begin(), candidates.end(), thread_rng);  // Shuffle to pick one randomly
     int i = candidates.front();  // Pick the first after shuffling
     std::uniform_int_distribution<int> dist(0, length2 - 2);
-    int j = dist(random_engine);
+    int j = dist(thread_rng);
 
     double original_cost, modified_cost, change;
     original_cost = instance->get_distance(route1[i - 1], route1[i]) +
@@ -1580,11 +1807,11 @@ bool LeaderCbma::move3_intra_pert(int *route, int length) {
     bool has_moved = false;
 
     std::uniform_int_distribution<int> dist(1, length - 3);
-    int i = dist(random_engine);
+    int i = dist(thread_rng);
     std::uniform_int_distribution<int> dist2(0, length - 2);
     int j;
     do {
-        j = dist2(random_engine);
+        j = dist2(thread_rng);
     } while (j == i - 1 || j == i || j == i + 1);
 
     double original_cost, modified_cost, change;
@@ -1641,10 +1868,10 @@ bool LeaderCbma::move3_inter_pert(int *route1, int *route2, int &length1, int &l
         }
     }
     if (candidates.empty()) return false;
-    std::shuffle(candidates.begin(), candidates.end(), random_engine);  // Shuffle to pick one randomly
+    std::shuffle(candidates.begin(), candidates.end(), thread_rng);  // Shuffle to pick one randomly
     int i = candidates.front();  // Pick the first after shuffling
     std::uniform_int_distribution<int> dist(0, length2 - 2);
-    int j = dist(random_engine);
+    int j = dist(thread_rng);
 
     double original_cost, modified_cost, change;
     original_cost = instance->get_distance(route1[i - 1], route1[i]) +
@@ -1685,9 +1912,9 @@ bool LeaderCbma::move4_intra_pert(int *route, int length) {
     bool has_moved = false;
 
     std::uniform_int_distribution<int> distI(1, length - 3);
-    int i = distI(random_engine);
+    int i = distI(thread_rng);
     std::uniform_int_distribution<int> distJ(i + 1, length - 2);
-    int j = distJ(random_engine);
+    int j = distJ(thread_rng);
 
     double original_cost, modified_cost, change;
     if (j == i + 1) {
@@ -1715,9 +1942,9 @@ bool LeaderCbma::move4_inter_pert(int *route1, int *route2, int length1, int len
     bool has_moved = false;
 
     std::uniform_int_distribution<int> distI(1, length1 - 2);
-    int i = distI(random_engine);
+    int i = distI(thread_rng);
     std::uniform_int_distribution<int> distJ(1, length2 - 2);
-    int j = distJ(random_engine);
+    int j = distJ(thread_rng);
 
     double original_cost, modified_cost, change;
     int demand_I = instance->get_customer_demand_(route1[i]);
@@ -1749,9 +1976,9 @@ bool LeaderCbma::move5_intra_pert(int *route, int length) {
     bool has_moved = false;
 
     std::uniform_int_distribution<int> distI(1, length - 4);
-    int i = distI(random_engine);
+    int i = distI(thread_rng);
     std::uniform_int_distribution<int> distJ(i + 2, length - 2);
-    int j = distJ(random_engine);
+    int j = distJ(thread_rng);
 
     double original_cost, modified_cost, change;
     if (j == i + 2) {
@@ -1797,9 +2024,9 @@ bool LeaderCbma::move5_inter_pert(int *route1, int *route2, int &length1, int &l
     bool has_moved = false;
 
     std::uniform_int_distribution<int> distI(1, length1 - 3);
-    int i = distI(random_engine);
+    int i = distI(thread_rng);
     std::uniform_int_distribution<int> distJ(1, length2 - 2);
-    int j = distJ(random_engine);
+    int j = distJ(thread_rng);
 
     double original_cost, modified_cost, change;
     int demand_pair = instance->get_customer_demand_(route1[i]) + instance->get_customer_demand_(route1[i + 1]);
@@ -1844,9 +2071,9 @@ bool LeaderCbma::move6_intra_pert(int *route, int length) {
     bool has_moved = false;
 
     std::uniform_int_distribution<int> distI(1, length - 5);
-    int i = distI(random_engine);
+    int i = distI(thread_rng);
     std::uniform_int_distribution<int> distJ(i + 2, length - 3);
-    int j = distJ(random_engine);
+    int j = distJ(thread_rng);
 
     double original_cost, modified_cost, change;
     if (j == i + 2) {
@@ -1883,9 +2110,9 @@ bool LeaderCbma::move6_inter_pert(int *route1, int *route2, int length1, int len
     bool has_moved = false;
 
     std::uniform_int_distribution<int> distI(1, length1 - 3);
-    int i = distI(random_engine);
+    int i = distI(thread_rng);
     std::uniform_int_distribution<int> distJ(1, length2 - 3);
-    int j = distJ(random_engine);
+    int j = distJ(thread_rng);
 
     double original_cost, modified_cost, change;
     int demand_I_pair = instance->get_customer_demand_(route1[i]) + instance->get_customer_demand_(route1[i + 1]);
@@ -1917,9 +2144,9 @@ bool LeaderCbma::move7_intra_pert(int *route, int length) {
     bool has_moved = false;
 
     std::uniform_int_distribution<int> distI(1, length - 3);
-    int i = distI(random_engine);
+    int i = distI(thread_rng);
     std::uniform_int_distribution<int> distJ(i + 1, length - 2);
-    int j = distJ(random_engine);
+    int j = distJ(thread_rng);
 
     double original_cost, modified_cost, change;
     original_cost = instance->get_distance(route[i - 1], route[i]) +
@@ -1946,7 +2173,7 @@ bool LeaderCbma::move8_inter_pert(int *route1, int *route2, int &length1, int &l
     bool has_moved = false;
 
     std::uniform_int_distribution<int> distN1(0, length1 - 2);
-    int n1 = distN1(random_engine);
+    int n1 = distN1(thread_rng);
     int partial_dem_r1 = 0; // the partial demand of route r1, i.e., the head partial route
     for (int i = 0; i <= n1; i++) {
         partial_dem_r1 += instance->get_customer_demand_(route1[i]);
@@ -2002,7 +2229,7 @@ bool LeaderCbma::move9_inter_pert(int *route1, int *route2, int &length1, int &l
     bool has_moved = false;
 
     std::uniform_int_distribution<int> distN1(0, length1 - 2);
-    int n1 = distN1(random_engine);
+    int n1 = distN1(thread_rng);
     int partial_dem_r1 = 0; // the partial demand of route r1, i.e., the head partial route
     for (int i = 0; i <= n1; i++) {
         partial_dem_r1 += instance->get_customer_demand_(route1[i]);
@@ -2047,4 +2274,34 @@ bool LeaderCbma::move9_inter_pert(int *route1, int *route2, int &length1, int &l
     }
 
     return has_moved;
+}
+
+std::ostream& operator<<(std::ostream& os, const LeaderCbma& leader) {
+    os << "Route Capacity: " << leader.route_cap << "\n";
+    os << "Node Capacity: " << leader.node_cap << "\n";
+    os << "Number of Routes: " << leader.num_routes << "\n";
+    os << "Upper Cost: " << leader.upper_cost << "\n";
+
+    os << "Number of Nodes per route (upper): ";
+    for (int i = 0; i < leader.route_cap; ++i) {
+        os << leader.num_nodes_per_route[i] << " ";
+    }
+    os << "\n";
+
+    os << "Demand sum per route: ";
+    for (int i = 0; i < leader.route_cap; ++i) {
+        os << leader.demand_sum_per_route[i] << " ";
+    }
+    os << "\n";
+
+    os << "Upper Routes: \n";
+    for (int i = 0; i < leader.route_cap; ++i) {
+        os << "Route " << i << ": ";
+        for (int j = 0; j < leader.node_cap; ++j) {
+            os << leader.routes[i][j] << " ";
+        }
+        os << "\n";
+    }
+
+    return os;
 }

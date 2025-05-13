@@ -20,13 +20,12 @@ private:
     mutable int temp_buffer_size = 0;
 
     void prepare_temp_buffers(int required_size) const;
-
-    int luby_counter = 1;
 public:
     Case* instance;
     Preprocessor* preprocessor;
-    std::mt19937& random_engine;   // Random number generator
     uniform_int_distribution<int> uniform_int_dis;// Uniform distribution for random integers
+
+    PartialSolution* partial_sol;
 
     int route_cap;
     int node_cap;
@@ -42,14 +41,18 @@ public:
     uniform_int_distribution<int> k_active_moves_dist;
     vector<int> active_moves;
     int max_chain_length;
+    uniform_int_distribution<int> local_search_dist;
+    uniform_int_distribution<int> perturbation_dist;
 
     int get_luby(int j) const;
 
     void run(Individual* ind);
     void run_plus(Individual* ind);
+    bool local_search_move(PartialSolution* partial_sol);
+    void strong_perturbation(int strength);
     void load_individual(Individual* ind);
     void export_individual(Individual* ind) const;
-    LeaderCbma(std::mt19937& engine, Case* instance, Preprocessor* preprocessor);
+    LeaderCbma(Case* instance, Preprocessor* preprocessor);
     ~LeaderCbma();
 
     void clean();
@@ -67,6 +70,8 @@ public:
 
     /* Local search moves */
     [[nodiscard]] static bool is_accepted_impro(const double& change);
+    bool perform_intra_move_neigh(const std::function<bool(int*, int)>& move_func) const;
+    bool perform_inter_move_neigh(const std::function<bool(int*, int*, int&, int&, int&, int&)>& move_func);
     // wrapper function - search until no improvement
     bool perform_intra_move_impro(const std::function<bool(int*, int)>& move_func) const;
     bool perform_inter_move_impro(const std::function<bool(int*, int*, int&, int&, int&, int&)>& move_func);
@@ -88,7 +93,7 @@ public:
     bool move9_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
 
     /* Strong perturbation */
-    bool perform_intra_move_pert(const std::function<bool(int*, int)>& move_func);
+    bool perform_intra_move_pert(const std::function<bool(int*, int)>& move_func) const;
     bool perform_inter_move_pert(const std::function<bool(int*, int*, int&, int&, int&, int&)>& move_func);
     bool perform_inter_move_with_empty_pert(const std::function<bool(int*, int*, int&, int&, int&, int&)>& move_func);
     // basic perturbation moves
