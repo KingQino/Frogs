@@ -152,7 +152,7 @@ void Cbma::run_heuristic() {
                 }
 
                 no_improve_counter = 0;
-                k = 1;
+//                k = 1;
             } else {
                 no_improve_counter += 1;
             }
@@ -172,7 +172,7 @@ void Cbma::run_heuristic() {
                 no_improve_counter = 0;
                 k += 1;
 
-//                if (strength >= max_chain_length) k = 1;
+                if (strength >= max_chain_length) k = 1;
             }
         }
     }
