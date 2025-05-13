@@ -20,6 +20,8 @@ private:
     mutable int temp_buffer_size = 0;
 
     void prepare_temp_buffers(int required_size) const;
+
+    int luby_counter = 1;
 public:
     Case* instance;
     Preprocessor* preprocessor;
@@ -36,6 +38,12 @@ public:
     int moves_count;
     vector<int> move_indices;
     unordered_set<pair<int, int>, PairHash> route_pairs;
+    int k_active_moves;
+    uniform_int_distribution<int> k_active_moves_dist;
+    vector<int> active_moves;
+    int max_chain_length;
+
+    int get_luby(int j) const;
 
     void run(Individual* ind);
     void run_plus(Individual* ind);
@@ -57,7 +65,7 @@ public:
     void node_relocation_for_sol();
 
 
-    /* Local search until it can no longer improve */
+    /* Local search moves */
     [[nodiscard]] static bool is_accepted_impro(const double& change);
     // wrapper function - search until no improvement
     bool perform_intra_move_impro(const std::function<bool(int*, int)>& move_func) const;
@@ -78,6 +86,28 @@ public:
     bool move7_intra_impro(int* route, int length);
     bool move8_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
     bool move9_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+
+    /* Strong perturbation */
+    bool perform_intra_move_pert(const std::function<bool(int*, int)>& move_func);
+    bool perform_inter_move_pert(const std::function<bool(int*, int*, int&, int&, int&, int&)>& move_func);
+    bool perform_inter_move_with_empty_pert(const std::function<bool(int*, int*, int&, int&, int&, int&)>& move_func);
+    // basic perturbation moves
+    bool move1_intra_pert(int* route, int length);
+    bool move1_inter_pert(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move1_inter_with_empty_route_pert(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move2_intra_pert(int* route, int length);
+    bool move2_inter_pert(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move3_intra_pert(int* route, int length);
+    bool move3_inter_pert(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move4_intra_pert(int* route, int length);
+    bool move4_inter_pert(int* route1, int* route2, int length1, int length2, int& loading1, int& loading2);
+    bool move5_intra_pert(int* route, int length);
+    bool move5_inter_pert(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move6_intra_pert(int* route, int length);
+    bool move6_inter_pert(int* route1, int* route2, int length1, int length2, int& loading1, int& loading2);
+    bool move7_intra_pert(int* route, int length);
+    bool move8_inter_pert(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move9_inter_pert(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
 
 
     friend ostream& operator<<(ostream& os, const LeaderCbma& leader);

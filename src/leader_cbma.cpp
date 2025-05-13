@@ -28,6 +28,10 @@ LeaderCbma::LeaderCbma(std::mt19937& engine, Case *instance, Preprocessor *prepr
     memset(this->demand_sum_per_route, 0, sizeof(int) * route_cap);
 
     prepare_temp_buffers(node_cap);
+    k_active_moves = 0;
+    k_active_moves_dist = uniform_int_distribution<int>(1, moves_count);
+    active_moves.reserve(moves_count);
+    max_chain_length = 512;
 }
 
 LeaderCbma::~LeaderCbma() {
@@ -40,6 +44,15 @@ LeaderCbma::~LeaderCbma() {
 
     delete[] temp_r1;
     delete[] temp_r2;
+}
+
+int LeaderCbma::get_luby(int j) const {
+    int k = 1;
+    while ((1 << k) - 1 < j) ++k;
+    int val = (1 << (k - 1));
+    if (val >= max_chain_length) return max_chain_length;
+    if ((1 << k) - 1 == j) return val;
+    return get_luby(j - val + 1);
 }
 
 void LeaderCbma::prepare_temp_buffers(int required_size) const {
@@ -1288,6 +1301,750 @@ bool LeaderCbma::move9_inter_impro(int *route1, int *route2, int &length1, int &
     }
 
     end_loops:;
+
+    return has_moved;
+}
+
+bool LeaderCbma::perform_intra_move_pert(const std::function<bool(int *, int)> &move_func) {
+    if (num_routes < 1) return false;
+
+    std::uniform_int_distribution<int> dist(0, num_routes - 1);
+    int random_route_idx = dist(random_engine);
+
+    bool is_moved = move_func(routes[random_route_idx], num_nodes_per_route[random_route_idx]);
+
+    return is_moved;
+}
+
+bool LeaderCbma::perform_inter_move_pert(
+        const std::function<bool(int *, int *, int &, int &, int &, int &)> &move_func) {
+    if (num_routes <= 1) return false;
+
+    int r1, r2;
+    std::uniform_int_distribution<int> dist(0, num_routes - 1);
+    r1 = dist(random_engine);
+    do {
+        r2 = dist(random_engine);
+    } while (r1 == r2);
+
+    bool is_moved = move_func(routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2],
+                              demand_sum_per_route[r1], demand_sum_per_route[r2]);
+
+    if (is_moved) {
+        clean_empty_routes(r1, r2);
+    }
+
+    return is_moved;
+}
+
+bool LeaderCbma::perform_inter_move_with_empty_pert(
+        const std::function<bool(int *, int *, int &, int &, int &, int &)> &move_func) {
+    if (num_routes < 1) return false;
+
+    int r1, r2;
+    std::uniform_int_distribution<int> dist(0, num_routes - 1);
+    r1 = dist(random_engine);
+    r2 = num_routes; // empty route
+
+    bool is_moved = move_func(routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2],
+                         demand_sum_per_route[r1], demand_sum_per_route[r2]);
+
+    if (is_moved) {
+        num_routes++;
+    }
+
+    return is_moved;
+}
+
+bool LeaderCbma::move1_intra_pert(int *route, int length) {
+    if (length <= 4) return false;
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> dist(1, length - 2);
+    int i = dist(random_engine);
+    int j;
+    do {
+        j = dist(random_engine);
+    } while (i == j);
+
+    double original_cost, modified_cost, change;
+    if (i < j) {
+        original_cost = instance->get_distance(route[i - 1], route[i]) +
+                        instance->get_distance(route[i], route[i + 1]) +
+                        instance->get_distance(route[j], route[j + 1]);
+        modified_cost = instance->get_distance(route[i - 1], route[i + 1]) +
+                        instance->get_distance(route[j], route[i]) +
+                        instance->get_distance(route[i], route[j + 1]);
+    } else {
+        original_cost = instance->get_distance(route[i - 1], route[i]) +
+                        instance->get_distance(route[i], route[i + 1]) +
+                        instance->get_distance(route[j - 1], route[j]);
+        modified_cost = instance->get_distance(route[j - 1], route[i]) +
+                        instance->get_distance(route[i], route[j]) +
+                        instance->get_distance(route[i - 1], route[i + 1]);
+    }
+    change = modified_cost - original_cost;
+
+    moveItoJ(route, i, j);
+    upper_cost += change;
+    has_moved = true;
+
+    return has_moved;
+}
+
+bool LeaderCbma::move1_inter_pert(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2) {
+    if (length1 < 3 || length2 < 3) return false;
+
+    bool has_moved = false;
+
+    std::vector<int> candidates;
+    for (int i = 1; i < length1 - 1; ++i) {
+        if (loading2 + instance->get_customer_demand_(route1[i]) <= instance->max_vehicle_capa_) {
+            candidates.push_back(i);
+        }
+    }
+    if (candidates.empty()) return false;
+    std::shuffle(candidates.begin(), candidates.end(), random_engine);  // Shuffle to pick one randomly
+    int i = candidates.front();  // Pick the first after shuffling
+    std::uniform_int_distribution<int> dist(0, length2 - 2);
+    int j = dist(random_engine);
+
+    double original_cost, modified_cost, change;
+    original_cost = instance->get_distance(route1[i - 1], route1[i]) +
+                    instance->get_distance(route1[i], route1[i + 1]) +
+                    instance->get_distance(route2[j], route2[j + 1]);
+    modified_cost = instance->get_distance(route1[i - 1], route1[i + 1]) +
+                    instance->get_distance(route2[j], route1[i]) +
+                    instance->get_distance(route1[i], route2[j + 1]);
+    change = modified_cost - original_cost;
+
+    int x = route1[i];
+    for (int p = i; p < length1 - 1; p++) {
+        route1[p] = route1[p + 1];
+    }
+    length1--;
+    loading1 -= instance->get_customer_demand_(x);
+    for (int q = length2; q > j + 1; q--) {
+        route2[q] = route2[q - 1];
+    }
+    route2[j + 1] = x;
+    length2++;
+    loading2 += instance->get_customer_demand_(x);
+    upper_cost += change;
+
+    has_moved = true;
+
+    return has_moved;
+}
+
+bool LeaderCbma::move1_inter_with_empty_route_pert(int *route1, int *route2, int &length1, int &length2, int &loading1,
+                                                   int &loading2) {
+    if (length1 < 4 || length2 != 0) return false; // make sure it won't generate empty route
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> dist(1, length1 - 2);
+    int i = dist(random_engine);
+    int x = route1[i];
+
+    double original_cost = instance->get_distance(route1[i - 1], x) +
+                           instance->get_distance(x, route1[i + 1]);
+    double modified_cost = instance->get_distance(route1[i - 1], route1[i + 1]) +
+                           instance->get_distance(route2[0], x) +
+                           instance->get_distance(x, route2[1]);
+    double change = modified_cost - original_cost;
+
+    for (int p = i; p < length1 - 1; p++) {
+        route1[p] = route1[p + 1];
+    }
+    length1--;
+    loading1 -= instance->get_customer_demand_(x);
+    route2[1] = x;
+    length2 = 3;
+    loading2 += instance->get_customer_demand_(x);
+    upper_cost += change;
+
+    has_moved = true;
+
+    return has_moved;
+}
+
+bool LeaderCbma::move2_intra_pert(int *route, int length) {
+    if (length <= 4) return false;
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> dist1(1, length - 3);
+    std::uniform_int_distribution<int> dist2(0, length - 2);
+    int i = dist1(random_engine);
+    int j;
+    do {
+        j = dist2(random_engine);
+    } while (j == i - 1 || j == i || j == i + 1);
+
+
+    double original_cost, modified_cost, change;
+    if (i < j) {
+        original_cost = instance->get_distance(route[i - 1], route[i]) +
+                        instance->get_distance(route[i + 1], route[i + 2]) +
+                        instance->get_distance(route[j], route[j + 1]);
+        modified_cost = instance->get_distance(route[i - 1], route[i + 2]) +
+                        instance->get_distance(route[j], route[i]) +
+                        instance->get_distance(route[i + 1], route[j + 1]);
+    } else {
+        original_cost = instance->get_distance(route[i - 1], route[i]) +
+                        instance->get_distance(route[i + 1], route[i + 2]) +
+                        instance->get_distance(route[j], route[j + 1]);
+        modified_cost = instance->get_distance(route[j], route[i]) +
+                        instance->get_distance(route[i + 1], route[j + 1]) +
+                        instance->get_distance(route[i - 1], route[i + 2]);
+    }
+    change = modified_cost - original_cost;
+
+    int u = route[i];
+    int x = route[i + 1];
+    if (i < j) {
+        for (int k = i; k < j - 1; k++) {
+            route[k] = route[k + 2];
+        }
+        route[j - 1] = u;
+        route[j] = x;
+    } else if (i > j) {
+        for (int k = i + 1; k > j + 2; k--) {
+            route[k] = route[k - 2];
+        }
+        route[j + 1] = u;
+        route[j + 2] = x;
+    }
+    upper_cost += change;
+
+    has_moved = true;
+
+    return has_moved;
+}
+
+bool LeaderCbma::move2_inter_pert(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2) {
+    if (length1 < 4 || length2 < 3) return false;
+
+    bool has_moved = false;
+
+    std::vector<int> candidates;
+    for (int i = 1; i < length1 - 2; ++i) {
+        if (loading2 + instance->get_customer_demand_(route1[i]) + instance->get_customer_demand_(route1[ i + 1]) <= instance->max_vehicle_capa_) {
+            candidates.push_back(i);
+        }
+    }
+    if (candidates.empty()) return false;
+    std::shuffle(candidates.begin(), candidates.end(), random_engine);  // Shuffle to pick one randomly
+    int i = candidates.front();  // Pick the first after shuffling
+    std::uniform_int_distribution<int> dist(0, length2 - 2);
+    int j = dist(random_engine);
+
+    double original_cost, modified_cost, change;
+    original_cost = instance->get_distance(route1[i - 1], route1[i]) +
+                    instance->get_distance(route1[i + 1], route1[i + 2]) +
+                    instance->get_distance(route2[j], route2[j + 1]);
+    modified_cost = instance->get_distance(route1[i - 1], route1[i + 2]) +
+                    instance->get_distance(route2[j], route1[i]) +
+                    instance->get_distance(route1[i + 1], route2[j + 1]);
+    change = modified_cost - original_cost;
+
+    int u = route1[i];
+    int x = route1[i + 1];
+    for (int p = i; p < length1 - 2; ++p) {
+        route1[p] = route1[p + 2];
+    }
+    length1 -= 2;
+    loading1 -= instance->get_customer_demand_(u);
+    loading1 -= instance->get_customer_demand_(x);
+
+    for (int q = length2 + 1; q > j + 2; q--) {
+        route2[q] = route2[q - 2];
+    }
+    route2[j + 1] = u;
+    route2[j + 2] = x;
+    length2 += 2;
+    loading2 += instance->get_customer_demand_(u);
+    loading2 += instance->get_customer_demand_(x);
+    upper_cost += change;
+
+    has_moved = true;
+
+    return has_moved;
+}
+
+bool LeaderCbma::move3_intra_pert(int *route, int length) {
+    if (length <= 4) return false;
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> dist(1, length - 3);
+    int i = dist(random_engine);
+    std::uniform_int_distribution<int> dist2(0, length - 2);
+    int j;
+    do {
+        j = dist2(random_engine);
+    } while (j == i - 1 || j == i || j == i + 1);
+
+    double original_cost, modified_cost, change;
+    if (i < j) {
+        original_cost = instance->get_distance(route[i - 1], route[i]) +
+                        instance->get_distance(route[i + 1], route[i + 2]) +
+                        instance->get_distance(route[j], route[j + 1]);
+        modified_cost = instance->get_distance(route[i - 1], route[i + 2]) +
+                        instance->get_distance(route[j], route[i + 1]) +
+                        instance->get_distance(route[i], route[j + 1]);
+    } else {
+        original_cost = instance->get_distance(route[i - 1], route[i]) +
+                        instance->get_distance(route[i + 1], route[i + 2]) +
+                        instance->get_distance(route[j], route[j + 1]);
+        modified_cost = instance->get_distance(route[j], route[i + 1]) +
+                        instance->get_distance(route[i], route[j + 1]) +
+                        instance->get_distance(route[i - 1], route[i + 2]);
+    }
+    change = modified_cost - original_cost;
+
+    int u = route[i];
+    int x = route[i + 1];
+    if (i < j) {
+        for (int k = i; k < j - 1; k++) {
+            route[k] = route[k + 2];
+        }
+        route[j - 1] = x;
+        route[j] = u;
+    }
+    else if (i > j) {
+        for (int k = i + 1; k > j + 2; k--) {
+            route[k] = route[k - 2];
+        }
+        route[j + 1] = x;
+        route[j + 2] = u;
+    }
+    upper_cost += change;
+
+    has_moved = true;
+
+    return has_moved;
+}
+
+bool LeaderCbma::move3_inter_pert(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2) {
+    if (length1 < 4 || length2 < 3) return false;
+
+    bool has_moved = false;
+
+    std::vector<int> candidates;
+    for (int i = 1; i < length1 - 2; ++i) {
+        if (loading2 + instance->get_customer_demand_(route1[i]) +
+            instance->get_customer_demand_(route1[ i + 1]) <= instance->max_vehicle_capa_) {
+            candidates.push_back(i);
+        }
+    }
+    if (candidates.empty()) return false;
+    std::shuffle(candidates.begin(), candidates.end(), random_engine);  // Shuffle to pick one randomly
+    int i = candidates.front();  // Pick the first after shuffling
+    std::uniform_int_distribution<int> dist(0, length2 - 2);
+    int j = dist(random_engine);
+
+    double original_cost, modified_cost, change;
+    original_cost = instance->get_distance(route1[i - 1], route1[i]) +
+                    instance->get_distance(route1[i + 1], route1[i + 2]) +
+                    instance->get_distance(route2[j], route2[j + 1]);
+    modified_cost = instance->get_distance(route1[i - 1], route1[i + 2]) +
+                    instance->get_distance(route2[j], route1[i + 1]) +
+                    instance->get_distance(route1[i], route2[j + 1]);
+    change = modified_cost - original_cost;
+
+    int u = route1[i];
+    int x = route1[i + 1];
+    for (int p = i; p < length1 - 2; ++p) {
+        route1[p] = route1[p + 2];
+    }
+    length1 -= 2;
+    loading1 -= instance->get_customer_demand_(u);
+    loading1 -= instance->get_customer_demand_(x);
+
+    for (int q = length2 + 1; q > j + 2; q--) {
+        route2[q] = route2[q - 2];
+    }
+    route2[j + 1] = x;
+    route2[j + 2] = u;
+    length2 += 2;
+    loading2 += instance->get_customer_demand_(u);
+    loading2 += instance->get_customer_demand_(x);
+    upper_cost += change;
+
+    has_moved = true;
+
+    return has_moved;
+}
+
+bool LeaderCbma::move4_intra_pert(int *route, int length) {
+    if (length < 5) return false;
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> distI(1, length - 3);
+    int i = distI(random_engine);
+    std::uniform_int_distribution<int> distJ(i + 1, length - 2);
+    int j = distJ(random_engine);
+
+    double original_cost, modified_cost, change;
+    if (j == i + 1) {
+        original_cost = instance->get_distance(route[i - 1], route[i]) + instance->get_distance(route[j], route[j + 1]);
+        modified_cost = instance->get_distance(route[i - 1], route[j]) + instance->get_distance(route[i], route[j + 1]);
+    } else {
+        original_cost = instance->get_distance(route[i - 1], route[i]) + instance->get_distance(route[i], route[i + 1])
+                        + instance->get_distance(route[j - 1], route[j]) + instance->get_distance(route[j], route[j + 1]);
+        modified_cost = instance->get_distance(route[i - 1], route[j]) + instance->get_distance(route[j], route[i + 1])
+                        + instance->get_distance(route[j - 1], route[i]) + instance->get_distance(route[i], route[j + 1]);
+    }
+    change = modified_cost - original_cost;
+
+    swap(route[i], route[j]);
+    upper_cost += change;
+
+    has_moved = true;
+
+    return has_moved;
+}
+
+bool LeaderCbma::move4_inter_pert(int *route1, int *route2, int length1, int length2, int &loading1, int &loading2) {
+    if (length1 < 3 || length2 < 3) return false;
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> distI(1, length1 - 2);
+    int i = distI(random_engine);
+    std::uniform_int_distribution<int> distJ(1, length2 - 2);
+    int j = distJ(random_engine);
+
+    double original_cost, modified_cost, change;
+    int demand_I = instance->get_customer_demand_(route1[i]);
+    int demand_J = instance->get_customer_demand_(route2[j]);
+    if (loading1 - demand_I + demand_J <= instance->max_vehicle_capa_ && loading2 - demand_J + demand_I <= instance->max_vehicle_capa_) {
+        original_cost =
+                instance->get_distance(route1[i - 1], route1[i]) + instance->get_distance(route1[i], route1[i + 1]) +
+                instance->get_distance(route2[j - 1], route2[j]) + instance->get_distance(route2[j], route2[j + 1]);
+        modified_cost =
+                instance->get_distance(route1[i - 1], route2[j]) + instance->get_distance(route2[j], route1[i + 1]) +
+                instance->get_distance(route2[j - 1], route1[i]) + instance->get_distance(route1[i], route2[j + 1]);
+
+        change = modified_cost - original_cost;
+
+        swap(route1[i], route2[j]);
+        loading1 = loading1 - demand_I + demand_J;
+        loading2 = loading2 - demand_J + demand_I;
+        upper_cost += change;
+
+        has_moved = true;
+    }
+
+    return has_moved;
+}
+
+bool LeaderCbma::move5_intra_pert(int *route, int length) {
+    if (length < 5) return false;
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> distI(1, length - 4);
+    int i = distI(random_engine);
+    std::uniform_int_distribution<int> distJ(i + 2, length - 2);
+    int j = distJ(random_engine);
+
+    double original_cost, modified_cost, change;
+    if (j == i + 2) {
+        original_cost = instance->get_distance(route[i - 1], route[i]) +
+                        instance->get_distance(route[i + 1], route[j]) +
+                        instance->get_distance(route[j], route[j + 1]);
+        modified_cost = instance->get_distance(route[i - 1], route[j]) +
+                        instance->get_distance(route[j], route[i]) +
+                        instance->get_distance(route[i + 1], route[j + 1]);
+    } else {
+        original_cost = instance->get_distance(route[i - 1], route[i]) +
+                        instance->get_distance(route[i + 1], route[i + 2]) +
+                        instance->get_distance(route[j - 1], route[j]) +
+                        instance->get_distance(route[j], route[j + 1]);
+        modified_cost = instance->get_distance(route[i - 1], route[j]) +
+                        instance->get_distance(route[j], route[i + 2]) +
+                        instance->get_distance(route[j - 1], route[i]) +
+                        instance->get_distance(route[i + 1], route[j + 1]);
+    }
+    change = modified_cost - original_cost;
+
+    if (j == i + 2) {
+        std::swap(route[i], route[j]);
+        std::swap(route[i + 1], route[j]);
+    } else {
+        std::swap(route[i], route[j]);
+        int x = route[i + 1];
+        for (int k = i + 1; k < j; ++k) {
+            route[k] = route[k + 1];
+        }
+        route[j] = x;
+    }
+
+    upper_cost += change;
+    has_moved = true;
+
+    return has_moved;
+}
+
+bool LeaderCbma::move5_inter_pert(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2) {
+    if (length1 < 4 || length2 < 4) return false;
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> distI(1, length1 - 3);
+    int i = distI(random_engine);
+    std::uniform_int_distribution<int> distJ(1, length2 - 2);
+    int j = distJ(random_engine);
+
+    double original_cost, modified_cost, change;
+    int demand_pair = instance->get_customer_demand_(route1[i]) + instance->get_customer_demand_(route1[i + 1]);
+    int demand_J = instance->get_customer_demand_(route2[j]);
+    if (loading1 - demand_pair + demand_J > instance->max_vehicle_capa_ || loading2 - demand_J + demand_pair > instance->max_vehicle_capa_) {
+        return false;
+    }
+
+    original_cost = instance->get_distance(route1[i - 1], route1[i]) + instance->get_distance(route1[i + 1], route1[i + 2]) +
+                    instance->get_distance(route2[j - 1], route2[j]) + instance->get_distance(route2[j], route2[j + 1]);
+    modified_cost = instance->get_distance(route1[i - 1], route2[j]) + instance->get_distance(route2[j], route1[i + 2]) +
+                    instance->get_distance(route2[j - 1], route1[i]) + instance->get_distance(route1[i + 1], route2[j + 1]);
+
+    change = modified_cost - original_cost;
+
+    int u = route1[i];
+    int x = route1[i + 1];
+    route1[i] = route2[j];
+    for (int p = i + 1; p < length1 - 1; ++p) {
+        route1[p] = route1[p + 1];
+    }
+    length1--;
+    loading1 = loading1 - demand_pair + demand_J;
+
+    for (int q = length2; q > j + 1; q--) {
+        route2[q] = route2[q - 1];
+    }
+    route2[j] = u;
+    route2[j + 1] = x;
+    length2++;
+    loading2 = loading2 - demand_J + demand_pair;
+
+    upper_cost += change;
+    has_moved = true;
+
+    return has_moved;
+}
+
+bool LeaderCbma::move6_intra_pert(int *route, int length) {
+    if (length < 6) return false;
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> distI(1, length - 5);
+    int i = distI(random_engine);
+    std::uniform_int_distribution<int> distJ(i + 2, length - 3);
+    int j = distJ(random_engine);
+
+    double original_cost, modified_cost, change;
+    if (j == i + 2) {
+        original_cost = instance->get_distance(route[i - 1], route[i]) +
+                        instance->get_distance(route[i + 1], route[j]) +
+                        instance->get_distance(route[j + 1], route[j + 2]);
+        modified_cost = instance->get_distance(route[i - 1], route[j]) +
+                        instance->get_distance(route[j + 1], route[i]) +
+                        instance->get_distance(route[i + 1], route[j + 2]);
+    } else {
+        original_cost = instance->get_distance(route[i - 1], route[i]) +
+                        instance->get_distance(route[i + 1], route[i + 2]) +
+                        instance->get_distance(route[j - 1], route[j]) +
+                        instance->get_distance(route[j + 1], route[j + 2]);
+        modified_cost = instance->get_distance(route[i - 1], route[j]) +
+                        instance->get_distance(route[j + 1], route[i + 2]) +
+                        instance->get_distance(route[j - 1], route[i]) +
+                        instance->get_distance(route[i + 1], route[j + 2]);
+    }
+    change = modified_cost - original_cost;
+
+    swap(route[i], route[j]);
+    swap(route[i + 1], route[j + 1]);
+    upper_cost += change;
+
+    has_moved = true;
+
+    return has_moved;
+}
+
+bool LeaderCbma::move6_inter_pert(int *route1, int *route2, int length1, int length2, int &loading1, int &loading2) {
+    if (length1 < 4 || length2 < 4 || (length1 == 4 && length2 == 4)) return false;
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> distI(1, length1 - 3);
+    int i = distI(random_engine);
+    std::uniform_int_distribution<int> distJ(1, length2 - 3);
+    int j = distJ(random_engine);
+
+    double original_cost, modified_cost, change;
+    int demand_I_pair = instance->get_customer_demand_(route1[i]) + instance->get_customer_demand_(route1[i + 1]);
+    int demand_J_pair = instance->get_customer_demand_(route2[j]) + instance->get_customer_demand_(route2[j + 1]);
+    if (loading1 - demand_I_pair + demand_J_pair > instance->max_vehicle_capa_ || loading2 - demand_J_pair + demand_I_pair > instance->max_vehicle_capa_) {
+        return false;
+    }
+
+    original_cost = instance->get_distance(route1[i - 1], route1[i]) + instance->get_distance(route1[i + 1], route1[i + 2]) +
+                    instance->get_distance(route2[j - 1], route2[j]) + instance->get_distance(route2[j + 1], route2[j + 2]);
+    modified_cost = instance->get_distance(route1[i - 1], route2[j]) + instance->get_distance(route2[j + 1], route1[i + 2]) +
+                    instance->get_distance(route2[j - 1], route1[i]) + instance->get_distance(route1[i + 1], route2[j + 2]);
+    change = modified_cost - original_cost;
+
+    swap(route1[i], route2[j]);
+    swap(route1[i + 1], route2[j + 1]);
+    loading1 = loading1 - demand_I_pair + demand_J_pair;
+    loading2 = loading2 - demand_J_pair + demand_I_pair;
+    upper_cost += change;
+
+    has_moved = true;
+
+    return has_moved;
+}
+
+bool LeaderCbma::move7_intra_pert(int *route, int length) {
+    if (length < 5) return false;
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> distI(1, length - 3);
+    int i = distI(random_engine);
+    std::uniform_int_distribution<int> distJ(i + 1, length - 2);
+    int j = distJ(random_engine);
+
+    double original_cost, modified_cost, change;
+    original_cost = instance->get_distance(route[i - 1], route[i]) +
+                    instance->get_distance(route[j], route[j + 1]);
+    modified_cost = instance->get_distance(route[i - 1], route[j]) +
+                    instance->get_distance(route[i], route[j + 1]);
+
+    change = modified_cost - original_cost; // negative represents the cost reduction`
+
+    reverse(route + i, route + j + 1);
+    upper_cost += change;
+
+    has_moved = true;
+
+    return has_moved;
+}
+
+bool LeaderCbma::move8_inter_pert(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2) {
+    if (length1 < 3 || length2 < 3) return false;
+
+    memset(temp_r1, 0, sizeof(int) * node_cap);
+    memset(temp_r2, 0, sizeof(int) * node_cap);
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> distN1(0, length1 - 2);
+    int n1 = distN1(random_engine);
+    int partial_dem_r1 = 0; // the partial demand of route r1, i.e., the head partial route
+    for (int i = 0; i <= n1; i++) {
+        partial_dem_r1 += instance->get_customer_demand_(route1[i]);
+    }
+
+    double original_cost, modified_cost, change;
+
+    int partial_dem_r2 = 0;
+    for (int n2 = 0; n2 < length2 - 1; ++n2) {
+        if ((n1 == length1 - 2 && n2 == 0) || (n1 == 0 && n2 == length2 - 2)) continue; // the same as the current situation, just skip it.
+        partial_dem_r2 += instance->get_customer_demand_(route2[n2]);
+
+        if (partial_dem_r1 + partial_dem_r2 > instance->max_vehicle_capa_ ||
+            loading1 - partial_dem_r1 + loading2 - partial_dem_r2 > instance->max_vehicle_capa_) continue;
+
+        original_cost = instance->get_distance(route1[n1], route1[n1 + 1]) + instance->get_distance(route2[n2], route2[n2 + 1]);
+        modified_cost = instance->get_distance(route1[n1], route2[n2]) + instance->get_distance(route1[n1 + 1], route2[n2 + 1]);
+
+        change = modified_cost - original_cost;
+
+        upper_cost += change;
+        memcpy(temp_r1, route1, sizeof(int) * node_cap);
+        int counter1 = n1 + 1;
+        for (int i = n2; i >= 0; i--) {
+            route1[counter1++] = route2[i];
+        }
+        int counter2 = 0;
+        for (int i = length1 - 1; i >= n1 + 1; i--) {
+            temp_r2[counter2++] = temp_r1[i];
+        }
+        for (int i = n2 + 1; i < length2; i++) {
+            temp_r2[counter2++] = route2[i];
+        }
+        memcpy(route2, temp_r2, sizeof(int) * node_cap);
+        length1 = counter1;
+        length2 = counter2;
+        int new_dem_sum_1 = partial_dem_r1 + partial_dem_r2;
+        int new_dem_sum_2 = loading1 - partial_dem_r1 + loading2 - partial_dem_r2;
+        loading1 = new_dem_sum_1;
+        loading2 = new_dem_sum_2;
+        has_moved = true;
+        break;
+    }
+
+    return has_moved;
+}
+
+bool LeaderCbma::move9_inter_pert(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2) {
+    if (length1 < 3 || length2 < 3) return false;
+
+    memset(temp_r1, 0, sizeof(int) * node_cap);
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> distN1(0, length1 - 2);
+    int n1 = distN1(random_engine);
+    int partial_dem_r1 = 0; // the partial demand of route r1, i.e., the head partial route
+    for (int i = 0; i <= n1; i++) {
+        partial_dem_r1 += instance->get_customer_demand_(route1[i]);
+    }
+
+    double original_cost, modified_cost, change;
+
+    int partial_dem_r2 = 0;
+    for (int n2 = 0; n2 < length2 - 1; ++n2) {
+        if ((n1 == 0 && n2 == 0) || (n1 == length1 - 2 && n2 == length2 - 2)) continue;
+        partial_dem_r2 += instance->get_customer_demand_(route2[n2]);
+
+        if (partial_dem_r1 + loading2 - partial_dem_r2 > instance->max_vehicle_capa_ ||
+            partial_dem_r2 + loading1 - partial_dem_r1 > instance->max_vehicle_capa_) continue;
+
+        original_cost = instance->get_distance(route1[n1], route1[n1 + 1]) +
+                        instance->get_distance(route2[n2], route2[n2 + 1]);
+        modified_cost = instance->get_distance(route1[n1], route2[n2 + 1]) +
+                        instance->get_distance(route2[n2], route1[n1 + 1]);
+
+        change = modified_cost - original_cost;
+            // update
+        upper_cost += change;
+        memcpy(temp_r1, route1, sizeof(int) * node_cap);
+        int counter1 = n1 + 1;
+        for (int i = n2 + 1; i < length2; i++) {
+            route1[counter1++] = route2[i];
+        }
+        int counter2 = n2 + 1;
+        for (int i = n1 + 1; i < length1; i++) {
+            route2[counter2++] = temp_r1[i];
+        }
+        length1 = counter1;
+        length2 = counter2;
+        int new_dem_sum_1 = partial_dem_r1 + loading2 - partial_dem_r2;
+        int new_dem_sum_2 = partial_dem_r2 + loading1 - partial_dem_r1;
+        loading1 = new_dem_sum_1;
+        loading2 = new_dem_sum_2;
+
+        has_moved = true;
+        break;
+    }
 
     return has_moved;
 }
