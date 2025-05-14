@@ -45,6 +45,17 @@ Cbma::Cbma(int seed_val, Case *instance, Preprocessor *preprocessor) : Heuristic
     non_elites.reserve(pop_size);
     immigrants.reserve(pop_size);
     offspring.reserve(pop_size);
+
+    chromosome_length = instance->num_customer_;
+    temp_dumb_routes.reserve(preprocessor->route_cap_);
+    temp_child1.reserve(chromosome_length);
+    temp_child2.reserve(chromosome_length);
+    temp_cx_map1.reserve(chromosome_length);
+    temp_cx_map2.reserve(chromosome_length);
+    temp_best_individuals.reserve(pop_size);
+    for (int i = 0; i < pop_size; ++i) {
+        temp_best_individuals.emplace_back(instance, preprocessor);
+    }
 }
 
 Cbma::~Cbma() {
@@ -131,7 +142,7 @@ void Cbma::run_heuristic() {
         int k = 1; // index for Luby sequence
         int no_improve_counter = 0;
 
-        Individual best_ind = *population[i];
+        temp_best_individuals[i] = *population[i];
 
         for (int j = 0; j < max_neigh_attempts; ++j) {
             // local search move
@@ -144,8 +155,8 @@ void Cbma::run_heuristic() {
                 leaders[i]->export_individual(ind.get());
                 followers[i]->export_individual(ind.get());
 
-                if (ind->upper_cost < best_ind.upper_cost) {
-                    best_ind = *ind;
+                if (ind->upper_cost < temp_best_individuals[i].upper_cost) {
+                    temp_best_individuals[i] = *ind;
                 }
                 if (ind->lower_cost < global_best->lower_cost) {
                     *global_best = *ind;  // copy the content of ind to global_best, not deep copy
@@ -164,7 +175,7 @@ void Cbma::run_heuristic() {
             if (no_improve_counter >= strength) {
 //                cout << " Escape triggered with strength " << strength << " at iter " << j << endl;
 
-                leaders[i]->load_individual(&best_ind);
+                leaders[i]->load_individual(&temp_best_individuals[i]);
                 leaders[i]->strong_perturbation(strength);
                 leaders[i]->export_individual(ind.get());
                 followers[i]->run(ind.get());
@@ -250,15 +261,12 @@ void Cbma::run_heuristic() {
     for (int i = 0; i < pop_size; ++i) {
         population[i]->clean();
 
-        vector<vector<int>> dumb_routes = initializer->prins_split(offspring[i]);
-        for (auto& route : dumb_routes) {
-            route.insert(route.begin(), instance->depot_);
-            route.push_back(instance->depot_);
-        }
+        temp_dumb_routes.clear();
+        initializer->prins_split(offspring[i], temp_dumb_routes);
 
-        population[i]->load_routes(dumb_routes,
-                                   instance->compute_total_distance(dumb_routes),
-                                   instance->compute_demand_sum_per_route(dumb_routes));
+        population[i]->load_routes(temp_dumb_routes,
+                                   instance->compute_total_distance(temp_dumb_routes),
+                                   instance->compute_demand_sum_per_route(temp_dumb_routes));
     }
 
     gen++;
@@ -278,6 +286,7 @@ void Cbma::open_log_for_evolution() {
 
 void Cbma::close_log_for_evolution() {
     log_evolution << oss_row_evol.str();
+    oss_row_evol.str("");
     oss_row_evol.clear();
     log_evolution.close();
 }
@@ -335,22 +344,20 @@ shared_ptr<Individual> Cbma::select_best_lower_individual(const vector<shared_pt
 }
 
 vector<vector<int>>  Cbma::select_random(const vector<vector<int>> &chromosomes, int k) {
-    vector<vector<int>> selectedSeqs;
-    selectedSeqs.reserve(k);
+    vector<vector<int>> selected_seqs;
+    selected_seqs.reserve(k);
 
     std::uniform_int_distribution<std::size_t> distribution(0, chromosomes.size() - 1);
     for (int i = 0; i < k; ++i) {
         std::size_t randomIndex = distribution(random_engine);
-        selectedSeqs.push_back(chromosomes[randomIndex]);
+        selected_seqs.push_back(chromosomes[randomIndex]);
     }
 
-    return std::move(selectedSeqs);
+    return std::move(selected_seqs);
 }
 
 void Cbma::cx_partially_matched(vector<int>& parent1, vector<int>& parent2) {
-    int size = static_cast<int>(parent1.size());
-
-    uniform_int_distribution<int> distribution(0, size - 1);
+    uniform_int_distribution<int> distribution(0, chromosome_length - 1);
 
     int point1 = distribution(random_engine);
     int point2 = distribution(random_engine);
@@ -360,52 +367,50 @@ void Cbma::cx_partially_matched(vector<int>& parent1, vector<int>& parent2) {
     }
 
     // Copy the middle segment from parents to children
-    vector<int> child1(parent1.begin() + point1, parent1.begin() + point2);
-    vector<int> child2(parent2.begin() + point1, parent2.begin() + point2);
+    temp_child1.clear();
+    temp_child2.clear();
+    temp_child1.insert(temp_child1.end(), parent1.begin() + point1, parent1.begin() + point2);
+    temp_child2.insert(temp_child2.end(), parent2.begin() + point1, parent2.begin() + point2);
 
-    // Create a mapping of genes between parents
-    unordered_map<int, int> mapping1;
-    unordered_map<int, int> mapping2;
-
+    temp_cx_map1.clear();
+    temp_cx_map2.clear();
     // Initialize mapping with the middle segment
     for (int i = 0; i < point2 - point1; ++i) {
-        mapping1[child2[i]] = child1[i];
-        mapping2[child1[i]] = child2[i];
+        temp_cx_map1[temp_child2[i]] = temp_child1[i];
+        temp_cx_map2[temp_child1[i]] = temp_child2[i];
     }
 
     // Copy the rest of the genes, filling in the mapping
-    for (int i = 0; i < size; ++i) {
+    for (int i = 0; i < chromosome_length; ++i) {
         if (i < point1 || i >= point2) {
             int gene1 = parent1[i];
             int gene2 = parent2[i];
 
-            while (mapping1.find(gene1) != mapping1.end()) {
-                gene1 = mapping1[gene1];
+            while (temp_cx_map1.find(gene1) != temp_cx_map1.end()) {
+                gene1 = temp_cx_map1[gene1];
             }
 
-            while (mapping2.find(gene2) != mapping2.end()) {
-                gene2 = mapping2[gene2];
+            while (temp_cx_map2.find(gene2) != temp_cx_map2.end()) {
+                gene2 = temp_cx_map2[gene2];
             }
 
-            child1.push_back(gene2);
-            child2.push_back(gene1);
+            temp_child1.push_back(gene2);
+            temp_child2.push_back(gene1);
         }
     }
 
     // Modify the input arguments directly
-    parent1 = child1;
-    parent2 = child2;
+    parent1 = temp_child1;
+    parent2 = temp_child2;
 }
 
 void Cbma::mut_shuffle_indexes(vector<int>& chromosome, double ind_pb) {
-    int size = static_cast<int>(chromosome.size());
-
     uniform_real_distribution<double> dis(0.0, 1.0);
-    uniform_int_distribution<int> swapDist(0, size - 2);
+    uniform_int_distribution<int> swap_dist(0, chromosome_length - 2);
 
-    for (int i = 0; i < size; ++i) {
+    for (int i = 0; i < chromosome_length; ++i) {
         if (dis(random_engine) < ind_pb) {
-            int swapIndex = swapDist(random_engine);
+            int swapIndex = swap_dist(random_engine);
             if (swapIndex >= i) {
                 swapIndex += 1;
             }

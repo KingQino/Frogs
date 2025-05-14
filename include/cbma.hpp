@@ -22,6 +22,14 @@ private:
     std::vector<std::vector<int>> immigrants;
     std::vector<std::vector<int>> offspring;
     vector<int> indices;
+
+    int chromosome_length;
+    vector<vector<int>> temp_dumb_routes;
+    vector<int> temp_child1;
+    vector<int> temp_child2;
+    std::unordered_map<int, int> temp_cx_map1;
+    std::unordered_map<int, int> temp_cx_map2;
+    vector<Individual> temp_best_individuals;
 public:
     static const std::string ALGORITHM;
 
