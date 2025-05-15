@@ -12,8 +12,11 @@
 #include "individual.hpp"
 #include "heuristic_interface.hpp"
 #include "stats_interface.hpp"
+#include <deque>
 
 using namespace std;
+
+enum HistoryTag { PERTURB, SEARCH, STUCK };
 
 class Cbma final : public HeuristicInterface, public StatsInterface {
 private:
@@ -30,6 +33,8 @@ private:
     std::unordered_map<int, int> temp_cx_map1;
     std::unordered_map<int, int> temp_cx_map2;
     vector<Individual> temp_best_individuals;
+    std::vector<std::pair<double, HistoryTag>> temp_history_list;
+    mutable std::deque<double> recent_improvements_pool;
 public:
     static const std::string ALGORITHM;
 
@@ -77,6 +82,18 @@ public:
     void close_log_for_evolution() override;
     void flush_row_into_evol_log() override;
     void save_log_for_solution() override;
+    static size_t get_dynamic_window(double gap, size_t base_window = 10, size_t min_win = 5, size_t max_win = 150);
+    static bool stuck_in_local_optima(const std::deque<double>& improvements, double epsilon, size_t window_size,
+                                      double strong_delta_thresh);
+    int perform_neighbourhood_explore(
+            int individual_index,
+            int& luby_index,
+            Individual& temp_best,
+            std::shared_ptr<Individual>& ind,
+            std::vector<std::pair<double, HistoryTag>>& history_list,
+            bool debug);
+    static std::string tag_to_str(HistoryTag tag);
+    static void save_vector_to_csv(const std::vector<std::pair<double, HistoryTag>>& history_list, const std::string& filename) ;
 
     static shared_ptr<Individual> select_best_upper_individual(const vector<shared_ptr<Individual>>& pop);
     static shared_ptr<Individual> select_best_lower_individual(const vector<shared_ptr<Individual>>& pop);

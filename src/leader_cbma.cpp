@@ -98,77 +98,77 @@ void LeaderCbma::run_plus(Individual *ind) {
             switch (move) {
                 case 0:
                     has_moved = perform_intra_move_impro([this](int* route, int length) {
-                        return move1_intra_impro(route, length);
+                        return move1_intra_impro(route, length, is_accepted_impro);
                     });
                     break;
                 case 1:
                     has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                        return move1_inter_impro(route1, route2, length1, length2, loading1, loading2);
+                        return move1_inter_impro(route1, route2, length1, length2, loading1, loading2, is_accepted_impro);
                     });
                     break;
                 case 2:
                     has_moved = perform_intra_move_impro([this](int* route, int length) {
-                        return move2_intra_impro(route, length);
+                        return move2_intra_impro(route, length, is_accepted_impro);
                     });
                     break;
                 case 3:
                     has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                        return move2_inter_impro(route1, route2, length1, length2, loading1, loading2);
+                        return move2_inter_impro(route1, route2, length1, length2, loading1, loading2, is_accepted_impro);
                     });
                     break;
                 case 4:
                     has_moved = perform_intra_move_impro([this](int* route, int length) {
-                        return move3_intra_impro(route, length);
+                        return move3_intra_impro(route, length, is_accepted_impro);
                     });
                     break;
                 case 5:
                     has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                        return move3_inter_impro(route1, route2, length1, length2, loading1, loading2);
+                        return move3_inter_impro(route1, route2, length1, length2, loading1, loading2, is_accepted_impro);
                     });
                     break;
                 case 6:
                     has_moved = perform_intra_move_impro([this](int* route, int length) {
-                        return move4_intra_impro(route, length);
+                        return move4_intra_impro(route, length, is_accepted_impro);
                     });
                     break;
                 case 7:
                     has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                        return move4_inter_impro(route1, route2, length1, length2, loading1, loading2);
+                        return move4_inter_impro(route1, route2, length1, length2, loading1, loading2, is_accepted_impro);
                     });
                     break;
                 case 8:
                     has_moved = perform_intra_move_impro([this](int* route, int length) {
-                        return move5_intra_impro(route, length);
+                        return move5_intra_impro(route, length, is_accepted_impro);
                     });
                     break;
                 case 9:
                     has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                        return move5_inter_impro(route1, route2, length1, length2, loading1, loading2);
+                        return move5_inter_impro(route1, route2, length1, length2, loading1, loading2, is_accepted_impro);
                     });
                     break;
                 case 10:
                     has_moved = perform_intra_move_impro([this](int* route, int length) {
-                        return move6_intra_impro(route, length);
+                        return move6_intra_impro(route, length, is_accepted_impro);
                     });
                     break;
                 case 11:
                     has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                        return move6_inter_impro(route1, route2, length1, length2, loading1, loading2);
+                        return move6_inter_impro(route1, route2, length1, length2, loading1, loading2, is_accepted_impro);
                     });
                     break;
                 case 12:
                     has_moved = perform_intra_move_impro([this](int* route, int length) {
-                        return move7_intra_impro(route, length);
+                        return move7_intra_impro(route, length, is_accepted_impro);
                     });
                     break;
                 case 13:
                     has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                        return move8_inter_impro(route1, route2, length1, length2, loading1, loading2);
+                        return move8_inter_impro(route1, route2, length1, length2, loading1, loading2, is_accepted_impro);
                     });
                     break;
                 case 14:
                     has_moved = perform_inter_move_impro([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                        return move9_inter_impro(route1, route2, length1, length2, loading1, loading2);
+                        return move9_inter_impro(route1, route2, length1, length2, loading1, loading2, is_accepted_impro);
                     });
                     break;
                 default:
@@ -188,91 +188,66 @@ void LeaderCbma::run_plus(Individual *ind) {
     export_individual(ind);
 }
 
-bool LeaderCbma::local_search_move(PartialSolution *partial_ind) {
+bool LeaderCbma::local_search_move(PartialSolution *partial_ind, const double& temperature) {
     partial_sol = partial_ind;
 
-    bool has_moved = false;
-    switch (local_search_dist(thread_rng)) {
-        case 0:
-            has_moved = perform_intra_move_neigh([this](int* route, int length) {
-                return move1_intra_impro(route, length);
-            });
-            break;
-        case 1:
-            has_moved = perform_inter_move_neigh([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                return move1_inter_impro(route1, route2, length1, length2, loading1, loading2);
-            });
-            break;
-        case 2:
-            has_moved = perform_intra_move_neigh([this](int* route, int length) {
-                return move2_intra_impro(route, length);
-            });
-            break;
-        case 3:
-            has_moved = perform_inter_move_neigh([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                return move2_inter_impro(route1, route2, length1, length2, loading1, loading2);
-            });
-            break;
-        case 4:
-            has_moved = perform_intra_move_neigh([this](int* route, int length) {
-                return move3_intra_impro(route, length);
-            });
-            break;
-        case 5:
-            has_moved = perform_inter_move_neigh([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                return move3_inter_impro(route1, route2, length1, length2, loading1, loading2);
-            });
-            break;
-        case 6:
-            has_moved = perform_intra_move_neigh([this](int* route, int length) {
-                return move4_intra_impro(route, length);
-            });
-            break;
-        case 7:
-            has_moved = perform_inter_move_neigh([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                return move4_inter_impro(route1, route2, length1, length2, loading1, loading2);
-            });
-            break;
-        case 8:
-            has_moved = perform_intra_move_neigh([this](int* route, int length) {
-                return move5_intra_impro(route, length);
-            });
-            break;
-        case 9:
-            has_moved = perform_inter_move_neigh([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                return move5_inter_impro(route1, route2, length1, length2, loading1, loading2);
-            });
-            break;
-        case 10:
-            has_moved = perform_intra_move_neigh([this](int* route, int length) {
-                return move6_intra_impro(route, length);
-            });
-            break;
-        case 11:
-            has_moved = perform_inter_move_neigh([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                return move6_inter_impro(route1, route2, length1, length2, loading1, loading2);
-            });
-            break;
-        case 12:
-            has_moved = perform_intra_move_neigh([this](int* route, int length) {
-                return move7_intra_impro(route, length);
-            });
-            break;
-        case 13:
-            has_moved = perform_inter_move_neigh([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                return move8_inter_impro(route1, route2, length1, length2, loading1, loading2);
-            });
-            break;
-        case 14:
-            has_moved = perform_inter_move_neigh([this](int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
-                return move9_inter_impro(route1, route2, length1, length2, loading1, loading2);
-            });
-            break;
-        default:
-            break;
-    }
+    AcceptanceFunc sa_accept = [temperature](double change) {
+        return LeaderCbma::is_accepted_neigh(change, temperature);
+    };
 
-    return has_moved;
+    using IntraFunc = std::function<bool(int*, int)>;
+    using InterFunc = std::function<bool(int*, int*, int&, int&, int&, int&)>;
+
+    std::vector<IntraFunc> intra_moves = {
+            [this, &sa_accept](int* r, int l) { return move1_intra_impro(r, l, sa_accept); },
+            [this, &sa_accept](int* r, int l) { return move2_intra_impro(r, l, sa_accept); },
+            [this, &sa_accept](int* r, int l) { return move3_intra_impro(r, l, sa_accept); },
+            [this, &sa_accept](int* r, int l) { return move4_intra_impro(r, l, sa_accept); },
+            [this, &sa_accept](int* r, int l) { return move5_intra_impro(r, l, sa_accept); },
+            [this, &sa_accept](int* r, int l) { return move6_intra_impro(r, l, sa_accept); },
+            [this, &sa_accept](int* r, int l) { return move7_intra_impro(r, l, sa_accept); },
+    };
+
+    std::vector<InterFunc> inter_moves = {
+            [this, &sa_accept](int* r1, int* r2, int& l1, int& l2, int& ld1, int& ld2) {
+                return move1_inter_impro(r1, r2, l1, l2, ld1, ld2, sa_accept);
+            },
+            [this, &sa_accept](int* r1, int* r2, int& l1, int& l2, int& ld1, int& ld2) {
+                return move2_inter_impro(r1, r2, l1, l2, ld1, ld2, sa_accept);
+            },
+            [this, &sa_accept](int* r1, int* r2, int& l1, int& l2, int& ld1, int& ld2) {
+                return move3_inter_impro(r1, r2, l1, l2, ld1, ld2, sa_accept);
+            },
+            [this, &sa_accept](int* r1, int* r2, int& l1, int& l2, int& ld1, int& ld2) {
+                return move4_inter_impro(r1, r2, l1, l2, ld1, ld2, sa_accept);
+            },
+            [this, &sa_accept](int* r1, int* r2, int& l1, int& l2, int& ld1, int& ld2) {
+                return move5_inter_impro(r1, r2, l1, l2, ld1, ld2, sa_accept);
+            },
+            [this, &sa_accept](int* r1, int* r2, int& l1, int& l2, int& ld1, int& ld2) {
+                return move6_inter_impro(r1, r2, l1, l2, ld1, ld2, sa_accept);
+            },
+            [this, &sa_accept](int* r1, int* r2, int& l1, int& l2, int& ld1, int& ld2) {
+                return move8_inter_impro(r1, r2, l1, l2, ld1, ld2, sa_accept);
+            },
+            [this, &sa_accept](int* r1, int* r2, int& l1, int& l2, int& ld1, int& ld2) {
+                return move9_inter_impro(r1, r2, l1, l2, ld1, ld2, sa_accept);
+            },
+    };
+
+    int choice = local_search_dist(thread_rng);
+    int num_intra = static_cast<int>(intra_moves.size());
+
+    if (choice < num_intra) {
+        return perform_intra_move_neigh(
+                [&](int* r, int l) { return intra_moves[choice](r, l); });
+    } else {
+        int inter_idx = choice - num_intra;
+        return perform_inter_move_neigh(
+                [&](int* r1, int* r2, int& l1, int& l2, int& ld1, int& ld2) {
+                    return inter_moves[inter_idx](r1, r2, l1, l2, ld1, ld2);
+                });
+    }
 }
 
 void LeaderCbma::strong_perturbation(int strength) {
@@ -691,6 +666,23 @@ bool LeaderCbma::is_accepted_impro(const double &change) {
     return change < - 1.0e-8;
 }
 
+//bool LeaderCbma::is_accepted_neigh(const double &change) {
+//    return change < - 1.0e-8;
+//}
+
+double LeaderCbma::get_temperature(int current_iter, double T0, double alpha) {
+    return T0 * std::pow(alpha, current_iter);
+}
+
+bool LeaderCbma::is_accepted_neigh(const double& change, const double& temperature) {
+    if (change < -1.0e-8) return true;
+
+    std::uniform_real_distribution<double> dis(0.0, 1.0);
+    double probability = std::exp(-change / temperature);
+    return dis(thread_rng) < probability;
+}
+
+
 bool LeaderCbma::perform_intra_move_neigh(const std::function<bool(int *, int)> &move_func) const {
     if (num_routes < 1) return false;
 
@@ -839,7 +831,7 @@ bool LeaderCbma::perform_inter_move_impro(const std::function<bool(int *, int *,
 //    return is_successful;
 //}
 
-bool LeaderCbma::move1_intra_impro(int* route, int length) {
+bool LeaderCbma::move1_intra_impro(int* route, int length, const AcceptanceFunc& accept_func) {
     if (length <= 4) return false;
 
     bool has_moved = false;
@@ -866,7 +858,7 @@ bool LeaderCbma::move1_intra_impro(int* route, int length) {
             }
 
             change = modified_cost - original_cost;
-            if (is_accepted_impro(change)) {
+            if (accept_func(change)) {
                 moveItoJ(route, i, j);
                 upper_cost += change;
 
@@ -880,7 +872,7 @@ bool LeaderCbma::move1_intra_impro(int* route, int length) {
     return has_moved;
 }
 
-bool LeaderCbma::move1_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+bool LeaderCbma::move1_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2, const AcceptanceFunc& accept_func) {
     if (length1 < 3 || length2 < 3) return false;
 
     bool has_moved = false;
@@ -895,7 +887,7 @@ bool LeaderCbma::move1_inter_impro(int* route1, int* route2, int& length1, int& 
             modified_cost = instance->get_distance(route1[i - 1], route1[i + 1]) + instance->get_distance(route2[j], route1[i]) + instance->get_distance(route1[i], route2[j + 1]);
 
             change = modified_cost - original_cost;
-            if (is_accepted_impro(change)) {
+            if (accept_func(change)) {
                 int x = route1[i];
                 for (int p = i; p < length1 - 1; p++) {
                     route1[p] = route1[p + 1];
@@ -921,7 +913,7 @@ bool LeaderCbma::move1_inter_impro(int* route1, int* route2, int& length1, int& 
     return has_moved;
 }
 
-bool LeaderCbma::move2_intra_impro(int *route, int length) {
+bool LeaderCbma::move2_intra_impro(int *route, int length, const AcceptanceFunc& accept_func) {
     if (length <= 4) return false;
 
     bool has_moved = false;
@@ -948,7 +940,7 @@ bool LeaderCbma::move2_intra_impro(int *route, int length) {
             }
 
             change = modified_cost - original_cost;
-            if (is_accepted_impro(change)) {
+            if (accept_func(change)) {
                 int u = route[i];
                 int x = route[i + 1];
                 if (i < j) {
@@ -978,7 +970,7 @@ bool LeaderCbma::move2_intra_impro(int *route, int length) {
     return has_moved;
 }
 
-bool LeaderCbma::move4_intra_impro(int* route, int length) {
+bool LeaderCbma::move4_intra_impro(int* route, int length, const AcceptanceFunc& accept_func) {
     if (length < 5) return false;
 
     bool has_moved = false;
@@ -997,7 +989,7 @@ bool LeaderCbma::move4_intra_impro(int* route, int length) {
             }
 
             change = modified_cost - original_cost;
-            if (is_accepted_impro(change)) {
+            if (accept_func(change)) {
                 swap(route[i], route[j]);
                 upper_cost += change;
 
@@ -1011,7 +1003,7 @@ bool LeaderCbma::move4_intra_impro(int* route, int length) {
     return has_moved;
 }
 
-bool LeaderCbma::move2_inter_impro(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2) {
+bool LeaderCbma::move2_inter_impro(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2, const AcceptanceFunc& accept_func) {
     if (length1 < 4 || length2 < 3) return false;
 
     bool has_moved = false;
@@ -1031,7 +1023,7 @@ bool LeaderCbma::move2_inter_impro(int *route1, int *route2, int &length1, int &
                             instance->get_distance(route1[i + 1], route2[j + 1]);
 
             change = modified_cost - original_cost;
-            if (is_accepted_impro(change)) {
+            if (accept_func(change)) {
                 int u = route1[i];
                 int x = route1[i + 1];
                 for (int p = i; p < length1 - 2; ++p) {
@@ -1061,7 +1053,7 @@ bool LeaderCbma::move2_inter_impro(int *route1, int *route2, int &length1, int &
     return has_moved;
 }
 
-bool LeaderCbma::move3_intra_impro(int *route, int length) {
+bool LeaderCbma::move3_intra_impro(int *route, int length, const AcceptanceFunc& accept_func) {
     if (length <= 4) return false;
 
     bool has_moved = false;
@@ -1088,7 +1080,7 @@ bool LeaderCbma::move3_intra_impro(int *route, int length) {
             }
 
             change = modified_cost - original_cost;
-            if (is_accepted_impro(change)) {
+            if (accept_func(change)) {
                 int u = route[i];
                 int x = route[i + 1];
                 if (i < j) {
@@ -1118,7 +1110,7 @@ bool LeaderCbma::move3_intra_impro(int *route, int length) {
     return has_moved;
 }
 
-bool LeaderCbma::move3_inter_impro(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2) {
+bool LeaderCbma::move3_inter_impro(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2, const AcceptanceFunc& accept_func) {
     if (length1 < 4 || length2 < 3) return false;
 
     bool has_moved = false;
@@ -1138,7 +1130,7 @@ bool LeaderCbma::move3_inter_impro(int *route1, int *route2, int &length1, int &
                             instance->get_distance(route1[i], route2[j + 1]);
 
             change = modified_cost - original_cost;
-            if (is_accepted_impro(change)) {
+            if (accept_func(change)) {
                 int u = route1[i];
                 int x = route1[i + 1];
                 for (int p = i; p < length1 - 2; ++p) {
@@ -1169,7 +1161,7 @@ bool LeaderCbma::move3_inter_impro(int *route1, int *route2, int &length1, int &
     return has_moved;
 }
 
-bool LeaderCbma::move4_inter_impro(int *route1, int *route2, int length1, int length2, int &loading1, int &loading2) {
+bool LeaderCbma::move4_inter_impro(int *route1, int *route2, int length1, int length2, int &loading1, int &loading2, const AcceptanceFunc& accept_func) {
     if (length1 < 3 || length2 < 3) return false;
 
     bool has_moved = false;
@@ -1186,7 +1178,7 @@ bool LeaderCbma::move4_inter_impro(int *route1, int *route2, int length1, int le
                                 instance->get_distance(route2[j - 1], route1[i]) + instance->get_distance(route1[i], route2[j + 1]);
 
                 change = modified_cost - original_cost;
-                if (is_accepted_impro(change)) {
+                if (accept_func(change)) {
                     swap(route1[i], route2[j]);
                     loading1 = loading1 - demand_I + demand_J;
                     loading2 = loading2 - demand_J + demand_I;
@@ -1203,7 +1195,7 @@ bool LeaderCbma::move4_inter_impro(int *route1, int *route2, int length1, int le
     return has_moved;
 }
 
-bool LeaderCbma::move5_intra_impro(int *route, int length) {
+bool LeaderCbma::move5_intra_impro(int *route, int length, const AcceptanceFunc& accept_func) {
     if (length < 5) return false;
 
     bool has_moved = false;
@@ -1230,7 +1222,7 @@ bool LeaderCbma::move5_intra_impro(int *route, int length) {
             }
             change = modified_cost - original_cost;
 
-            if (is_accepted_impro(change)) {
+            if (accept_func(change)) {
                 // node pair (route[i], route[i + 1]) will be changed with node route[j]
                 if (j == i + 2) {
                     std::swap(route[i], route[j]);
@@ -1257,7 +1249,7 @@ bool LeaderCbma::move5_intra_impro(int *route, int length) {
     return has_moved;
 }
 
-bool LeaderCbma::move5_inter_impro(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2) {
+bool LeaderCbma::move5_inter_impro(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2, const AcceptanceFunc& accept_func) {
     if (length1 < 4 || length2 < 4) return false;
 
     bool has_moved = false;
@@ -1277,7 +1269,7 @@ bool LeaderCbma::move5_inter_impro(int *route1, int *route2, int &length1, int &
                             instance->get_distance(route2[j - 1], route1[i]) + instance->get_distance(route1[i + 1], route2[j + 1]);
 
             change = modified_cost - original_cost;
-            if (is_accepted_impro(change)) {
+            if (accept_func(change)) {
                 // node pair (route1[i], route1[i + 1]) will be changed with node route2[j]
                 int u = route1[i];
                 int x = route1[i + 1];
@@ -1308,7 +1300,7 @@ bool LeaderCbma::move5_inter_impro(int *route1, int *route2, int &length1, int &
     return has_moved;
 }
 
-bool LeaderCbma::move6_intra_impro(int *route, int length) {
+bool LeaderCbma::move6_intra_impro(int *route, int length, const AcceptanceFunc& accept_func) {
     if (length < 6) return false;
 
     bool has_moved = false;
@@ -1335,7 +1327,7 @@ bool LeaderCbma::move6_intra_impro(int *route, int length) {
             }
             change = modified_cost - original_cost;
 
-            if (is_accepted_impro(change)) {
+            if (accept_func(change)) {
                 swap(route[i], route[j]);
                 swap(route[i + 1], route[j + 1]);
                 upper_cost += change;
@@ -1351,7 +1343,7 @@ bool LeaderCbma::move6_intra_impro(int *route, int length) {
     return has_moved;
 }
 
-bool LeaderCbma::move6_inter_impro(int *route1, int *route2, int length1, int length2, int &loading1, int &loading2) {
+bool LeaderCbma::move6_inter_impro(int *route1, int *route2, int length1, int length2, int &loading1, int &loading2, const AcceptanceFunc& accept_func) {
     if (length1 < 4 || length2 < 4 || (length1 == 4 && length2 == 4)) return false;
 
     bool has_moved = false;
@@ -1371,7 +1363,7 @@ bool LeaderCbma::move6_inter_impro(int *route1, int *route2, int length1, int le
                             instance->get_distance(route2[j - 1], route1[i]) + instance->get_distance(route1[i + 1], route2[j + 2]);
             change = modified_cost - original_cost;
 
-            if (is_accepted_impro(change)) {
+            if (accept_func(change)) {
                 swap(route1[i], route2[j]);
                 swap(route1[i + 1], route2[j + 1]);
                 loading1 = loading1 - demand_I_pair + demand_J_pair;
@@ -1389,7 +1381,7 @@ bool LeaderCbma::move6_inter_impro(int *route1, int *route2, int length1, int le
     return has_moved;
 }
 
-bool LeaderCbma::move7_intra_impro(int *route, int length) {
+bool LeaderCbma::move7_intra_impro(int *route, int length, const AcceptanceFunc& accept_func) {
     if (length < 5) return false;
 
     bool has_moved = false;
@@ -1402,7 +1394,7 @@ bool LeaderCbma::move7_intra_impro(int *route, int length) {
             modified_cost = instance->get_distance(route[i - 1], route[j]) + instance->get_distance(route[i], route[j + 1]);
 
             change = modified_cost - original_cost; // negative represents the cost reduction
-            if (is_accepted_impro(change)) {
+            if (accept_func(change)) {
                 // update current solution
                 reverse(route + i, route + j + 1);
                 upper_cost += change;
@@ -1418,7 +1410,7 @@ bool LeaderCbma::move7_intra_impro(int *route, int length) {
     return has_moved;
 }
 
-bool LeaderCbma::move8_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2) {
+bool LeaderCbma::move8_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2, const AcceptanceFunc& accept_func) {
     if (length1 < 3 || length2 < 3) return false;
 
     memset(temp_r1, 0, sizeof(int) * node_cap);
@@ -1444,7 +1436,7 @@ bool LeaderCbma::move8_inter_impro(int* route1, int* route2, int& length1, int& 
             modified_cost = instance->get_distance(route1[n1], route2[n2]) + instance->get_distance(route1[n1 + 1], route2[n2 + 1]);
 
             change = modified_cost - original_cost;
-            if (is_accepted_impro(change)) {
+            if (accept_func(change)) {
                 // update
                 upper_cost += change;
                 memcpy(temp_r1, route1, sizeof(int) * node_cap);
@@ -1478,7 +1470,7 @@ bool LeaderCbma::move8_inter_impro(int* route1, int* route2, int& length1, int& 
     return has_moved;
 }
 
-bool LeaderCbma::move9_inter_impro(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2) {
+bool LeaderCbma::move9_inter_impro(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2, const AcceptanceFunc& accept_func) {
     if (length1 < 3 || length2 < 3) return false;
 
     memset(temp_r1, 0, sizeof(int) * node_cap);
@@ -1502,7 +1494,7 @@ bool LeaderCbma::move9_inter_impro(int *route1, int *route2, int &length1, int &
             modified_cost = instance->get_distance(route1[n1], route2[n2 + 1]) + instance->get_distance(route2[n2], route1[n1 + 1]);
 
             change = modified_cost - original_cost;
-            if (is_accepted_impro(change)) {
+            if (accept_func(change)) {
                 // update
                 upper_cost += change;
                 memcpy(temp_r1, route1, sizeof(int) * node_cap);

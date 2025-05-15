@@ -12,6 +12,7 @@
 #include <functional>  // For std::function
 #include <unordered_set>
 
+using AcceptanceFunc = std::function<bool(double)>;
 
 class LeaderCbma {
 private:
@@ -48,7 +49,7 @@ public:
 
     void run(Individual* ind);
     void run_plus(Individual* ind);
-    bool local_search_move(PartialSolution* partial_sol);
+    bool local_search_move(PartialSolution* partial_sol, const double& temperature);
     void strong_perturbation(int strength);
     void load_individual(Individual* ind);
     void export_individual(Individual* ind) const;
@@ -69,28 +70,30 @@ public:
 
 
     /* Local search moves */
+    static double get_temperature(int current_iter, double T0, double alpha) ;
     [[nodiscard]] static bool is_accepted_impro(const double& change);
+    [[nodiscard]] static bool is_accepted_neigh(const double& change, const double& temperature);
     bool perform_intra_move_neigh(const std::function<bool(int*, int)>& move_func) const;
     bool perform_inter_move_neigh(const std::function<bool(int*, int*, int&, int&, int&, int&)>& move_func);
     // wrapper function - search until no improvement
     bool perform_intra_move_impro(const std::function<bool(int*, int)>& move_func) const;
     bool perform_inter_move_impro(const std::function<bool(int*, int*, int&, int&, int&, int&)>& move_func);
     // basic operators - neighbourhood size O(n^2)
-    bool move1_intra_impro(int* route, int length); // if U is ahead of V, then move U to the behind of V; otherwise, move U to the ahead of V
-    bool move1_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
-    bool move2_intra_impro(int* route, int length);
-    bool move2_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
-    bool move3_intra_impro(int* route, int length);
-    bool move3_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
-    bool move4_intra_impro(int* route, int length);
-    bool move4_inter_impro(int* route1, int* route2, int length1, int length2, int& loading1, int& loading2);
-    bool move5_intra_impro(int* route, int length);
-    bool move5_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
-    bool move6_intra_impro(int* route, int length);
-    bool move6_inter_impro(int* route1, int* route2, int length1, int length2, int& loading1, int& loading2);
-    bool move7_intra_impro(int* route, int length);
-    bool move8_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
-    bool move9_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move1_intra_impro(int* route, int length, const AcceptanceFunc& accept_func); // if U is ahead of V, then move U to the behind of V; otherwise, move U to the ahead of V
+    bool move1_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2, const AcceptanceFunc& accept_func);
+    bool move2_intra_impro(int* route, int length, const AcceptanceFunc& accept_func);
+    bool move2_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2, const AcceptanceFunc& accept_func);
+    bool move3_intra_impro(int* route, int length, const AcceptanceFunc& accept_func);
+    bool move3_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2, const AcceptanceFunc& accept_func);
+    bool move4_intra_impro(int* route, int length, const AcceptanceFunc& accept_func);
+    bool move4_inter_impro(int* route1, int* route2, int length1, int length2, int& loading1, int& loading2, const AcceptanceFunc& accept_func);
+    bool move5_intra_impro(int* route, int length, const AcceptanceFunc& accept_func);
+    bool move5_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2, const AcceptanceFunc& accept_func);
+    bool move6_intra_impro(int* route, int length, const AcceptanceFunc& accept_func);
+    bool move6_inter_impro(int* route1, int* route2, int length1, int length2, int& loading1, int& loading2, const AcceptanceFunc& accept_func);
+    bool move7_intra_impro(int* route, int length, const AcceptanceFunc& accept_func);
+    bool move8_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2, const AcceptanceFunc& accept_func);
+    bool move9_inter_impro(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2, const AcceptanceFunc& accept_func);
 
     /* Strong perturbation */
     bool perform_intra_move_pert(const std::function<bool(int*, int)>& move_func) const;

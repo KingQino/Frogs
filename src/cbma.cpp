@@ -24,7 +24,7 @@ Cbma::Cbma(int seed_val, Case *instance, Preprocessor *preprocessor) : Heuristic
     r = 0.0;
 
     max_neigh_attempts = preprocessor->params.max_neigh_attempts;
-    max_chain_length = 256;
+    max_chain_length = 512;
 
     indices = vector<int>(pop_size);
     std::iota(indices.begin(), indices.end(), 0);
@@ -120,6 +120,158 @@ void Cbma::initialize_heuristic() {
     }
 
     global_best = make_unique<Individual>(*population[0]);
+    global_best_upper_so_far = numeric_limits<double>::max();
+}
+
+size_t Cbma::get_dynamic_window(double gap_ratio, size_t base_window, size_t min_window, size_t max_window) {
+    size_t window = static_cast<size_t>(static_cast<int>(base_window) * (1.0 + 15.0 * gap_ratio));
+    return std::clamp(window, min_window, max_window);
+}
+
+bool Cbma::stuck_in_local_optima(const std::deque<double>& improvements, double epsilon, size_t window_size,
+                                 double strong_delta_thresh=1.0) {
+    if (improvements.size() < window_size) return false;
+
+    // Step 1: 平均改进幅度
+    double avg = std::accumulate(improvements.begin(), improvements.end(), 0.0) /
+                 static_cast<double>(improvements.size());
+
+    // Step 2: 显著改进步数
+    auto strong_improvements = std::count_if(improvements.begin(), improvements.end(),
+                                            [strong_delta_thresh](double d) { return d >= strong_delta_thresh; });
+
+    // Step 3: 两级判断
+    return (avg < epsilon) && (strong_improvements <= 1);
+}
+
+int Cbma::perform_neighbourhood_explore(int i, int& k, Individual& temp_best, std::shared_ptr<Individual>& ind,
+                                        std::vector<std::pair<double, HistoryTag>>& history_list, bool debug) {
+    int steps = 0;
+
+//    const int max_perturbation_strength = 256;
+//    int strength = std::min(get_luby(k), max_perturbation_strength);
+    int strength = get_luby(k);
+
+    if (debug) {
+        std::cout << "[DEBUG] Luby(k=" << k << ") = " << strength << std::endl;
+    }
+
+    leaders[i]->load_individual(&temp_best);
+    leaders[i]->strong_perturbation(strength);
+    leaders[i]->export_individual(ind.get());
+    followers[i]->run(ind.get());
+
+    // ✅ 无论如何，记录扰动后的 upper_cost
+//    history_list.emplace_back(ind->upper_cost, HistoryTag::PERTURB); // after perturbation
+    steps++;
+
+    int improvement_count = 0;
+    double initial_cost = ind->upper_cost;
+    bool is_profitable = false;
+
+    double T0 = 10.0;        // 初始温度
+    double alpha = 0.96;     // 退火速率
+    int local_step = 0;      // 局部搜索内步数
+
+//    std::deque<double> recent_improvements;
+    auto& recent_improvements = recent_improvements_pool;
+    recent_improvements.clear();  // 保留原有 capacity
+    double gap_ratio;
+    size_t window_size = 10;
+//    const double epsilon = 1e-3;
+
+
+    bool local_optima_flag = false;
+    while (recent_improvements.size() < window_size || !local_optima_flag) {
+        gap_ratio = (ind->upper_cost - global_best_upper_so_far) / global_best_upper_so_far;
+        window_size = get_dynamic_window(gap_ratio, 10, 5, 150);
+
+        double temperature = LeaderCbma::get_temperature(local_step, T0, alpha);
+        double prev_cost = ind->upper_cost;
+
+        bool has_moved = leaders[i]->local_search_move(partial_sols[i].get(), temperature);
+        local_step++;
+        steps++;
+
+        if (has_moved) {
+            followers[i]->run(partial_sols[i].get());
+
+            leaders[i]->export_individual(ind.get());
+            followers[i]->export_individual(ind.get());
+
+            while (recent_improvements.size() >= window_size) {
+                recent_improvements.pop_front();
+            }
+            recent_improvements.push_back(prev_cost - ind->upper_cost);
+
+            if (ind->upper_cost < temp_best.upper_cost) {
+                temp_best = *ind;
+                is_profitable = true;
+                improvement_count++;
+
+                global_best_upper_so_far = std::min(global_best_upper_so_far, ind->upper_cost);
+            }
+
+            if (ind->lower_cost < global_best->lower_cost) {
+                *global_best = *ind;
+            }
+
+//            history_list.emplace_back(ind->upper_cost, HistoryTag::SEARCH);
+
+        } else {
+            // 没有 move 也记录为平稳段（delta = 0）
+            while (recent_improvements.size() >= window_size) {
+                recent_improvements.pop_front();
+            }
+            recent_improvements.push_back(0.0);
+
+            local_optima_flag = stuck_in_local_optima(recent_improvements, 1e-3, window_size);
+//            if (local_optima_flag) {
+//                history_list.emplace_back(ind->upper_cost, HistoryTag::STUCK);
+//            } else {
+//                history_list.emplace_back(ind->upper_cost, HistoryTag::SEARCH);
+//            }
+
+        }
+
+        partial_sols[i]->clean();
+    }
+
+    if (debug) {
+        std::cout << "[DEBUG] Individual[" << i << "] ";
+        std::cout << (is_profitable ? "Improved" : "Not improved") << ". ";
+        std::cout << "Delta=" << (ind->upper_cost - initial_cost) << ", ";
+        std::cout << "Improvements=" << improvement_count << std::endl;
+    }
+
+    // 更新 Luby 索引
+    k = is_profitable ? 1 : k + 1;
+    return steps;
+}
+
+std::string Cbma::tag_to_str(HistoryTag tag) {
+    switch (tag) {
+        case HistoryTag::PERTURB: return "perturb";
+        case HistoryTag::SEARCH:  return "search";
+        case HistoryTag::STUCK:   return "stuck";
+        default: return "unknown";
+    }
+}
+
+void Cbma::save_vector_to_csv(const std::vector<std::pair<double, HistoryTag>>& history_list, const std::string &filename) {
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "[ERROR] Failed to open file for writing: " << filename << std::endl;
+        return;
+    }
+
+    file << "upper_cost,tag\n";
+    for (const auto& [cost, tag] : history_list) {
+        file << cost << "," << tag_to_str(tag) << "\n";
+    }
+
+    file.close();
+    std::cout << "[INFO] History written to: " << filename << " (" << history_list.size() << " entries)\n";
 }
 
 void Cbma::run_heuristic() {
@@ -129,6 +281,7 @@ void Cbma::run_heuristic() {
         leaders[i]->run_plus(ind.get());
         followers[i]->run(ind.get());
 
+        global_best_upper_so_far = std::min(global_best_upper_so_far, ind->upper_cost);
         if (ind->lower_cost < global_best->lower_cost) {
             *global_best = *ind;  // copy the content of ind to global_best, not deep copy
         }
@@ -137,56 +290,20 @@ void Cbma::run_heuristic() {
     after_local_opt = calculate_statistical_indicators(get_fitness_vector_from_upper_group(population));
 
     for (int i = 0; i < pop_size; ++i) {
-        auto& ind = population[i];
+        auto &ind = population[i];
 
         int k = 1; // index for Luby sequence
-        int no_improve_counter = 0;
+        temp_best_individuals[i] = *ind;
 
-        temp_best_individuals[i] = *population[i];
-
-        for (int j = 0; j < max_neigh_attempts; ++j) {
-            // local search move
-            // only accepts better moves
-            bool has_moved = leaders[i]->local_search_move(partial_sols[i].get());
-
-            if (has_moved) {
-                followers[i]->run(partial_sols[i].get());
-
-                leaders[i]->export_individual(ind.get());
-                followers[i]->export_individual(ind.get());
-
-                if (ind->upper_cost < temp_best_individuals[i].upper_cost) {
-                    temp_best_individuals[i] = *ind;
-                }
-                if (ind->lower_cost < global_best->lower_cost) {
-                    *global_best = *ind;  // copy the content of ind to global_best, not deep copy
-                }
-
-                no_improve_counter = 0;
-                k = 1;
-            } else {
-                no_improve_counter += 1;
-            }
-
-            partial_sols[i]->clean();
-
-            // If the number of consecutive unimprovements reaches Luby(k), a perturbation is triggered
-            int strength = get_luby(k);
-            if (no_improve_counter >= strength) {
-//                cout << " Escape triggered with strength " << strength << " at iter " << j << endl;
-
-                leaders[i]->load_individual(&temp_best_individuals[i]);
-                leaders[i]->strong_perturbation(strength);
-                leaders[i]->export_individual(ind.get());
-                followers[i]->run(ind.get());
-
-                no_improve_counter = 0;
-                k += 1;
-
-//                if (strength >= max_chain_length) k = 1;
-            }
+//        const string file = kStatsPath + "/" + this->name + "/" + instance->instance_name_ + "/" +
+//                            to_string(seed) + "/" + to_string(i) + ".csv";
+        int total_steps = 0;
+        while (total_steps < max_neigh_attempts) {
+            total_steps += perform_neighbourhood_explore(i, k, temp_best_individuals[i], ind, temp_history_list, false);
         }
+//        save_vector_to_csv(history_list, file);
     }
+
 
     after_neighbour_explore = calculate_statistical_indicators(get_fitness_vector_from_upper_group(population));
 
