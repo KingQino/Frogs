@@ -109,7 +109,7 @@ double **Case::generate_2D_matrix_double(int n, int m) {
     for (int i = 0; i < n; i++) {
         matrix[i] = new double[m];
     }
-    //initialize the 2-d array
+    //initialise the 2-d array
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < m; j++) {
             matrix[i][j] = 0.0;
@@ -175,7 +175,6 @@ int Case::calculate_demand_sum(const vector<int> &route) const {
     return demand_sum;
 }
 
-// TODO: modify these two functions below for new Individual structure
 double Case::compute_total_distance(const vector<vector<int>> &routes) {
     double tour_length = 0.0;
     for (auto& route : routes) {
@@ -208,7 +207,7 @@ vector<int> Case::compute_demand_sum_per_route(const vector<vector<int>> &routes
         demand_sum_per_route.push_back(temp);
     }
 
-    return demand_sum_per_route;
+    return std::move(demand_sum_per_route);
 }
 
 bool Case::is_charging_station(const int node) const {

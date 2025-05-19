@@ -48,9 +48,9 @@ public:
     int get_luby(int j) const;
 
     void run(Individual* ind);
-    void run_plus(Individual* ind);
+    void fully_greedy_local_optimum(Individual* ind);
     bool local_search_move(PartialSolution* partial_sol, const double& temperature);
-    void strong_perturbation(int strength);
+    void perturbation(int strength);
     void load_individual(Individual* ind);
     void export_individual(Individual* ind) const;
     LeaderCbma(Case* instance, Preprocessor* preprocessor);

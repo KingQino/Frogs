@@ -82,7 +82,7 @@ void LeaderCbma::run(Individual *ind) {
     export_individual(ind);
 }
 
-void LeaderCbma::run_plus(Individual *ind) {
+void LeaderCbma::fully_greedy_local_optimum(Individual *ind) {
     load_individual(ind);
 
     int loop_count = 0;
@@ -250,7 +250,7 @@ bool LeaderCbma::local_search_move(PartialSolution *partial_ind, const double& t
     }
 }
 
-void LeaderCbma::strong_perturbation(int strength) {
+void LeaderCbma::perturbation(int strength) {
     for (int i = 0; i < strength; ++i) {
 
         bool has_moved = false;
@@ -670,7 +670,7 @@ bool LeaderCbma::is_accepted_impro(const double &change) {
 //    return change < - 1.0e-8;
 //}
 
-double LeaderCbma::get_temperature(int current_iter, double T0, double alpha) {
+double LeaderCbma::get_temperature(int current_iter, double T0=80.0, double alpha=0.97) {
     return T0 * std::pow(alpha, current_iter);
 }
 

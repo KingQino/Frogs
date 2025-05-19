@@ -10,26 +10,23 @@ Cbma::Cbma(int seed_val, Case *instance, Preprocessor *preprocessor) : Heuristic
     enable_logging = preprocessor->params.enable_logging;
     stop_criteria = preprocessor->params.stop_criteria;
 
-    pop_size = 100;
-    elite_ratio = 0.01;
-    immigrants_ratio = 0.05;
-    crossover_prob = 1.0;
-    mutation_prob = 0.5;
-    mut_ind_prob = 0.2;
+    max_neigh_attempts = preprocessor->params.max_neigh_attempts;
+    max_perturbation_strength = 512;
 
     gen = 0;
-    gammaL = 1.2;
-    gammaR = 0.8;
-    delta = 30;
-    r = 0.0;
+    pop_size = 100;
+    mut_prob = 0.5;
+    mut_ind_prob = 0.2;
+    chromosome_length = instance->num_customer_;
 
-    max_neigh_attempts = preprocessor->params.max_neigh_attempts;
-    max_chain_length = 512;
+    population.reserve(pop_size);
+    elites.reserve(pop_size);
+    non_elites.reserve(pop_size);
+    immigrants.reserve(pop_size);
+    offspring.reserve(pop_size);
+    global_best_upper_so_far = std::numeric_limits<double>::max();
 
-    indices = vector<int>(pop_size);
-    std::iota(indices.begin(), indices.end(), 0);
-
-    initializer = new Initializer(random_engine, instance, preprocessor);
+    initializer = std::make_unique<Initializer>(random_engine, instance, preprocessor);
     leaders.reserve(pop_size);
     followers.reserve(pop_size);
     partial_sols.reserve(pop_size);
@@ -39,14 +36,6 @@ Cbma::Cbma(int seed_val, Case *instance, Preprocessor *preprocessor) : Heuristic
         partial_sols.emplace_back(std::make_unique<PartialSolution>());
     }
 
-    population.reserve(pop_size);
-
-    elites.reserve(pop_size);
-    non_elites.reserve(pop_size);
-    immigrants.reserve(pop_size);
-    offspring.reserve(pop_size);
-
-    chromosome_length = instance->num_customer_;
     temp_dumb_routes.reserve(preprocessor->route_cap_);
     temp_child1.reserve(chromosome_length);
     temp_child2.reserve(chromosome_length);
@@ -59,16 +48,6 @@ Cbma::Cbma(int seed_val, Case *instance, Preprocessor *preprocessor) : Heuristic
 }
 
 Cbma::~Cbma() {
-    delete initializer;
-}
-
-int Cbma::get_luby(int j) const {
-    int k = 1;
-    while ((1 << k) - 1 < j) ++k;
-    int val = (1 << (k - 1));
-    if (val >= max_chain_length) return max_chain_length;
-    if ((1 << k) - 1 == j) return val;
-    return get_luby(j - val + 1);
 }
 
 void Cbma::run() {
@@ -114,219 +93,72 @@ void Cbma::initialize_heuristic() {
         auto cost = instance->compute_total_distance(routes);
         auto demand = instance->compute_demand_sum_per_route(routes);
 
-        auto ind = std::make_shared<Individual>(instance, preprocessor, routes, cost,
-                                                demand);
-        population.push_back(std::move(ind));
+        population.emplace_back(instance, preprocessor, routes, cost, demand);
     }
 
-    global_best = make_unique<Individual>(*population[0]);
+    global_best = make_unique<Individual>(instance, preprocessor);
     global_best_upper_so_far = numeric_limits<double>::max();
 }
 
-size_t Cbma::get_dynamic_window(double gap_ratio, size_t base_window, size_t min_window, size_t max_window) {
-    size_t window = static_cast<size_t>(static_cast<int>(base_window) * (1.0 + 15.0 * gap_ratio));
-    return std::clamp(window, min_window, max_window);
-}
-
-bool Cbma::stuck_in_local_optima(const std::deque<double>& improvements, double epsilon, size_t window_size,
-                                 double strong_delta_thresh=1.0) {
-    if (improvements.size() < window_size) return false;
-
-    // Step 1: 平均改进幅度
-    double avg = std::accumulate(improvements.begin(), improvements.end(), 0.0) /
-                 static_cast<double>(improvements.size());
-
-    // Step 2: 显著改进步数
-    auto strong_improvements = std::count_if(improvements.begin(), improvements.end(),
-                                            [strong_delta_thresh](double d) { return d >= strong_delta_thresh; });
-
-    // Step 3: 两级判断
-    return (avg < epsilon) && (strong_improvements <= 1);
-}
-
-int Cbma::perform_neighbourhood_explore(int i, int& k, Individual& temp_best, std::shared_ptr<Individual>& ind,
-                                        std::vector<std::pair<double, HistoryTag>>& history_list, bool debug) {
-    int steps = 0;
-
-//    const int max_perturbation_strength = 256;
-//    int strength = std::min(get_luby(k), max_perturbation_strength);
-    int strength = get_luby(k);
-
-    if (debug) {
-        std::cout << "[DEBUG] Luby(k=" << k << ") = " << strength << std::endl;
-    }
-
-    leaders[i]->load_individual(&temp_best);
-    leaders[i]->strong_perturbation(strength);
-    leaders[i]->export_individual(ind.get());
-    followers[i]->run(ind.get());
-
-    // ✅ 无论如何，记录扰动后的 upper_cost
-//    history_list.emplace_back(ind->upper_cost, HistoryTag::PERTURB); // after perturbation
-    steps++;
-
-    int improvement_count = 0;
-    double initial_cost = ind->upper_cost;
-    bool is_profitable = false;
-
-    double T0 = 10.0;        // 初始温度
-    double alpha = 0.96;     // 退火速率
-    int local_step = 0;      // 局部搜索内步数
-
-//    std::deque<double> recent_improvements;
-    auto& recent_improvements = recent_improvements_pool;
-    recent_improvements.clear();  // 保留原有 capacity
-    double gap_ratio;
-    size_t window_size = 10;
-//    const double epsilon = 1e-3;
-
-
-    bool local_optima_flag = false;
-    while (recent_improvements.size() < window_size || !local_optima_flag) {
-        gap_ratio = (ind->upper_cost - global_best_upper_so_far) / global_best_upper_so_far;
-        window_size = get_dynamic_window(gap_ratio, 10, 5, 150);
-
-        double temperature = LeaderCbma::get_temperature(local_step, T0, alpha);
-        double prev_cost = ind->upper_cost;
-
-        bool has_moved = leaders[i]->local_search_move(partial_sols[i].get(), temperature);
-        local_step++;
-        steps++;
-
-        if (has_moved) {
-            followers[i]->run(partial_sols[i].get());
-
-            leaders[i]->export_individual(ind.get());
-            followers[i]->export_individual(ind.get());
-
-            while (recent_improvements.size() >= window_size) {
-                recent_improvements.pop_front();
-            }
-            recent_improvements.push_back(prev_cost - ind->upper_cost);
-
-            if (ind->upper_cost < temp_best.upper_cost) {
-                temp_best = *ind;
-                is_profitable = true;
-                improvement_count++;
-
-                global_best_upper_so_far = std::min(global_best_upper_so_far, ind->upper_cost);
-            }
-
-            if (ind->lower_cost < global_best->lower_cost) {
-                *global_best = *ind;
-            }
-
-//            history_list.emplace_back(ind->upper_cost, HistoryTag::SEARCH);
-
-        } else {
-            // 没有 move 也记录为平稳段（delta = 0）
-            while (recent_improvements.size() >= window_size) {
-                recent_improvements.pop_front();
-            }
-            recent_improvements.push_back(0.0);
-
-            local_optima_flag = stuck_in_local_optima(recent_improvements, 1e-3, window_size);
-//            if (local_optima_flag) {
-//                history_list.emplace_back(ind->upper_cost, HistoryTag::STUCK);
-//            } else {
-//                history_list.emplace_back(ind->upper_cost, HistoryTag::SEARCH);
-//            }
-
-        }
-
-        partial_sols[i]->clean();
-    }
-
-    if (debug) {
-        std::cout << "[DEBUG] Individual[" << i << "] ";
-        std::cout << (is_profitable ? "Improved" : "Not improved") << ". ";
-        std::cout << "Delta=" << (ind->upper_cost - initial_cost) << ", ";
-        std::cout << "Improvements=" << improvement_count << std::endl;
-    }
-
-    // 更新 Luby 索引
-    k = is_profitable ? 1 : k + 1;
-    return steps;
-}
-
-std::string Cbma::tag_to_str(HistoryTag tag) {
-    switch (tag) {
-        case HistoryTag::PERTURB: return "perturb";
-        case HistoryTag::SEARCH:  return "search";
-        case HistoryTag::STUCK:   return "stuck";
-        default: return "unknown";
-    }
-}
-
-void Cbma::save_vector_to_csv(const std::vector<std::pair<double, HistoryTag>>& history_list, const std::string &filename) {
-    std::ofstream file(filename);
-    if (!file.is_open()) {
-        std::cerr << "[ERROR] Failed to open file for writing: " << filename << std::endl;
-        return;
-    }
-
-    file << "upper_cost,tag\n";
-    for (const auto& [cost, tag] : history_list) {
-        file << cost << "," << tag_to_str(tag) << "\n";
-    }
-
-    file.close();
-    std::cout << "[INFO] History written to: " << filename << " (" << history_list.size() << " entries)\n";
-}
-
 void Cbma::run_heuristic() {
+    // Greedy local search until getting stuck into local optimum
     for (int i = 0; i < pop_size; ++i) {
         auto& ind = population[i];
 
-        leaders[i]->run_plus(ind.get());
-        followers[i]->run(ind.get());
+        leaders[i]->fully_greedy_local_optimum(&ind);
+        followers[i]->run(&ind);
 
-        global_best_upper_so_far = std::min(global_best_upper_so_far, ind->upper_cost);
-        if (ind->lower_cost < global_best->lower_cost) {
-            *global_best = *ind;  // copy the content of ind to global_best, not deep copy
+        global_best_upper_so_far = std::min(global_best_upper_so_far, ind.upper_cost);
+        if (ind.lower_cost < global_best->lower_cost) {
+            *global_best = ind;  // copy the content of ind to global_best, not deep copy
         }
+        temp_best_individuals[i] = i % 2 == 0 ? *global_best : ind;
     }
 
-    after_local_opt = calculate_statistical_indicators(get_fitness_vector_from_upper_group(population));
+    stats_greedy_local_opt = calculate_statistical_indicators(get_fitness_vector_from_upper_group(population));
 
+    // Neighbourhood exploration by repeatedly applying strong perturbation and local search moves
     for (int i = 0; i < pop_size; ++i) {
-        auto &ind = population[i];
-
-        int k = 1; // index for Luby sequence
-        temp_best_individuals[i] = *ind;
+        int luby_idx = 1; // index for Luby sequence
 
 //        const string file = kStatsPath + "/" + this->name + "/" + instance->instance_name_ + "/" +
 //                            to_string(seed) + "/" + to_string(i) + ".csv";
         int total_steps = 0;
+        temp_history_list.clear();
         while (total_steps < max_neigh_attempts) {
-            total_steps += perform_neighbourhood_explore(i, k, temp_best_individuals[i], ind, temp_history_list, false);
+            total_steps += neighbourhood_explore(i, luby_idx, temp_best_individuals[i],
+                                                         population[i], temp_history_list);
         }
-//        save_vector_to_csv(history_list, file);
+//        save_vector_to_csv(temp_history_list, file);
+//
+//        cout << "Individual " << i << " neighbourhood exploration: ";
+//        cout << endl;
     }
 
+    stats_neigh_explore = calculate_statistical_indicators(get_fitness_vector_from_upper_group(population));
 
-    after_neighbour_explore = calculate_statistical_indicators(get_fitness_vector_from_upper_group(population));
 
     if (gen % 100 == 0) {
         flush_row_into_evol_log();
     }
 
-    std::sort(population.begin(), population.end(),
-              [](const std::shared_ptr<Individual>& a, const std::shared_ptr<Individual>& b) {
-                  return a->upper_cost < b->upper_cost;
-              });
 
+    // Sort the population based on upper cost and select elites, non-elites, and introduce immigrants
+    std::sort(population.begin(), population.end(),
+              [](const Individual& a, const Individual& b) {
+                  return a.upper_cost < b.upper_cost;
+              });
 
     elites.clear();
     for (int i = 0; i < 10; ++i) {
-        elites.emplace_back(std::move(population[i]->get_chromosome()));
+        elites.emplace_back(std::move(population[i].get_chromosome()));
     }
     non_elites.clear();
     for (int i = 10; i < pop_size; ++i) {
-        non_elites.emplace_back(std::move(population[i]->get_chromosome()));
+        non_elites.emplace_back(std::move(population[i].get_chromosome()));
     }
     immigrants.clear();
-    for (int i = 0; i < 20; ++i) {
+    for (int i = 0; i < 30; ++i) {
         vector<int> immigrant(preprocessor->customer_ids_);
         shuffle(immigrant.begin(), immigrant.end(), random_engine);
         immigrants.emplace_back(std::move(immigrant));
@@ -334,7 +166,7 @@ void Cbma::run_heuristic() {
 
     offspring.clear();
     // crossover and mutation
-    // 5 pairs of elite and elite
+    // 5 pairs of (elite x elite)
     for (int i = 0; i < 5; ++i) {
         auto parents = select_random(elites, 2);
         auto& parent1 = parents[0];
@@ -345,9 +177,9 @@ void Cbma::run_heuristic() {
         offspring.emplace_back(std::move(parent1));
         offspring.emplace_back(std::move(parent2));
     }
-    // 25 pairs of elite and non_elite
+    // 20 pairs of (elite x non_elite)
     std::shuffle(non_elites.begin(), non_elites.end(), random_engine);
-    for (int i = 0; i < 25; ++i) {
+    for (int i = 0; i < 20; ++i) {
         auto parent1 = select_random(elites, 1)[0];
         auto& parent2 = non_elites[i];
 
@@ -356,7 +188,7 @@ void Cbma::run_heuristic() {
         offspring.emplace_back(std::move(parent1));
         offspring.emplace_back(std::move(parent2));
     }
-    // 20 pairs of elite and immigrant
+    // 20 pairs of (elite x immigrant)
     for (int i = 0; i < 20; ++i) {
         auto parent1 = select_random(elites, 1)[0];
         auto& parent2 = immigrants[i];
@@ -366,9 +198,13 @@ void Cbma::run_heuristic() {
         offspring.emplace_back(std::move(parent1));
         offspring.emplace_back(std::move(parent2));
     }
+    // 10 immigrants
+    for (int i = 20; i < 30; ++i) {
+        offspring.emplace_back(std::move(immigrants[i]));
+    }
 
     for (auto& chromosome: offspring) {
-        if (uniform_real_dist(random_engine) < mutation_prob) {
+        if (uniform_real_dist(random_engine) < mut_prob) {
             mut_shuffle_indexes(chromosome, mut_ind_prob);
         }
     }
@@ -376,12 +212,12 @@ void Cbma::run_heuristic() {
 
     // update population
     for (int i = 0; i < pop_size; ++i) {
-        population[i]->clean();
+        population[i].clean();
 
         temp_dumb_routes.clear();
         initializer->prins_split(offspring[i], temp_dumb_routes);
 
-        population[i]->load_routes(temp_dumb_routes,
+        population[i].load_routes(temp_dumb_routes,
                                    instance->compute_total_distance(temp_dumb_routes),
                                    instance->compute_demand_sum_per_route(temp_dumb_routes));
     }
@@ -396,8 +232,8 @@ void Cbma::open_log_for_evolution() {
     const string file_name = "evols." + instance->instance_name_ + ".csv";
     log_evolution.open(directory + "/" + file_name);
     log_evolution << "gen,g_best,"
-                     "af_opt_min,avg,max,std,"
-                     "af_ne_min,avg,max,std,"
+                     "greedy_min,avg,max,std,"
+                     "neigh_min,avg,max,std,"
                      "evals\n";
 }
 
@@ -409,10 +245,13 @@ void Cbma::close_log_for_evolution() {
 }
 
 void Cbma::flush_row_into_evol_log() {
-    oss_row_evol << std::fixed << std::setprecision(3) << gen << "," << global_best->lower_cost <<","
-    << after_local_opt.min << "," << after_local_opt.avg << "," << after_local_opt.max << "," << after_local_opt.std << ","
-    << after_neighbour_explore.min << "," << after_neighbour_explore.avg << "," << after_neighbour_explore.max << "," << after_neighbour_explore.std << ","
-    << instance->get_evals() << "\n";
+    oss_row_evol << std::fixed << std::setprecision(3)
+                 << gen << "," << global_best->lower_cost << ","
+                 << stats_greedy_local_opt.min << "," << stats_greedy_local_opt.avg << ","
+                 << stats_greedy_local_opt.max << "," << stats_greedy_local_opt.std << ","
+                 << stats_neigh_explore.min << "," << stats_neigh_explore.avg << ","
+                 << stats_neigh_explore.max << "," << stats_neigh_explore.std << ","
+                 << instance->get_evals() << "\n";
 }
 
 void Cbma::save_log_for_solution() {
@@ -432,32 +271,164 @@ void Cbma::save_log_for_solution() {
     log_solution.close();
 }
 
-shared_ptr<Individual> Cbma::select_best_upper_individual(const vector<shared_ptr<Individual>>& pop) {
-    if (pop.empty()) {
-        return nullptr;  // Handle the case where the population is empty
+int Cbma::get_luby(int j) const {
+    int k = 1;
+    while ((1 << k) - 1 < j) ++k;
+    int val;
+    while (true) {
+        val = (1 << (k - 1));
+        if ((1 << k) - 1 == j) break;
+        j = j - val + 1;
+        k = 1;
+        while ((1 << k) - 1 < j) ++k;
     }
-
-    auto comparator = [](const shared_ptr<Individual>& ind1, const shared_ptr<Individual>& ind2) {
-        return ind1->upper_cost < ind2->upper_cost;
-    };
-
-    auto best = std::min_element(pop.begin(), pop.end(), comparator);
-
-    return *best;
+    return val >= max_perturbation_strength ? max_perturbation_strength : val;
 }
 
-shared_ptr<Individual> Cbma::select_best_lower_individual(const vector<shared_ptr<Individual>>& pop) {
-    if (pop.empty()) {
-        return nullptr;  // Handle the case where the population is empty
+size_t Cbma::get_dynamic_window(double gap_ratio, double min_window=20, double max_window=500, double k=0.5) {
+    // Normalise gap_ratio to [0, 1) range using bounded transformation
+    double norm = 1.0 - std::exp(-k*gap_ratio);  // asymptotically approaches 1
+    double window = min_window + norm * (max_window - min_window);
+    return static_cast<size_t>(std::clamp(window, min_window, max_window));
+}
+
+bool Cbma::stuck_in_local_optima(const std::deque<double>& changes, size_t window_size, double epsilon=1e-3,
+                                 double strong_delta_thresh=0.01) {
+    if (changes.size() < window_size) return false;
+
+    // Step 1: Count obvious changes
+    auto strong_change = std::count_if(changes.begin(), changes.end(),
+                                       [strong_delta_thresh](double d)
+                                       { return std::abs(d) >= strong_delta_thresh; });
+
+    // Step 2: Average magnitude of recent changes (absolute value)
+    double avg = std::accumulate(changes.begin(), changes.end(), 0.0,
+                                 [](double sum, double d)
+                                 { return sum + std::abs(d); }) / static_cast<double>(changes.size());
+
+    // Step 3: Determine if the search is stuck
+    // - No strong changes
+    // - Overall change is small
+    return (strong_change < 1) && (avg < epsilon);
+}
+
+int Cbma::neighbourhood_explore(int i, int& k, Individual& temp_best, Individual& ind,
+                                vector<tuple<double, HistoryTag, int>>& history_list) {
+    int steps = 0;  // records the number of steps taken in this neighbourhood exploration for terminating the loop
+
+    int strength = get_luby(k);
+
+    leaders[i]->load_individual(&temp_best);
+    leaders[i]->perturbation(strength);
+    leaders[i]->export_individual(&ind);
+    followers[i]->run(&ind);
+
+    history_list.emplace_back(ind.upper_cost, HistoryTag::PERTURB, strength); // after perturbation
+    steps++;  // count the perturbation step
+
+
+    // Parameters controlling the search intensity in the local search
+    double T0 = 30.0;        // initial temperature
+    double alpha = 0.98;     // cooling rate
+    // Parameters used to judge whether the local search is stuck in local optima
+    temp_recent_moves_pool.clear();
+    auto& recent_moves = temp_recent_moves_pool;
+    double gap_ratio;
+    size_t window_size = 10;
+
+    bool local_optima_flag = false;
+    bool is_profitable = false;
+
+    int local_step = 0;
+    while (recent_moves.size() < window_size || !local_optima_flag) {
+        double temperature = LeaderCbma::get_temperature(local_step, T0, alpha);
+
+        double current_cost = leaders[i]->upper_cost;
+        bool has_moved = leaders[i]->local_search_move(partial_sols[i].get(), temperature);
+        double candidate_cost = leaders[i]->upper_cost;
+
+        local_step++;
+
+        if (has_moved) {
+            followers[i]->run(partial_sols[i].get());
+
+            leaders[i]->export_individual(&ind);
+            followers[i]->export_individual(&ind);
+
+            while (recent_moves.size() >= window_size) {
+                recent_moves.pop_front();
+            }
+            recent_moves.push_back(current_cost - candidate_cost);
+
+            if (candidate_cost < temp_best.upper_cost) {
+                temp_best = ind;
+                global_best_upper_so_far = std::min(global_best_upper_so_far, candidate_cost);
+
+                is_profitable = true;
+            }
+
+            if (ind.lower_cost < global_best->lower_cost) *global_best = ind;
+
+            history_list.emplace_back(ind.upper_cost, HistoryTag::SEARCH, 0);
+
+        } else {
+            // if there is no move, record it as a stable segment (delta = 0)
+            while (recent_moves.size() >= window_size) {
+                recent_moves.pop_front();
+            }
+            recent_moves.push_back(0.0);
+
+            local_optima_flag = stuck_in_local_optima(recent_moves, window_size);
+            if (local_optima_flag) {
+                history_list.emplace_back(ind.upper_cost, HistoryTag::STUCK, 0);
+            } else {
+                history_list.emplace_back(ind.upper_cost, HistoryTag::SEARCH, 0);
+            }
+        }
+
+        partial_sols[i]->clean();
+
+        gap_ratio = std::max(0.0, (current_cost - global_best_upper_so_far) / global_best_upper_so_far);
+        window_size = get_dynamic_window(gap_ratio);
     }
 
-    auto comparator = [](const shared_ptr<Individual>& ind1, const shared_ptr<Individual>& ind2) {
-        return ind1->lower_cost < ind2->lower_cost;
-    };
 
-    auto best = std::min_element(pop.begin(), pop.end(), comparator);
+    steps += local_step;  // add the local search steps
 
-    return *best;
+    // If the local search (while-loop) yields improvement, the region is promising — apply slight perturbation and
+    // continue searching nearby.
+    // If several consecutive local search stages show no improvement, gradually increase the perturbation to escape
+    // local optima.
+    k = is_profitable ? std::max(1, k - 1) : std::min(k + 1, max_perturbation_strength * 2);
+//    k = is_profitable ? 1 : k + 1;
+
+    return steps;
+}
+
+std::string Cbma::tag_to_str(HistoryTag tag) {
+    switch (tag) {
+        case HistoryTag::PERTURB: return "perturb";
+        case HistoryTag::SEARCH:  return "search";
+        case HistoryTag::STUCK:   return "stuck";
+        default: return "unknown";
+    }
+}
+
+void Cbma::save_vector_to_csv(const std::vector<std::tuple<double, HistoryTag, int>>& history_list,
+                              const std::string &filename) {
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "[ERROR] Failed to open file for writing: " << filename << std::endl;
+        return;
+    }
+
+    file << "upper_cost,tag,strength\n";
+    for (const auto& [cost, tag, strength] : history_list) {
+        file << cost << "," << tag_to_str(tag) << "," << strength  << "\n";
+    }
+
+    file.close();
+    std::cout << "[INFO] History written to: " << filename << " (" << history_list.size() << " entries)\n";
 }
 
 vector<vector<int>>  Cbma::select_random(const vector<vector<int>> &chromosomes, int k) {
@@ -466,8 +437,8 @@ vector<vector<int>>  Cbma::select_random(const vector<vector<int>> &chromosomes,
 
     std::uniform_int_distribution<std::size_t> distribution(0, chromosomes.size() - 1);
     for (int i = 0; i < k; ++i) {
-        std::size_t randomIndex = distribution(random_engine);
-        selected_seqs.push_back(chromosomes[randomIndex]);
+        std::size_t idx = distribution(random_engine);
+        selected_seqs.push_back(chromosomes[idx]);
     }
 
     return std::move(selected_seqs);
@@ -491,7 +462,7 @@ void Cbma::cx_partially_matched(vector<int>& parent1, vector<int>& parent2) {
 
     temp_cx_map1.clear();
     temp_cx_map2.clear();
-    // Initialize mapping with the middle segment
+    // Initialise mapping with the middle segment
     for (int i = 0; i < point2 - point1; ++i) {
         temp_cx_map1[temp_child2[i]] = temp_child1[i];
         temp_cx_map2[temp_child1[i]] = temp_child2[i];
@@ -536,24 +507,24 @@ void Cbma::mut_shuffle_indexes(vector<int>& chromosome, double ind_pb) {
     }
 }
 
-vector<double> Cbma::get_fitness_vector_from_upper_group(const vector<shared_ptr<Individual>>& group){
+vector<double> Cbma::get_fitness_vector_from_upper_group(const vector<Individual>& group){
     std::vector<double> ans;
     ans.reserve(group.size());  // Reserve space to avoid unnecessary reallocation
 
     // Use transform along with a lambda to extract fitness values
     std::transform(group.begin(), group.end(), std::back_inserter(ans),
-                   [](const auto& ind) { return ind->upper_cost; });
+                   [](const auto& ind) { return ind.upper_cost; });
 
     return ans;
 }
 
-vector<double> Cbma::get_fitness_vector_from_lower_group(const vector<shared_ptr<Individual>>& group) {
+vector<double> Cbma::get_fitness_vector_from_lower_group(const vector<Individual>& group) {
     std::vector<double> ans;
     ans.reserve(group.size());  // Reserve space to avoid unnecessary reallocation
 
     // Use transform along with a lambda to extract fitness values
     std::transform(group.begin(), group.end(), std::back_inserter(ans),
-                   [](const auto& ind) { return ind->lower_cost; });
+                   [](const auto& ind) { return ind.lower_cost; });
 
     return ans;
 }
