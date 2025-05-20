@@ -90,8 +90,12 @@ int main(int argc, char *argv[])
     StatsInterface::create_directories_if_not_exists(stats_file_path);
     StatsInterface::stats_for_multiple_trials(stats_file_path + "/" + "stats." + params.instance,perf_of_trials);
 
-    Indicators indicators = StatsInterface::calculate_statistical_indicators(perf_of_trials);
-    std::cout << indicators.avg << std::endl;
+    if (!params.enable_multithreading) {
+        std::cout << perf_of_trials[0] << std::endl;
+    } else {
+        Indicators indicators = StatsInterface::calculate_statistical_indicators(perf_of_trials);
+        std::cout << indicators.avg << std::endl;
+    }
 
     return 0;
 }
