@@ -18,6 +18,8 @@ using namespace std;
 
 enum HistoryTag { PERTURB, SEARCH, STUCK };
 
+const int MAX_LOCAL_STEPS = 2'000;
+
 class Cbma final : public HeuristicInterface, public StatsInterface {
 private:
     vector<Individual> population;                // Population of individuals

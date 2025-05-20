@@ -323,7 +323,7 @@ int Cbma::neighbourhood_explore(int i, int& k, Individual& temp_best, Individual
     leaders[i]->export_individual(&ind);
     followers[i]->run(&ind);
 
-    history_list.emplace_back(ind.upper_cost, HistoryTag::PERTURB, strength); // after perturbation
+//    history_list.emplace_back(ind.upper_cost, HistoryTag::PERTURB, strength); // after perturbation
     steps++;  // count the perturbation step
 
 
@@ -340,7 +340,7 @@ int Cbma::neighbourhood_explore(int i, int& k, Individual& temp_best, Individual
     bool is_profitable = false;
 
     int local_step = 0;
-    while (recent_moves.size() < window_size || !local_optima_flag) {
+    while ((recent_moves.size() < window_size || !local_optima_flag) && local_step < MAX_LOCAL_STEPS) {
         double temperature = LeaderCbma::get_temperature(local_step, T0, alpha);
 
         double current_cost = leaders[i]->upper_cost;
@@ -369,7 +369,7 @@ int Cbma::neighbourhood_explore(int i, int& k, Individual& temp_best, Individual
 
             if (ind.lower_cost < global_best->lower_cost) *global_best = ind;
 
-            history_list.emplace_back(ind.upper_cost, HistoryTag::SEARCH, 0);
+//            history_list.emplace_back(ind.upper_cost, HistoryTag::SEARCH, 0);
 
         } else {
             // if there is no move, record it as a stable segment (delta = 0)
@@ -379,11 +379,11 @@ int Cbma::neighbourhood_explore(int i, int& k, Individual& temp_best, Individual
             recent_moves.push_back(0.0);
 
             local_optima_flag = stuck_in_local_optima(recent_moves, window_size);
-            if (local_optima_flag) {
-                history_list.emplace_back(ind.upper_cost, HistoryTag::STUCK, 0);
-            } else {
-                history_list.emplace_back(ind.upper_cost, HistoryTag::SEARCH, 0);
-            }
+//            if (local_optima_flag) {
+//                history_list.emplace_back(ind.upper_cost, HistoryTag::STUCK, 0);
+//            } else {
+//                history_list.emplace_back(ind.upper_cost, HistoryTag::SEARCH, 0);
+//            }
         }
 
         partial_sols[i]->clean();
