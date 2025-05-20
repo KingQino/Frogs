@@ -138,7 +138,7 @@ void Lahc::run() {
 }
 
 void Lahc::open_log_for_evolution() {
-    const string directory = kStatsPath + "/" + this->name + "/" + instance->instance_name_ + "/" + to_string(seed);
+    const string directory = preprocessor->params.kStatsPath + "/" + this->name + "/" + instance->instance_name_ + "/" + to_string(seed);
     create_directories_if_not_exists(directory);
 
     const string file_name = "evols." + instance->instance_name_ + ".csv";
@@ -175,7 +175,7 @@ void Lahc::flush_row_into_evol_log() {
 }
 
 void Lahc::save_log_for_solution() {
-    const string directory = kStatsPath + "/" + this->name + "/" + instance->instance_name_ + "/" + to_string(seed);
+    const string directory = preprocessor->params.kStatsPath + "/" + this->name + "/" + instance->instance_name_ + "/" + to_string(seed);
 
     const string file_name = "solution." + instance->instance_name_ + ".txt";
 

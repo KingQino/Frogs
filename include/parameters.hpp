@@ -14,6 +14,8 @@ enum class Algorithm { CBMA, LAHC, SGA};
 
 struct Parameters {
     // Running parameters
+    string kDataPath;
+    string kStatsPath;
     Algorithm algorithm;        // Algorithm name
     string instance;            // Problem instance name
     bool enable_logging;        // Enable logging
@@ -44,6 +46,8 @@ struct Parameters {
             enable_multithreading(false),
             seed(0) {
 
+        kDataPath = "../data/";
+        kStatsPath = "../stats";
         nb_granular = 20;
         is_hard_constraint = true;
         is_duration_constraint = false;

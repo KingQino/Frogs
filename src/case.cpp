@@ -4,7 +4,7 @@
 
 #include "case.hpp"
 
-Case::Case(const string& file_name) {
+Case::Case(const string& kDataPath, const string& file_name) {
     this->file_name_ = file_name;
     this->instance_name_ = file_name.substr(0, file_name.find('.'));
 

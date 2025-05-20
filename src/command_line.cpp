@@ -6,6 +6,12 @@
 #include <stdexcept>
 
 CommandLine::CommandLine(const int argc, char* argv[]) {
+    std::string absolute_path = argv[0];
+    std::size_t pos1 = absolute_path.rfind('/');
+    std::size_t pos2 = absolute_path.rfind('/', pos1 - 1);
+    std::string path = absolute_path.substr(0, pos2);
+    arguments["root_path"] = path;
+
     for (int i = 1; i < argc; i += 2) {
         if (i + 1 < argc) { // Ensure there's a value after the key
             std::string key = argv[i];
@@ -23,6 +29,8 @@ CommandLine::CommandLine(const int argc, char* argv[]) {
 }
 
 void CommandLine::parse_parameters(Parameters& params) const {
+    params.kDataPath = get_string("root_path", "..") + "/data/";
+    params.kStatsPath = get_string("root_path", "..") + "/stats";
     try {
         params.algorithm = string_to_algorithm(get_string("alg", "Lahc"));
         params.instance = get_string("ins", params.instance);
