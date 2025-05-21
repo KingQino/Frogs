@@ -6,10 +6,10 @@
 #include <stdexcept>
 
 CommandLine::CommandLine(const int argc, char* argv[]) {
-    std::string absolute_path = argv[0];
-    std::size_t pos1 = absolute_path.rfind('/');
-    std::size_t pos2 = absolute_path.rfind('/', pos1 - 1);
-    std::string path = absolute_path.substr(0, pos2);
+    const std::string absolute_path = argv[0];
+    const std::size_t pos1 = absolute_path.rfind('/');
+    const std::size_t pos2 = absolute_path.rfind('/', pos1 - 1);
+    const std::string path = absolute_path.substr(0, pos2);
     arguments["root_path"] = path;
 
     for (int i = 1; i < argc; i += 2) {
