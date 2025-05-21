@@ -63,12 +63,10 @@ void Lahc::restart_heuristic() {
     routes.clear();
     routes.shrink_to_fit();
 
-    leader->local_improve(current, border_history_list_metrics.max);
+    leader->local_improve(current, border_history_list_metrics.avg);
 
     history_list = border_history_list;
-//    for (int i = 0; i < history_length; ++i) {
-//        history_list[i] = border_dist(random_engine);
-//    }
+    std::shuffle(history_list.begin(), history_list.end(), random_engine);
 
     this->iter = 0L;
     this->idle_iter = 0L;
@@ -93,9 +91,8 @@ void Lahc::run_heuristic() {
             }
 
             // ratio_successful_moves < value, this value can be further adjusted
-            if (restart_idx == 0 && !border_flag && ratio_successful_moves <= 0.4) {
+            if (restart_idx == 0 && !border_flag && ratio_successful_moves <= 0.5) {
                 border_history_list_metrics = history_list_metrics;
-//                border_dist = normal_distribution<double>(border_history_list_metrics.avg, border_history_list_metrics.std);
                 border_history_list = history_list;
                 border_flag = true;
             }
@@ -120,15 +117,15 @@ void Lahc::run_heuristic() {
         iter++;
         duration = std::chrono::high_resolution_clock::now() - start;
 
-//        bool should_trigger_lower_decision;
-//        if (restart_idx == 0) {
-//            should_trigger_lower_decision = ratio_successful_moves < 0.4 && has_moved && candidate_cost < global_best_upper_so_far * 1.10;
-//        } else {
-//            should_trigger_lower_decision = has_moved && candidate_cost < global_best_upper_so_far * 1.10;
-//        }
-        bool should_trigger_lower_decision = has_moved &&
-                                             candidate_cost < global_best_upper_so_far * 1.10 &&
-                                             (restart_idx != 0 || ratio_successful_moves < 0.4);
+        bool should_trigger_lower_decision;
+        if (restart_idx == 0) {
+            should_trigger_lower_decision = ratio_successful_moves < 0.5 && has_moved && candidate_cost < global_best_upper_so_far * 1.20;
+        } else {
+            should_trigger_lower_decision = has_moved && candidate_cost < global_best_upper_so_far * 1.20;
+        }
+        // bool should_trigger_lower_decision = has_moved &&
+        //                                      candidate_cost < global_best_upper_so_far * 1.10 &&
+        //                                      (restart_idx != 0 || ratio_successful_moves < 0.4);
 
 
         if (should_trigger_lower_decision) {
