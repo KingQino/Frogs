@@ -63,7 +63,7 @@ void Lahc::restart_heuristic() {
     routes.clear();
     routes.shrink_to_fit();
 
-    leader->local_improve(current, border_history_list_metrics.avg);
+    leader->local_improve(current, border_history_list_metrics.min);
 
     history_list = border_history_list;
     std::shuffle(history_list.begin(), history_list.end(), random_engine);
