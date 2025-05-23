@@ -74,7 +74,7 @@ public:
     void save_log_for_solution() override;
 
     int get_luby(int j) const;
-    bool is_accepted(const double& candidate_cost, const double& current_cost, int steps) const;
+    bool is_accepted(const double& candidate_cost, const double& current_cost, int steps);
     void neighbourhood_explore(int index, int max_attempts);
 
     vector<vector<int>> select_random(const vector<vector<int>>& chromosomes, int k);

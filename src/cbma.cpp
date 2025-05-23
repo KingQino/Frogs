@@ -270,23 +270,19 @@ int Cbma::get_luby(int j) const {
     return val >= max_sol_chain_length ? max_sol_chain_length : val;
 }
 
-bool Cbma::is_accepted(const double &candidate_cost, const double &current_cost, int steps) const {
+bool Cbma::is_accepted(const double &candidate_cost, const double &current_cost, int steps) {
     if (candidate_cost < current_cost) {
         return true;
     }
-    return false;
 
-    // std::uniform_real_distribution<double> dis(0.0, 1.0);
-    //
-    // double T0=80.0;
-    // double alpha=0.97;
-    // double temperature = T0 * std::pow(alpha, steps);
-    //
-    // double delta = candidate_cost - current_cost;
-    // double prob = std::exp(-delta / temperature);
-    //
-    // return dis(random_engine) < prob;
-    // return false;
+    constexpr double T0=20.0;
+    constexpr double alpha=0.99;
+    const double temperature = std::max(1e-4, T0 * std::pow(alpha, steps));
+
+    const double delta = candidate_cost - current_cost;
+    const double prob = std::exp(-delta / temperature);
+
+    return uniform_real_dist(random_engine) < prob;
 }
 
 
@@ -345,16 +341,16 @@ void Cbma::neighbourhood_explore(const int index, const int max_attempts) {
 
         // 记录 END（无论提前退出或正常结束）
         // if (exit_status == "early_exit") {
-        //     temp_history_list.emplace_back(dummy_ind.upper_cost, EARLY_END, 0);
+        // temp_history_list.emplace_back(dummy_ind.upper_cost, EARLY_END, 0);
         // } else {
-        //     temp_history_list.emplace_back(dummy_ind.upper_cost, FULL_END, 0);
+        // temp_history_list.emplace_back(dummy_ind.upper_cost, FULL_END, 0);
         // }
     }
 
     // const string filename = kStatsPath + "/" + this->name + "/" + instance->instance_name_ + "/" + to_string(seed) + "/"
     // + to_string(index) + ".csv";
     // save_vector_to_csv(temp_history_list, filename);
-    // cout << "Individual " << index << " neighbourhood exploration: ";
+    // cout << "Individual " << index << " neighbourhood exploration: " << endl;
     // cout << endl;
 }
 
