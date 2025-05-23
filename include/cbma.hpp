@@ -16,7 +16,7 @@
 
 using namespace std;
 
-enum HistoryTag { PERTURB, SEARCH, STUCK };
+enum HistoryTag { START, SEARCH, EARLY_END, FULL_END };
 
 const int MAX_LOCAL_STEPS = 2'000;
 
@@ -40,7 +40,7 @@ private:
     vector<int> temp_child2;
     std::unordered_map<int, int> temp_cx_map1;
     std::unordered_map<int, int> temp_cx_map2;
-    vector<Individual> temp_best_individuals;
+    vector<Individual> temp_individuals;
     vector<tuple<double, HistoryTag, int>> temp_history_list;
     std::deque<double> temp_recent_moves_pool;
 public:
@@ -49,7 +49,7 @@ public:
     bool enable_logging;                          // Whether to enable logging
     int stop_criteria;                            // Stop criteria for the algorithm
     int max_neigh_attempts;                       // Maximum number of attempts for neighbourhood exploration
-    int max_perturbation_strength;                // Maximum perturbation strength
+    int max_sol_chain_length;                     // Maximum solution chain length
 
     unique_ptr<Individual> global_best;           // Global best solution found so far
     double global_best_upper_so_far;              // The best solution found so far
@@ -74,8 +74,8 @@ public:
     void save_log_for_solution() override;
 
     int get_luby(int j) const;
-    int neighbourhood_explore(int individual_index, int& luby_index, Individual& temp_best, Individual& ind,
-                              vector<tuple<double, HistoryTag, int>>& history_list);
+    bool is_accepted(const double& candidate_cost, const double& current_cost, int steps) const;
+    void neighbourhood_explore(int index, int max_attempts);
 
     vector<vector<int>> select_random(const vector<vector<int>>& chromosomes, int k);
     void cx_partially_matched(vector<int>& parent1, vector<int>& parent2);
@@ -85,11 +85,8 @@ public:
     static vector<double> get_fitness_vector_from_lower_group(const vector<Individual>& group);
 
     static string tag_to_str(HistoryTag tag);
-    static size_t get_dynamic_window(double gap_ratio, double min_win, double max_win, double k);
-    static bool stuck_in_local_optima(const deque<double>& improvements, size_t window_size, double epsilon,
-                                      double strong_delta_thresh);
     static void save_vector_to_csv(const std::vector<std::tuple<double, HistoryTag, int>>& history_list,
-                                   const string& filename);
+        const string& filename);
 };
 
 #endif //FROGS_CBMA_HPP

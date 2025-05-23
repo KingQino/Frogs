@@ -58,6 +58,21 @@ void PartialSolution::set_inter_route(int r1, int *rout1, int len1, bool emp1, i
     this->is_empty2 = emp2;
 }
 
+void PartialSolution::set_inter_empty_route(int r1, int *rout1, int len1, bool emp1, int r2, int *rout2, int len2,
+    bool emp2) {
+    this->move_type = 2;
+
+    this->idx1 = r1;
+    this->route1 = rout1;
+    this->length1 = len1;
+    this->is_empty1 = emp1;
+
+    this->idx2 = r2;
+    this->route2 = rout2;
+    this->length2 = len2;
+    this->is_empty2 = emp2;
+}
+
 std::ostream &operator<<(std::ostream &os, const PartialSolution &partial_sol) {
     os << "PartialSolution: move_type = " << partial_sol.move_type << "\n";
     os << "num_routes = " << partial_sol.num_routes << "\n";

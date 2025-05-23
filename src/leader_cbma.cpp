@@ -38,6 +38,9 @@ LeaderCbma::LeaderCbma(Case *instance, Preprocessor *preprocessor)
     max_chain_length = 512;
     local_search_dist = uniform_int_distribution<int>(0, 14);
     perturbation_dist = uniform_int_distribution<int>(0, 15);
+    neigh_move_dist = uniform_int_distribution<int>(0, 17);
+
+    init_moves();
 }
 
 LeaderCbma::~LeaderCbma() {
@@ -52,13 +55,62 @@ LeaderCbma::~LeaderCbma() {
     delete[] temp_r2;
 }
 
-int LeaderCbma::get_luby(int j) const {
-    int k = 1;
-    while ((1 << k) - 1 < j) ++k;
-    int val = (1 << (k - 1));
-    if (val >= max_chain_length) return max_chain_length;
-    if ((1 << k) - 1 == j) return val;
-    return get_luby(j - val + 1);
+void LeaderCbma::init_moves() {
+    // 7 intra moves
+    intra_moves = {
+            [this](int* r, int l) { return move1_intra_pert(r, l); },
+            [this](int* r, int l) { return move2_intra_pert(r, l); },
+            [this](int* r, int l) { return move3_intra_pert(r, l); },
+            [this](int* r, int l) { return move4_intra_pert(r, l); },
+            [this](int* r, int l) { return move5_intra_pert(r, l); },
+            [this](int* r, int l) { return move6_intra_pert(r, l); },
+            [this](int* r, int l) { return move7_intra_pert(r, l); },
+    };
+
+    // 8 inter moves
+    inter_moves = {
+            [this](int* r1, int* r2, int& l1, int& l2, int& ld1, int& ld2) {
+                return move1_inter_pert(r1, r2, l1, l2, ld1, ld2);
+            },
+            [this](int* r1, int* r2, int& l1, int& l2, int& ld1, int& ld2) {
+                return move2_inter_pert(r1, r2, l1, l2, ld1, ld2);
+            },
+            [this](int* r1, int* r2, int& l1, int& l2, int& ld1, int& ld2) {
+                return move3_inter_pert(r1, r2, l1, l2, ld1, ld2);
+            },
+            [this](int* r1, int* r2, int& l1, int& l2, int& ld1, int& ld2) {
+                return move4_inter_pert(r1,r2,l1,l2 ,ld1 ,ld2);
+            },
+            [this](int* r1,int* r2,int &l1,int &l2,int &ld1,int &ld2){
+                return move5_inter_pert(r1,r2,l1,l2 ,ld1 ,ld2);
+            },
+            [this](int* r1,int* r2,int &l1,int &l2,int &ld1,int &ld2){
+                return move6_inter_pert(r1,r2,l1,l2 ,ld1 ,ld2);
+            },
+            [this](int* r1,int* r2,int &l1,int &l2,int &ld1,int &ld2){
+                return move8_inter_pert(r1,r2,l1,l2 ,ld1 ,ld2);
+            },
+            [this](int* r1,int* r2,int &l1,int &l2,int &ld1,int &ld2) {
+                return move9_inter_pert(r1,r2,l1,l2 ,ld1 ,ld2);
+            }
+    };
+
+    // 3 inter moves with an empty route
+    inter_empty_moves = {
+            [this](int* r1, int* r2, int& l1, int& l2, int& ld1, int& ld2) {
+                return move1_inter_with_empty_route_pert(r1, r2, l1, l2, ld1, ld2);
+            },
+            [this](int* r1, int* r2, int& l1, int& l2, int& ld1, int& ld2) {
+                return move8_inter_with_empty_route_pert(r1, r2, l1, l2, ld1, ld2);
+            },
+            [this](int* r1, int* r2, int& l1, int& l2, int& ld1, int& ld2) {
+                return move9_inter_with_empty_route_pert(r1, r2, l1, l2, ld1, ld2);
+            }
+    };
+
+    num_intra = static_cast<int>(intra_moves.size());
+    num_inter = static_cast<int>(inter_moves.size());
+    num_empty = static_cast<int>(inter_empty_moves.size());
 }
 
 void LeaderCbma::prepare_temp_buffers(int required_size) const {
@@ -69,6 +121,7 @@ void LeaderCbma::prepare_temp_buffers(int required_size) const {
 
     temp_r1 = new int[required_size];
     temp_r2 = new int[required_size];
+    temp_candidates.reserve(required_size);
     temp_buffer_size = required_size;
 }
 
@@ -339,6 +392,24 @@ void LeaderCbma::perturbation(int strength) {
                 break;
         }
     }
+}
+
+bool LeaderCbma::neighbour_move(PartialSolution *partial_ind, double temperature) {
+    partial_sol = partial_ind;
+
+    const int choice = neigh_move_dist(thread_rng);
+
+    if (choice < num_intra) {
+        return perform_intra_move_pert(intra_moves[choice]);
+    }
+
+    int idx = choice - num_intra;
+    if (idx < num_inter) {
+        return perform_inter_move_pert(inter_moves[idx]);
+    }
+
+    idx -= num_inter;
+    return perform_inter_move_with_empty_pert(inter_empty_moves[idx]);
 }
 
 void LeaderCbma::load_individual(Individual *ind) {
@@ -1531,6 +1602,10 @@ bool LeaderCbma::perform_intra_move_pert(const std::function<bool(int *, int)> &
     int random_route_idx = dist(thread_rng);
 
     bool is_moved = move_func(routes[random_route_idx], num_nodes_per_route[random_route_idx]);
+    if (is_moved) {
+        partial_sol->set_intra_route(random_route_idx, routes[random_route_idx],num_nodes_per_route[random_route_idx]);
+        partial_sol->num_routes = num_routes;
+    }
 
     return is_moved;
 }
@@ -1550,7 +1625,11 @@ bool LeaderCbma::perform_inter_move_pert(
                               demand_sum_per_route[r1], demand_sum_per_route[r2]);
 
     if (is_moved) {
+        // clean the route beyond the length
+        partial_sol->set_inter_route(r1, routes[r1], num_nodes_per_route[r1], demand_sum_per_route[r1] == 0,
+                                     r2, routes[r2], num_nodes_per_route[r2], demand_sum_per_route[r2] == 0);
         clean_empty_routes(r1, r2);
+        partial_sol->num_routes = num_routes;
     }
 
     return is_moved;
@@ -1570,6 +1649,9 @@ bool LeaderCbma::perform_inter_move_with_empty_pert(
 
     if (is_moved) {
         num_routes++;
+        partial_sol->num_routes = num_routes;
+        partial_sol->set_inter_empty_route(r1, routes[r1], num_nodes_per_route[r1], false,
+                                     r2, routes[r2], num_nodes_per_route[r2], false);
     }
 
     return is_moved;
@@ -1617,15 +1699,16 @@ bool LeaderCbma::move1_inter_pert(int *route1, int *route2, int &length1, int &l
 
     bool has_moved = false;
 
-    std::vector<int> candidates;
+    // std::vector<int> candidates;
+    temp_candidates.clear();
     for (int i = 1; i < length1 - 1; ++i) {
         if (loading2 + instance->get_customer_demand_(route1[i]) <= instance->max_vehicle_capa_) {
-            candidates.push_back(i);
+            temp_candidates.push_back(i);
         }
     }
-    if (candidates.empty()) return false;
-    std::shuffle(candidates.begin(), candidates.end(), thread_rng);  // Shuffle to pick one randomly
-    int i = candidates.front();  // Pick the first after shuffling
+    if (temp_candidates.empty()) return false;
+    int i = temp_candidates[std::uniform_int_distribution<int>(0, static_cast<int>(temp_candidates.size()) - 1)
+        (thread_rng)];
     std::uniform_int_distribution<int> dist(0, length2 - 2);
     int j = dist(thread_rng);
 
@@ -1748,15 +1831,15 @@ bool LeaderCbma::move2_inter_pert(int *route1, int *route2, int &length1, int &l
 
     bool has_moved = false;
 
-    std::vector<int> candidates;
+    temp_candidates.clear();
     for (int i = 1; i < length1 - 2; ++i) {
         if (loading2 + instance->get_customer_demand_(route1[i]) + instance->get_customer_demand_(route1[ i + 1]) <= instance->max_vehicle_capa_) {
-            candidates.push_back(i);
+            temp_candidates.push_back(i);
         }
     }
-    if (candidates.empty()) return false;
-    std::shuffle(candidates.begin(), candidates.end(), thread_rng);  // Shuffle to pick one randomly
-    int i = candidates.front();  // Pick the first after shuffling
+    if (temp_candidates.empty()) return false;
+    int i = temp_candidates[std::uniform_int_distribution<int>(0, static_cast<int>(temp_candidates.size()) - 1)
+    (thread_rng)];
     std::uniform_int_distribution<int> dist(0, length2 - 2);
     int j = dist(thread_rng);
 
@@ -1852,16 +1935,16 @@ bool LeaderCbma::move3_inter_pert(int *route1, int *route2, int &length1, int &l
 
     bool has_moved = false;
 
-    std::vector<int> candidates;
+    temp_candidates.clear();
     for (int i = 1; i < length1 - 2; ++i) {
         if (loading2 + instance->get_customer_demand_(route1[i]) +
             instance->get_customer_demand_(route1[ i + 1]) <= instance->max_vehicle_capa_) {
-            candidates.push_back(i);
+            temp_candidates.push_back(i);
         }
     }
-    if (candidates.empty()) return false;
-    std::shuffle(candidates.begin(), candidates.end(), thread_rng);  // Shuffle to pick one randomly
-    int i = candidates.front();  // Pick the first after shuffling
+    if (temp_candidates.empty()) return false;
+    int i = temp_candidates[std::uniform_int_distribution<int>(0, static_cast<int>(temp_candidates.size()) - 1)
+        (thread_rng)];
     std::uniform_int_distribution<int> dist(0, length2 - 2);
     int j = dist(thread_rng);
 
@@ -2174,44 +2257,108 @@ bool LeaderCbma::move8_inter_pert(int *route1, int *route2, int &length1, int &l
     double original_cost, modified_cost, change;
 
     int partial_dem_r2 = 0;
+    temp_candidates.clear();
     for (int n2 = 0; n2 < length2 - 1; ++n2) {
-        if ((n1 == length1 - 2 && n2 == 0) || (n1 == 0 && n2 == length2 - 2)) continue; // the same as the current situation, just skip it.
-        partial_dem_r2 += instance->get_customer_demand_(route2[n2]);
+        if ((n1 == length1 - 2 && n2 == 0) || (n1 == 0 && n2 == length2 - 2)) continue; // the same as the current situation, skip it.
 
+        partial_dem_r2 += instance->get_customer_demand_(route2[n2]);
         if (partial_dem_r1 + partial_dem_r2 > instance->max_vehicle_capa_ ||
             loading1 - partial_dem_r1 + loading2 - partial_dem_r2 > instance->max_vehicle_capa_) continue;
 
-        original_cost = instance->get_distance(route1[n1], route1[n1 + 1]) + instance->get_distance(route2[n2], route2[n2 + 1]);
-        modified_cost = instance->get_distance(route1[n1], route2[n2]) + instance->get_distance(route1[n1 + 1], route2[n2 + 1]);
-
-        change = modified_cost - original_cost;
-
-        upper_cost += change;
-        memcpy(temp_r1, route1, sizeof(int) * node_cap);
-        int counter1 = n1 + 1;
-        for (int i = n2; i >= 0; i--) {
-            route1[counter1++] = route2[i];
-        }
-        int counter2 = 0;
-        for (int i = length1 - 1; i >= n1 + 1; i--) {
-            temp_r2[counter2++] = temp_r1[i];
-        }
-        for (int i = n2 + 1; i < length2; i++) {
-            temp_r2[counter2++] = route2[i];
-        }
-        memcpy(route2, temp_r2, sizeof(int) * node_cap);
-        length1 = counter1;
-        length2 = counter2;
-        int new_dem_sum_1 = partial_dem_r1 + partial_dem_r2;
-        int new_dem_sum_2 = loading1 - partial_dem_r1 + loading2 - partial_dem_r2;
-        loading1 = new_dem_sum_1;
-        loading2 = new_dem_sum_2;
-        has_moved = true;
-        break;
+        temp_candidates.push_back(n2);
     }
+    if (temp_candidates.empty()) return false;
+    int n2 = temp_candidates[std::uniform_int_distribution<int>(0, static_cast<int>(temp_candidates.size()) - 1)
+        (thread_rng)];
+
+    partial_dem_r2 = 0;
+    for (int i = 0; i <= n2; i++) {
+        partial_dem_r2 += instance->get_customer_demand_(route2[i]);
+    }
+
+    original_cost = instance->get_distance(route1[n1], route1[n1 + 1]) + instance->get_distance(route2[n2], route2[n2 + 1]);
+    modified_cost = instance->get_distance(route1[n1], route2[n2]) + instance->get_distance(route1[n1 + 1], route2[n2 + 1]);
+
+    change = modified_cost - original_cost;
+
+    upper_cost += change;
+    memcpy(temp_r1, route1, sizeof(int) * node_cap);
+    int counter1 = n1 + 1;
+    for (int i = n2; i >= 0; i--) {
+        route1[counter1++] = route2[i];
+    }
+    int counter2 = 0;
+    for (int i = length1 - 1; i >= n1 + 1; i--) {
+        temp_r2[counter2++] = temp_r1[i];
+    }
+    for (int i = n2 + 1; i < length2; i++) {
+        temp_r2[counter2++] = route2[i];
+    }
+    memcpy(route2, temp_r2, sizeof(int) * node_cap);
+    length1 = counter1;
+    length2 = counter2;
+    int new_dem_sum_1 = partial_dem_r1 + partial_dem_r2;
+    int new_dem_sum_2 = loading1 - partial_dem_r1 + loading2 - partial_dem_r2;
+    loading1 = new_dem_sum_1;
+    loading2 = new_dem_sum_2;
+    has_moved = true;
 
     return has_moved;
 }
+
+bool LeaderCbma::move8_inter_with_empty_route_pert(int *route1, int *route2, int &length1, int &length2, int &loading1,
+    int &loading2) {
+    if (length1 < 4 || length2 != 0) return false;
+
+    memset(temp_r1, 0, sizeof(int) * node_cap);
+    memset(temp_r2, 0, sizeof(int) * node_cap);
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> distN1(1, length1 - 3);
+    int n1 = distN1(thread_rng);
+    int partial_dem_r1 = 0; // the partial demand of route r1, i.e., the head partial route
+    for (int i = 0; i <= n1; i++) {
+        partial_dem_r1 += instance->get_customer_demand_(route1[i]);
+    }
+
+
+    int n2 = 0;
+    int partial_dem_r2 = 0;
+
+    double original_cost = instance->get_distance(route1[n1], route1[n1 + 1]);
+    double modified_cost = instance->get_distance(route1[n1], route2[n2]) + instance->get_distance(route1[n1 + 1], route2[n2 + 1]);
+
+    double change = modified_cost - original_cost;
+
+
+    length2 = 2; // two depots
+    upper_cost += change;
+    memcpy(temp_r1, route1, sizeof(int) * node_cap);
+    int counter1 = n1 + 1;
+    for (int i = n2; i >= 0; i--) {
+        route1[counter1++] = route2[i];
+    }
+    int counter2 = 0;
+    for (int i = length1 - 1; i >= n1 + 1; i--) {
+        temp_r2[counter2++] = temp_r1[i];
+    }
+    for (int i = n2 + 1; i < length2; i++) {
+        temp_r2[counter2++] = route2[i];
+    }
+    memcpy(route2, temp_r2, sizeof(int) * node_cap);
+    length1 = counter1;
+    length2 = counter2;
+    int new_dem_sum_1 = partial_dem_r1 + partial_dem_r2;
+    int new_dem_sum_2 = loading1 - partial_dem_r1 + loading2 - partial_dem_r2;
+    loading1 = new_dem_sum_1;
+    loading2 = new_dem_sum_2;
+
+    has_moved = true;
+
+    return has_moved;
+}
+
 
 bool LeaderCbma::move9_inter_pert(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2) {
     if (length1 < 3 || length2 < 3) return false;
@@ -2230,42 +2377,98 @@ bool LeaderCbma::move9_inter_pert(int *route1, int *route2, int &length1, int &l
     double original_cost, modified_cost, change;
 
     int partial_dem_r2 = 0;
+    temp_candidates.clear();
     for (int n2 = 0; n2 < length2 - 1; ++n2) {
         if ((n1 == 0 && n2 == 0) || (n1 == length1 - 2 && n2 == length2 - 2)) continue;
         partial_dem_r2 += instance->get_customer_demand_(route2[n2]);
-
         if (partial_dem_r1 + loading2 - partial_dem_r2 > instance->max_vehicle_capa_ ||
             partial_dem_r2 + loading1 - partial_dem_r1 > instance->max_vehicle_capa_) continue;
 
-        original_cost = instance->get_distance(route1[n1], route1[n1 + 1]) +
-                        instance->get_distance(route2[n2], route2[n2 + 1]);
-        modified_cost = instance->get_distance(route1[n1], route2[n2 + 1]) +
-                        instance->get_distance(route2[n2], route1[n1 + 1]);
+        temp_candidates.push_back(n2);
+    }
+    if (temp_candidates.empty()) return false;
+    int n2 = temp_candidates[std::uniform_int_distribution<int>(0, static_cast<int>(temp_candidates.size()) - 1)
+        (thread_rng)];
 
-        change = modified_cost - original_cost;
-            // update
-        upper_cost += change;
-        memcpy(temp_r1, route1, sizeof(int) * node_cap);
-        int counter1 = n1 + 1;
-        for (int i = n2 + 1; i < length2; i++) {
-            route1[counter1++] = route2[i];
-        }
-        int counter2 = n2 + 1;
-        for (int i = n1 + 1; i < length1; i++) {
-            route2[counter2++] = temp_r1[i];
-        }
-        length1 = counter1;
-        length2 = counter2;
-        int new_dem_sum_1 = partial_dem_r1 + loading2 - partial_dem_r2;
-        int new_dem_sum_2 = partial_dem_r2 + loading1 - partial_dem_r1;
-        loading1 = new_dem_sum_1;
-        loading2 = new_dem_sum_2;
-
-        has_moved = true;
-        break;
+    partial_dem_r2 = 0;
+    for (int i = 0; i <= n2; i++) {
+        partial_dem_r2 += instance->get_customer_demand_(route2[i]);
     }
 
+    original_cost = instance->get_distance(route1[n1], route1[n1 + 1]) +
+                    instance->get_distance(route2[n2], route2[n2 + 1]);
+    modified_cost = instance->get_distance(route1[n1], route2[n2 + 1]) +
+                    instance->get_distance(route2[n2], route1[n1 + 1]);
+
+    change = modified_cost - original_cost;
+    // update
+    upper_cost += change;
+    memcpy(temp_r1, route1, sizeof(int) * node_cap);
+    int counter1 = n1 + 1;
+    for (int i = n2 + 1; i < length2; i++) {
+        route1[counter1++] = route2[i];
+    }
+    int counter2 = n2 + 1;
+    for (int i = n1 + 1; i < length1; i++) {
+        route2[counter2++] = temp_r1[i];
+    }
+    length1 = counter1;
+    length2 = counter2;
+    int new_dem_sum_1 = partial_dem_r1 + loading2 - partial_dem_r2;
+    int new_dem_sum_2 = partial_dem_r2 + loading1 - partial_dem_r1;
+    loading1 = new_dem_sum_1;
+    loading2 = new_dem_sum_2;
+
+    has_moved = true;
+
     return has_moved;
+}
+
+bool LeaderCbma::move9_inter_with_empty_route_pert(int *route1, int *route2, int &length1, int &length2, int &loading1,
+    int &loading2) {
+
+    if (length1 < 4 || length2 != 0) return false;
+
+    memset(temp_r1, 0, sizeof(int) * node_cap);
+
+    bool has_moved = false;
+
+    std::uniform_int_distribution<int> distN1(1, length1 - 3);
+    int n1 = distN1(thread_rng);
+    int partial_dem_r1 = 0; // the partial demand of route r1, i.e., the head partial route
+    for (int i = 0; i <= n1; i++) {
+        partial_dem_r1 += instance->get_customer_demand_(route1[i]);
+    }
+
+    int n2 = 0;
+    int partial_dem_r2 = 0;
+
+    double original_cost = instance->get_distance(route1[n1], route1[n1 + 1]);
+    double modified_cost = instance->get_distance(route1[n1], route2[n2 + 1]) + instance->get_distance(route2[n2], route1[n1 + 1]);
+
+    double change = modified_cost - original_cost;
+
+    length2 = 2; // two depots
+    upper_cost += change;
+    memcpy(temp_r1, route1, sizeof(int) * node_cap);
+    int counter1 = n1 + 1;
+    for (int i = n2 + 1; i < length2; i++) {
+        route1[counter1++] = route2[i];
+    }
+    int counter2 = n2 + 1;
+    for (int i = n1 + 1; i < length1; i++) {
+        route2[counter2++] = temp_r1[i];
+    }
+    length1 = counter1;
+    length2 = counter2;
+    int new_dem_sum_1 = partial_dem_r1 + loading2 - partial_dem_r2;
+    int new_dem_sum_2 = partial_dem_r2 + loading1 - partial_dem_r1;
+    loading1 = new_dem_sum_1;
+    loading2 = new_dem_sum_2;
+
+    has_moved = true;
+
+    return  has_moved;
 }
 
 std::ostream& operator<<(std::ostream& os, const LeaderCbma& leader) {

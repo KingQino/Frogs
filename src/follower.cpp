@@ -118,6 +118,27 @@ void Follower::run(PartialSolution* partial_sol) {
             assert(false && "The partial solution passed is wrong!");
         }
 
+    } else if (partial_sol->move_type == 2) {
+        assert(partial_sol->idx1 != -1 && partial_sol->idx2 != -1 && "The partial solution passed is wrong!");
+        // assert(partial_sol->is_empty1 != false && partial_sol->is_empty2 != false && "The partial solution passed is wrong!");
+        if (partial_sol->is_empty1 != false || partial_sol->is_empty2 != false) {
+            cout << *partial_sol << endl;
+            cout << endl;
+        }
+
+        // inter-route move with empty route
+        int idx1 = partial_sol->idx1;
+        int idx2 = partial_sol->idx2;
+
+        memcpy(lower_routes[idx1], partial_sol->route1, sizeof(int) * node_cap);
+        lower_num_nodes_per_route[idx1] = partial_sol->length1;
+
+        memcpy(lower_routes[idx2], partial_sol->route2, sizeof(int) * node_cap);
+        lower_num_nodes_per_route[idx2] = partial_sol->length2;
+
+        run_for_single_route(idx1);
+        run_for_single_route(idx2);
+        num_routes = partial_sol->num_routes;
     }
 
     lower_cost = std::accumulate(lower_cost_per_route, lower_cost_per_route + num_routes, 0.0);

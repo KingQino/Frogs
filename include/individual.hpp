@@ -36,6 +36,7 @@ struct PartialSolution {
     void clean();
     void set_intra_route(int idx, int* route, int length);
     void set_inter_route(int r1, int* rout1, int len1, bool emp1, int r2, int* rout2, int len2, bool emp2);
+    void set_inter_empty_route(int r1, int* rout1, int len1, bool emp1, int r2, int* rout2, int len2, bool emp2);
 
     friend ostream& operator<<(ostream& os, const PartialSolution& partial_sol);
 };

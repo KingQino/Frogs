@@ -12,13 +12,25 @@
 #include <functional>  // For std::function
 #include <unordered_set>
 
-using AcceptanceFunc = std::function<bool(double)>;
 
 class LeaderCbma {
 private:
+    using AcceptanceFunc = std::function<bool(double)>;
+    using IntraFunc = std::function<bool(int*, int)>;
+    using InterFunc = std::function<bool(int*, int*, int&, int&, int&, int&)>;
+    using InterEmptyFunc = std::function<bool(int*, int*, int&, int&, int&, int&)>;
+    std::vector<IntraFunc> intra_moves;
+    std::vector<InterFunc> inter_moves;
+    std::vector<InterEmptyFunc> inter_empty_moves;
+    int num_intra{};
+    int num_inter{};
+    int num_empty{};
+
     mutable int* temp_r1 = nullptr;
     mutable int* temp_r2 = nullptr;
     mutable int temp_buffer_size = 0;
+
+    mutable std::vector<int> temp_candidates;
 
     void prepare_temp_buffers(int required_size) const;
 public:
@@ -44,17 +56,20 @@ public:
     int max_chain_length;
     uniform_int_distribution<int> local_search_dist;
     uniform_int_distribution<int> perturbation_dist;
-
-    int get_luby(int j) const;
+    uniform_int_distribution<int> neigh_move_dist;
 
     void run(Individual* ind);
     void fully_greedy_local_optimum(Individual* ind);
     bool local_search_move(PartialSolution* partial_sol, const double& temperature);
     void perturbation(int strength);
+
+    bool neighbour_move(PartialSolution *partial_sol, double temperature=0);
     void load_individual(Individual* ind);
     void export_individual(Individual* ind) const;
+
     LeaderCbma(Case* instance, Preprocessor* preprocessor);
     ~LeaderCbma();
+    void init_moves();
 
     void clean();
     void clean_empty_routes(int r1, int r2); // clean possible empty routes after move
@@ -99,7 +114,7 @@ public:
     bool perform_intra_move_pert(const std::function<bool(int*, int)>& move_func) const;
     bool perform_inter_move_pert(const std::function<bool(int*, int*, int&, int&, int&, int&)>& move_func);
     bool perform_inter_move_with_empty_pert(const std::function<bool(int*, int*, int&, int&, int&, int&)>& move_func);
-    // basic perturbation moves
+    // basic perturbation moves - 18 heuristics
     bool move1_intra_pert(int* route, int length);
     bool move1_inter_pert(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
     bool move1_inter_with_empty_route_pert(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
@@ -115,7 +130,9 @@ public:
     bool move6_inter_pert(int* route1, int* route2, int length1, int length2, int& loading1, int& loading2);
     bool move7_intra_pert(int* route, int length);
     bool move8_inter_pert(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move8_inter_with_empty_route_pert(int *route1, int *route2, int &length1, int &length2, int &loading1, int &loading2);
     bool move9_inter_pert(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
+    bool move9_inter_with_empty_route_pert(int* route1, int* route2, int& length1, int& length2, int& loading1, int& loading2);
 
 
     friend ostream& operator<<(ostream& os, const LeaderCbma& leader);
