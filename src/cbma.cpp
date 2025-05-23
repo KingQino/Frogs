@@ -275,7 +275,7 @@ bool Cbma::is_accepted(const double &candidate_cost, const double &current_cost,
         return true;
     }
 
-    constexpr double T0=20.0;
+    constexpr double T0=40.0;
     constexpr double alpha=0.99;
     const double temperature = std::max(1e-4, T0 * std::pow(alpha, steps));
 
