@@ -102,15 +102,15 @@ void Cbma::initialize_heuristic() {
 
 void Cbma::run_heuristic() {
     // Greedy local search until getting stuck into local optimum
-    // for (int i = 0; i < pop_size; ++i) {
-    //     auto& ind = population[i];
-    //
-    //     leaders[i]->load_individual(&ind);
-    //     followers[i]->run(&ind);
-    //
-    //     global_best_upper_so_far = std::min(global_best_upper_so_far, ind.upper_cost);
-    //     if (ind.lower_cost < global_best->lower_cost) *global_best = ind;
-    // }
+    for (int i = 0; i < pop_size; ++i) {
+        auto& ind = population[i];
+
+        leaders[i]->fully_greedy_local_optimum(&ind);
+        followers[i]->run(&ind);
+
+        global_best_upper_so_far = std::min(global_best_upper_so_far, ind.upper_cost);
+        if (ind.lower_cost < global_best->lower_cost) *global_best = ind;
+    }
 
     stats_greedy_local_opt = calculate_statistical_indicators(get_fitness_vector_from_upper_group(population));
 
