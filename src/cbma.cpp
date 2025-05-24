@@ -47,8 +47,7 @@ Cbma::Cbma(int seed_val, Case *instance, Preprocessor *preprocessor) : Heuristic
     }
 }
 
-Cbma::~Cbma() {
-}
+Cbma::~Cbma() = default;
 
 void Cbma::run() {
     // Initialize time variables
@@ -368,7 +367,7 @@ vector<vector<int>> Cbma::select_random(const vector<vector<int>> &chromosomes, 
         selected_seqs.push_back(chromosomes[idx]);
     }
 
-    return std::move(selected_seqs);
+    return selected_seqs;
 }
 
 void Cbma::cx_partially_matched(vector<int>& parent1, vector<int>& parent2) {
