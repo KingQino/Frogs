@@ -41,7 +41,7 @@ private:
     std::unordered_map<int, int> temp_cx_map1;
     std::unordered_map<int, int> temp_cx_map2;
     vector<Individual> temp_individuals;
-    vector<tuple<double, HistoryTag, int>> temp_history_list;
+    // vector<tuple<double, HistoryTag, int>> temp_history_list;
     std::deque<double> temp_recent_moves_pool;
 public:
     static const std::string ALGORITHM;
