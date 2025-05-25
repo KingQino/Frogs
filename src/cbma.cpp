@@ -330,7 +330,7 @@ void Cbma::neighbourhood_explore(const int index, const int max_attempts) {
 
 
             // 记录 SEARCH（中间搜索点）
-            temp_history_list.emplace_back(dummy_ind.upper_cost, SEARCH, 0);
+            // temp_history_list.emplace_back(dummy_ind.upper_cost, SEARCH, 0);
 
             if (is_accepted(leader->upper_cost, current_cost, steps)) {
                 // exit_status = "early_exit";
@@ -355,6 +355,8 @@ void Cbma::neighbourhood_explore(const int index, const int max_attempts) {
     // save_vector_to_csv(temp_history_list, filename);
     // cout << "Individual " << index << " neighbourhood exploration: ";
     // cout << endl;
+    // temp_history_list.clear();
+    // temp_history_list.shrink_to_fit();
 }
 
 vector<vector<int>> Cbma::select_random(const vector<vector<int>> &chromosomes, int k) {
