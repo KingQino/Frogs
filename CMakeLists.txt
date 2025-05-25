@@ -12,6 +12,10 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 endif()
 
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "Compiler: ${CMAKE_CXX_COMPILER}")
+message(STATUS "Compiler flags: ${CMAKE_CXX_FLAGS}")
+
 # Find OpenMP
 find_package(OpenMP REQUIRED)
 
