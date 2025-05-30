@@ -109,7 +109,7 @@ double **Case::generate_2D_matrix_double(int n, int m) {
     for (int i = 0; i < n; i++) {
         matrix[i] = new double[m];
     }
-    //initialize the 2-d array
+    //initialise the 2-d array
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < m; j++) {
             matrix[i][j] = 0.0;
