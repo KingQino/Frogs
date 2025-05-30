@@ -18,6 +18,7 @@ Preprocessor::Preprocessor(const Case &c, const Parameters &params) : c(c), para
         max_exec_time_ = static_cast<int>(3 * (c.problem_size_ / 100.0) * 60 * 60);
     }
     max_exec_time_ = params.runtime_multiplier * max_exec_time_;
+    max_exec_time_ = 10; // for irace parameter tuning
     this->max_no_improvement_count_ = 800; // adjust further  default: 20,000
 
     this->nb_granular_ = params.nb_granular;
