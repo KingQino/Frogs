@@ -14,7 +14,7 @@ using namespace magic_enum;
 #define MAX_TRIALS 10
 
 void run_algorithm(int run, const Parameters* params, vector<double>& perf_of_trials) {
-    Case* instance = new Case(params->instance);
+    Case* instance = new Case(params->kDataPath, params->instance);
     auto* preprocessor = new Preprocessor(*instance, *params);
 
     switch (params->algorithm) {
@@ -84,11 +84,18 @@ int main(int argc, char *argv[])
     }
 
 
-    string stats_file_path = kStatsPath + "/" + static_cast<string>(enum_name(params.algorithm)) + "/" +
-                             params.instance.substr(0, params.instance.find('.'));
+    string stats_file_path = params.kStatsPath + "/" + static_cast<string>(enum_name(params.algorithm)) + "/" +
+                         params.instance.substr(0, params.instance.find('.'));
 
     StatsInterface::create_directories_if_not_exists(stats_file_path);
     StatsInterface::stats_for_multiple_trials(stats_file_path + "/" + "stats." + params.instance,perf_of_trials);
+
+    if (!params.enable_multithreading) {
+        std::cout << std::fixed << std::setprecision(2) << perf_of_trials[0] << std::endl;
+    } else {
+        Indicators indicators = StatsInterface::calculate_statistical_indicators(perf_of_trials);
+        std::cout << std::fixed << std::setprecision(2) << indicators.avg << std::endl;
+    }
 
     return 0;
 }

@@ -22,12 +22,10 @@
 
 using namespace std;
 
-const string kDataPath = "../data/";
-
 
 class Case {
 public:
-    explicit Case(const string& file_name);
+    explicit Case(const string& kDataPath, const string& file_name);
     ~Case();
     void read_problem(const string& file_path);	                                        // reads .evrp file
     static double **generate_2D_matrix_double(int n, int m);                            // generate a 2D matrix of double

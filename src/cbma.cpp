@@ -12,6 +12,8 @@ Cbma::Cbma(int seed_val, Case *instance, Preprocessor *preprocessor) : Heuristic
 
     max_neigh_attempts = preprocessor->params.max_neigh_attempts;
     max_perturbation_strength = 512;
+    T0 = preprocessor->params.T0;
+    alpha = preprocessor->params.alpha;
 
     gen = 0;
     pop_size = 100;
@@ -226,7 +228,7 @@ void Cbma::run_heuristic() {
 }
 
 void Cbma::open_log_for_evolution() {
-    const string directory = kStatsPath + "/" + this->name + "/" + instance->instance_name_ + "/" + to_string(seed);
+    const string directory = preprocessor->params.kStatsPath + "/" + this->name + "/" + instance->instance_name_ + "/" + to_string(seed);
     create_directories_if_not_exists(directory);
 
     const string file_name = "evols." + instance->instance_name_ + ".csv";
@@ -255,7 +257,7 @@ void Cbma::flush_row_into_evol_log() {
 }
 
 void Cbma::save_log_for_solution() {
-    const string directory = kStatsPath + "/" + this->name + "/" + instance->instance_name_ + "/" + to_string(seed);
+    const string directory = preprocessor->params.kStatsPath + "/" + this->name + "/" + instance->instance_name_ + "/" + to_string(seed);
 
     const string file_name = "solution." + instance->instance_name_ + ".txt";
 
@@ -328,12 +330,9 @@ int Cbma::neighbourhood_explore(int i, int& k, Individual& temp_best, Individual
 
 
     // Parameters controlling the search intensity in the local search
-    double T0 = 30.0;        // initial temperature
-    double alpha = 0.98;     // cooling rate
     // Parameters used to judge whether the local search is stuck in local optima
     temp_recent_moves_pool.clear();
     auto& recent_moves = temp_recent_moves_pool;
-    double gap_ratio;
     size_t window_size = 10;
 
     bool local_optima_flag = false;
@@ -388,7 +387,7 @@ int Cbma::neighbourhood_explore(int i, int& k, Individual& temp_best, Individual
 
         partial_sols[i]->clean();
 
-        gap_ratio = std::max(0.0, (current_cost - global_best_upper_so_far) / global_best_upper_so_far);
+        const double gap_ratio = std::max(0.0, (current_cost - global_best_upper_so_far) / global_best_upper_so_far);
         window_size = get_dynamic_window(gap_ratio);
     }
 
@@ -399,7 +398,8 @@ int Cbma::neighbourhood_explore(int i, int& k, Individual& temp_best, Individual
     // continue searching nearby.
     // If several consecutive local search stages show no improvement, gradually increase the perturbation to escape
     // local optima.
-    k = is_profitable ? std::max(1, k - 1) : std::min(k + 1, max_perturbation_strength * 2);
+    // k = is_profitable ? std::max(1, k - 1) : std::min(k + 1, max_perturbation_strength * 2);
+    k = is_profitable ? std::max(1, k - 1) : k + 1;
 //    k = is_profitable ? 1 : k + 1;
 
     return steps;

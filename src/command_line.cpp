@@ -6,6 +6,12 @@
 #include <stdexcept>
 
 CommandLine::CommandLine(const int argc, char* argv[]) {
+    const std::string absolute_path = argv[0];
+    const std::size_t pos1 = absolute_path.rfind('/');
+    const std::size_t pos2 = absolute_path.rfind('/', pos1 - 1);
+    const std::string path = absolute_path.substr(0, pos2);
+    arguments["root_path"] = path;
+
     for (int i = 1; i < argc; i += 2) {
         if (i + 1 < argc) { // Ensure there's a value after the key
             std::string key = argv[i];
@@ -23,6 +29,8 @@ CommandLine::CommandLine(const int argc, char* argv[]) {
 }
 
 void CommandLine::parse_parameters(Parameters& params) const {
+    params.kDataPath = get_string("root_path", "..") + "/data/";
+    params.kStatsPath = get_string("root_path", "..") + "/stats";
     try {
         params.algorithm = string_to_algorithm(get_string("alg", "Lahc"));
         params.instance = get_string("ins", params.instance);
@@ -32,11 +40,14 @@ void CommandLine::parse_parameters(Parameters& params) const {
         params.seed = get_int("seed", params.seed);
         params.history_length = get_int("his_len", params.history_length);
         params.max_search_depth = get_int("max_depth", params.max_search_depth);
+        params.low_opt_trigger_threshold = get_double("low_thresh", params.low_opt_trigger_threshold);
         params.runtime_multiplier = get_int("rt_mul", params.runtime_multiplier);
         params.nb_granular = get_int("nb_granular", params.nb_granular);
         params.is_hard_constraint = get_bool("is_hard_constraint", params.is_hard_constraint);
         params.is_duration_constraint = get_bool("is_duration_constraint", params.is_duration_constraint);
         params.max_neigh_attempts = get_int("neigh_attempts", params.max_neigh_attempts);
+        params.T0 = get_double("t0", params.T0);
+        params.alpha = get_double("alpha", params.alpha);
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         display_help();
@@ -57,11 +68,14 @@ void CommandLine::display_help() {
               << "  -seed [int]                  : Random seed (default: 0)\n"
               << "  -his_len [int]               : LAHC history length (default: 5000)\n"
               << "  -max_depth [int]             : LAHC max search depth (default: 25)\n"
+              << "  -low_thresh [double]         : LAHC threshold for triggering lower optimisation, [0, 1] (default: 0.3)\n"
               << "  -rt_mul [int]                : Runtime multiplier (default: 1)\n"
               << "  -nb_granular [int]           : Granular search parameter (default: 20)\n"
               << "  -is_hard_constraint [0|1]    : Whether to use hard constraint (default: 1)\n"
               << "  -is_duration_constraint [0|1]: Whether to consider duration constraint (default: 0)\n"
-              << "  -neigh_attempts [int]        : Maximum attempts for neighbourhood exploration (default: 10000)\n";
+              << "  -neigh_attempts [int]        : Maximum attempts for neighbourhood exploration (default: 10000)\n"
+              << "  -t0 [double]                 : Initial temperature for simulated annealing (default: 30.0)\n"
+              << "  -alpha [double]              : Cooling rate for simulated annealing (default: 0.98)\n";
     std::cout << "-------------------------------------------------------------------------------------------------------------------------------" << std::endl;
 }
 

@@ -28,6 +28,7 @@ public:
     long history_length;                        // LAHC history length Lh
     double num_moves_per_history;               // the number of algorithm moves per history length iteration
     double ratio_successful_moves;              // the ratio of successful moves per history length iteration
+    double low_opt_trigger_threshold;           // The threshold to trigger the lower-level optimisation
     vector<double> history_list;                // Lahc history list L, it holds the objetive values
     std::unique_ptr<Solution> global_best;      // Global best solution found so far
     Indicators history_list_metrics;            // The statistical info of the history list

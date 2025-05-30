@@ -50,6 +50,8 @@ public:
     int stop_criteria;                            // Stop criteria for the algorithm
     int max_neigh_attempts;                       // Maximum number of attempts for neighbourhood exploration
     int max_perturbation_strength;                // Maximum perturbation strength
+    double T0;                             // initial temperature
+    double alpha;                          // cooling rate
 
     unique_ptr<Individual> global_best;           // Global best solution found so far
     double global_best_upper_so_far;              // The best solution found so far

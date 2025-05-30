@@ -13,6 +13,7 @@ Lahc::Lahc(int seed_val, Case* instance, Preprocessor* preprocessor) : Heuristic
     iter = 0L;
     idle_iter = 0L;
     ratio_successful_moves = 1.0;
+    low_opt_trigger_threshold = preprocessor->params.low_opt_trigger_threshold;
     history_length = static_cast<long>(preprocessor->params.history_length);
 //    if (instance->dimension_ >= 100) {
 //        boundary_no_low_opt = 2 * history_length * instance->dimension_;
@@ -181,7 +182,7 @@ void Lahc::run() {
 }
 
 void Lahc::open_log_for_evolution() {
-    const string directory = kStatsPath + "/" + this->name + "/" + instance->instance_name_ + "/" + to_string(seed);
+    const string directory = preprocessor->params.kStatsPath + "/" + this->name + "/" + instance->instance_name_ + "/" + to_string(seed);
     create_directories_if_not_exists(directory);
 
     const string file_name = "evols." + instance->instance_name_ + ".csv";
@@ -218,7 +219,7 @@ void Lahc::flush_row_into_evol_log() {
 }
 
 void Lahc::save_log_for_solution() {
-    const string directory = kStatsPath + "/" + this->name + "/" + instance->instance_name_ + "/" + to_string(seed);
+    const string directory = preprocessor->params.kStatsPath + "/" + this->name + "/" + instance->instance_name_ + "/" + to_string(seed);
 
     const string file_name = "solution." + instance->instance_name_ + ".txt";
 

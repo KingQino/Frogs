@@ -28,7 +28,6 @@ struct Indicators {
     std::size_t size{};
 };
 
-const std::string kStatsPath = "../stats";
 
 class StatsInterface {
 public:

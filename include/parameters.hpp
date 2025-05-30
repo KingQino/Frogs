@@ -14,6 +14,8 @@ enum class Algorithm { CBMA, LAHC, SGA};
 
 struct Parameters {
     // Running parameters
+    string kDataPath;
+    string kStatsPath;
     Algorithm algorithm;        // Algorithm name
     string instance;            // Problem instance name
     bool enable_logging;        // Enable logging
@@ -28,6 +30,9 @@ struct Parameters {
     int history_length;         // LAHC history length
     int max_search_depth;       // LAHC max_search_depth determines how many times the neighbourhood (random) will be explored
     int max_neigh_attempts;     // Maximum attempts for neighbourhood exploration
+    double low_opt_trigger_threshold; // LAHC: The threshold to trigger the lower-level optimisation
+    double T0;                  // Initial temperature for simulated annealing (if applicable)
+    double alpha;               // Cooling rate for simulated annealing (if applicable)
 
     // experimental parameters
     int runtime_multiplier;     // Runtime multiplier
@@ -42,11 +47,16 @@ struct Parameters {
             enable_multithreading(false),
             seed(0) {
 
+        kDataPath = "../data/";
+        kStatsPath = "../stats";
         nb_granular = 20;
         is_hard_constraint = true;
         is_duration_constraint = false;
         history_length = 5'000;
         max_search_depth = 200;
+        low_opt_trigger_threshold = 0.3;
+        T0 = 30.0;
+        alpha = 0.98;
         max_neigh_attempts = 10'000;
         runtime_multiplier = 1;
     }

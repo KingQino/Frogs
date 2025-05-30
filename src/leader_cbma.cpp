@@ -670,7 +670,7 @@ bool LeaderCbma::is_accepted_impro(const double &change) {
 //    return change < - 1.0e-8;
 //}
 
-double LeaderCbma::get_temperature(int current_iter, double T0=80.0, double alpha=0.97) {
+double LeaderCbma::get_temperature(int current_iter, double T0=30.0, double alpha=0.98) {
     return T0 * std::pow(alpha, current_iter);
 }
 
