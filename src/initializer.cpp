@@ -66,6 +66,47 @@ vector<vector<int>> Initializer::prins_split(const vector<int>& chromosome) cons
     return all_routes;
 }
 
+void Initializer::prins_split(const vector<int> &chromosome, vector<vector<int>> &out_routes) const {
+    // giant tour starts from depot (node 0)
+    temp_x[0] = 0;
+    copy(chromosome.begin(), chromosome.end(), temp_x.begin() + 1);
+
+    fill(temp_vv.begin(), temp_vv.begin() + n + 1, numeric_limits<double>::max());
+    fill(temp_pp.begin(), temp_pp.begin() + n + 1, 0);
+    temp_vv[0] = 0.0;
+
+
+    // dynamic programming to find the shortest path
+    for (int i = 1; i <= n; ++i) {
+        int load = 0;
+        double cost = depot_dist[temp_x[i]] * 2;  // initial cost = 2 by dist(depot, x[1])
+        for (int j = i; j <= n; ++j) {
+            load += instance->get_customer_demand_(temp_x[j]);
+            if (load > instance->max_vehicle_capa_) break;
+
+            if (j > i) {
+                cost -= depot_dist[temp_x[j - 1]];
+                cost += instance->get_distance(temp_x[j - 1], temp_x[j]);
+                cost += depot_dist[temp_x[j]];
+            }
+
+            if (temp_vv[i - 1] + cost < temp_vv[j]) {
+                temp_vv[j] = temp_vv[i - 1] + cost;
+                temp_pp[j] = i - 1;
+            }
+        }
+    }
+
+    int j = n;
+    while (j > 0) {
+        int i = temp_pp[j];
+        out_routes.emplace_back(temp_x.begin() + i + 1, temp_x.begin() + j + 1);
+        out_routes.back().insert(out_routes.back().begin(), 0);  // add depot to the beginning
+        out_routes.back().push_back(0);                          // add depot to the end
+        j = i;
+    }
+}
+
 // Hien et al., "A greedy search based evolutionary algorithm for electric vehicle routing problem", 2023.
 vector<vector<int>> Initializer::hien_clustering() {
     vector<int> chromosome = preprocessor->customer_ids_;

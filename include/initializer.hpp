@@ -26,6 +26,7 @@ public:
     ~Initializer();
 
     [[nodiscard]] vector<vector<int>> prins_split(const vector<int>& chromosome) const;
+    void prins_split(const vector<int>& chromosome, vector<vector<int>>& out_routes) const;
     vector<vector<int>> hien_clustering();
     void hien_balancing(vector<vector<int>>& routes);
     vector<vector<int>> routes_constructor_with_split();
