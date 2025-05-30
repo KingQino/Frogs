@@ -16,6 +16,10 @@ Cbma::Cbma(int seed_val, Case *instance, Preprocessor *preprocessor) : Heuristic
     crossover_prob = 1.0;
     mutation_prob = 0.5;
     mut_ind_prob = 0.2;
+    mut_prob = 0.5;
+    max_neigh_attempts = preprocessor->params.max_neigh_attempts;
+    max_perturbation_strength = 512;
+    chromosome_length = instance->num_customer_;
 
     gen = 0;
     gammaL = 1.2;
@@ -23,9 +27,9 @@ Cbma::Cbma(int seed_val, Case *instance, Preprocessor *preprocessor) : Heuristic
     delta = 30;
     r = 0.0;
 
-    initializer = new Initializer(random_engine, instance, preprocessor);
-    leader = new LeaderCbma(instance, preprocessor);
-    follower = new Follower(instance, preprocessor);
+    // initializer = new Initializer(random_engine, instance, preprocessor);
+    // leader = new LeaderCbma(instance, preprocessor);
+    // follower = new Follower(instance, preprocessor);
 
     promising_seqs.reserve(pop_size);
     average_seqs.reserve(pop_size);
@@ -34,13 +38,36 @@ Cbma::Cbma(int seed_val, Case *instance, Preprocessor *preprocessor) : Heuristic
     S1.reserve(pop_size);
     S2.reserve(pop_size);
     S3.reserve(pop_size);
+
+    population.reserve(pop_size);
+    elites.reserve(pop_size);
+    non_elites.reserve(pop_size);
+    immigrants.reserve(pop_size);
+    global_best_upper_so_far = std::numeric_limits<double>::max();
+
+
+    initializer = std::make_unique<Initializer>(random_engine, instance, preprocessor);
+    leaders.reserve(pop_size);
+    followers.reserve(pop_size);
+    partial_sols.reserve(pop_size);
+    for (int i = 0; i < pop_size; ++i) {
+        leaders.emplace_back(std::make_unique<LeaderCbma>(instance, preprocessor));
+        followers.emplace_back(std::make_unique<Follower>(instance, preprocessor));
+        partial_sols.emplace_back(std::make_unique<PartialSolution>());
+    }
+
+    temp_dumb_routes.reserve(preprocessor->route_cap_);
+    temp_child1.reserve(chromosome_length);
+    temp_child2.reserve(chromosome_length);
+    temp_cx_map1.reserve(chromosome_length);
+    temp_cx_map2.reserve(chromosome_length);
+    temp_best_individuals.reserve(pop_size);
+    for (int i = 0; i < pop_size; ++i) {
+        temp_best_individuals.emplace_back(instance, preprocessor);
+    }
 }
 
-Cbma::~Cbma() {
-    delete initializer;
-    delete leader;
-    delete follower;
-}
+Cbma::~Cbma() = default;
 
 void Cbma::run() {
     // Initialize time variables
@@ -79,21 +106,18 @@ void Cbma::run() {
 }
 
 void Cbma::initialize_heuristic() {
-    population.clear();
-    population.reserve(pop_size);
     for (int i = 0; i < pop_size; ++i) {
         vector<vector<int>> routes = initializer->routes_constructor_with_hien_method();
 
         auto cost = instance->compute_total_distance(routes);
         auto demand = instance->compute_demand_sum_per_route(routes);
 
-        auto ind = std::make_shared<Individual>(instance, preprocessor, routes, cost,
-                                                demand);
-        population.push_back(std::move(ind));
+        population.emplace_back(std::make_shared<Individual>(instance, preprocessor, routes, cost, demand));
     }
 
     global_best = make_unique<Individual>(*population[0]);
     iter_best = make_unique<Individual>(*population[0]);
+    global_best_upper_so_far = numeric_limits<double>::max();
 }
 
 void Cbma::run_heuristic() {
@@ -107,7 +131,7 @@ void Cbma::run_heuristic() {
     if (gen > delta) { //  switch off - False
         // when the generations are greater than the threshold, part of the upper-level sub-solutions S1 will be selected for local search
         double old_cost = talented_ind->upper_cost;
-        leader->fully_greedy_local_optimum(talented_ind.get());
+        leaders[0]->fully_greedy_local_optimum(talented_ind.get());
         double new_cost = talented_ind->upper_cost;
         v1 = old_cost - new_cost;
         v2 = *std::max_element(P.begin(), P.end());
@@ -132,7 +156,7 @@ void Cbma::run_heuristic() {
     for(auto& ind : S1) {
         double old_cost = ind->upper_cost;
 
-        leader->fully_greedy_local_optimum(ind.get());
+        leaders[0]->fully_greedy_local_optimum(ind.get());
 
         if (v2 < old_cost - ind->upper_cost)
             v2 = old_cost - ind->upper_cost;
@@ -151,7 +175,7 @@ void Cbma::run_heuristic() {
     shared_ptr<Individual> outstanding_upper = select_best_upper_individual(S1);
     if (gen > 0) { // Switch = off False
         double old_cost = outstanding_upper->upper_cost; // fitness without recharging f
-        follower->run(outstanding_upper.get());
+        followers[0]->run(outstanding_upper.get());
         double new_cost = outstanding_upper->lower_cost; // fitness with recharging f
         v3 = new_cost - old_cost;
         if (r > v3) r = v3 * gammaR;
@@ -173,7 +197,7 @@ void Cbma::run_heuristic() {
     S3.push_back(outstanding_upper); //  *** switch off ***
     for (auto& ind:S2) {
         double old_cost = ind->upper_cost;
-        follower->run(ind.get());
+        followers[0]->run(ind.get());
         double new_cost = ind->lower_cost;
         S3.push_back(ind);
         if (v3 > new_cost - old_cost)
@@ -313,10 +337,10 @@ void Cbma::save_log_for_solution() {
 
     log_solution.open(directory + "/" + file_name);
     log_solution << fixed << setprecision(5) << global_best->lower_cost << endl;
-    follower->run(global_best.get());
-    for (int i = 0; i < follower->num_routes; ++i) {
-        for (int j = 0; j < follower->lower_num_nodes_per_route[i]; ++j) {
-            log_solution << follower->lower_routes[i][j] << ",";
+    followers[0]->run(global_best.get());
+    for (int i = 0; i < followers[0]->num_routes; ++i) {
+        for (int j = 0; j < followers[0]->lower_num_nodes_per_route[i]; ++j) {
+            log_solution << followers[0]->lower_routes[i][j] << ",";
         }
         log_solution << endl;
     }
