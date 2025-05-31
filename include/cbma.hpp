@@ -18,7 +18,7 @@ using namespace std;
 
 enum HistoryTag { PERTURB, SEARCH, STUCK };
 
-const int MAX_LOCAL_STEPS = 2'000;
+constexpr int MAX_LOCAL_STEPS = 2'000;
 
 class Cbma final : public HeuristicInterface, public StatsInterface {
 private:
@@ -42,7 +42,7 @@ private:
     std::unordered_map<int, int> temp_cx_map2;
     vector<Individual> temp_best_individuals;
     vector<tuple<double, HistoryTag, int>> temp_history_list;
-    std::deque<double> temp_recent_moves_pool;
+    std::deque<double> temp_recent_deltas;
 public:
     static const std::string ALGORITHM;
 
@@ -50,8 +50,11 @@ public:
     int stop_criteria;                            // Stop criteria for the algorithm
     int max_neigh_attempts;                       // Maximum number of attempts for neighbourhood exploration
     int max_perturbation_strength;                // Maximum perturbation strength
-    double T0;                             // initial temperature
-    double alpha;                          // cooling rate
+    double T0;                                    // initial temperature
+    double alpha;                                 // cooling rate
+    int min_window_size;                          // Minimum window size for recent deltas
+    int max_window_size;                          // Maximum window size for recent deltas
+    double window_k;                              // k value for dynamic window size calculation
 
     unique_ptr<Individual> global_best;           // Global best solution found so far
     double global_best_upper_so_far;              // The best solution found so far
@@ -86,10 +89,12 @@ public:
     static vector<double> get_fitness_vector_from_upper_group(const vector<Individual>& group);
     static vector<double> get_fitness_vector_from_lower_group(const vector<Individual>& group);
 
-    static string tag_to_str(HistoryTag tag);
-    static size_t get_dynamic_window(double gap_ratio, double min_win, double max_win, double k);
+    static inline void update_recent_deltas(std::deque<double>& deltas, double delta, size_t max_size);
+    static size_t get_dynamic_window(double gap_ratio, int min_window, int max_window, double k);
     static bool stuck_in_local_optima(const deque<double>& improvements, size_t window_size, double epsilon,
                                       double strong_delta_thresh);
+
+    static string tag_to_str(HistoryTag tag);
     static void save_vector_to_csv(const std::vector<std::tuple<double, HistoryTag, int>>& history_list,
                                    const string& filename);
 };

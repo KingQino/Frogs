@@ -33,6 +33,9 @@ struct Parameters {
     double low_opt_trigger_threshold; // LAHC: The threshold to trigger the lower-level optimisation
     double T0;                  // Initial temperature for simulated annealing (if applicable)
     double alpha;               // Cooling rate for simulated annealing (if applicable)
+    int min_win;                // Minimum window size for recent deltas
+    int max_win;                // Maximum window size for recent deltas
+    double win_k;               // k value for dynamic window size calculation
 
     // experimental parameters
     int runtime_multiplier;     // Runtime multiplier
@@ -57,6 +60,9 @@ struct Parameters {
         low_opt_trigger_threshold = 0.3;
         T0 = 30.0;
         alpha = 0.98;
+        min_win = 20;
+        max_win = 500;
+        win_k = 0.5;
         max_neigh_attempts = 10'000;
         runtime_multiplier = 1;
     }

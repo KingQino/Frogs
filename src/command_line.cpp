@@ -48,6 +48,9 @@ void CommandLine::parse_parameters(Parameters& params) const {
         params.max_neigh_attempts = get_int("neigh_attempts", params.max_neigh_attempts);
         params.T0 = get_double("t0", params.T0);
         params.alpha = get_double("alpha", params.alpha);
+        params.min_win = get_int("min_win", params.min_win);
+        params.max_win = get_int("max_win", params.max_win);
+        params.win_k = get_double("win_k", params.win_k);
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         display_help();
@@ -75,7 +78,10 @@ void CommandLine::display_help() {
               << "  -is_duration_constraint [0|1]: Whether to consider duration constraint (default: 0)\n"
               << "  -neigh_attempts [int]        : Maximum attempts for neighbourhood exploration (default: 10000)\n"
               << "  -t0 [double]                 : Initial temperature for simulated annealing (default: 30.0)\n"
-              << "  -alpha [double]              : Cooling rate for simulated annealing (default: 0.98)\n";
+              << "  -alpha [double]              : Cooling rate for simulated annealing (default: 0.98)\n"
+              << "  -min_win [int]               : Minimum window size for recent deltas (default: 20)\n"
+              << "  -max_win [int]               : Maximum window size for recent deltas (default: 500)\n"
+              << "  -win_k [double]              : k value for dynamic window size calculation (default: 0.5)\n";
     std::cout << "-------------------------------------------------------------------------------------------------------------------------------" << std::endl;
 }
 

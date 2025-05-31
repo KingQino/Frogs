@@ -14,6 +14,9 @@ Cbma::Cbma(int seed_val, Case *instance, Preprocessor *preprocessor) : Heuristic
     max_perturbation_strength = 512;
     T0 = preprocessor->params.T0;
     alpha = preprocessor->params.alpha;
+    min_window_size = preprocessor->params.min_win;
+    max_window_size = preprocessor->params.max_win;
+    window_k = preprocessor->params.win_k;
 
     gen = 0;
     pop_size = 100;
@@ -49,8 +52,7 @@ Cbma::Cbma(int seed_val, Case *instance, Preprocessor *preprocessor) : Heuristic
     }
 }
 
-Cbma::~Cbma() {
-}
+Cbma::~Cbma() = default;
 
 void Cbma::run() {
     // Initialize time variables
@@ -114,6 +116,8 @@ void Cbma::run_heuristic() {
         if (ind.lower_cost < global_best->lower_cost) {
             *global_best = ind;  // copy the content of ind to global_best, not deep copy
         }
+        // neighbourhood exploration starting points, half from global best, half from the individual itself
+        // TODO: 1. all from global best, 2. all from individual, 3. random mix
         temp_best_individuals[i] = i % 2 == 0 ? *global_best : ind;
     }
 
@@ -132,9 +136,6 @@ void Cbma::run_heuristic() {
                                                          population[i], temp_history_list);
         }
 //        save_vector_to_csv(temp_history_list, file);
-//
-//        cout << "Individual " << i << " neighbourhood exploration: ";
-//        cout << endl;
     }
 
     stats_neigh_explore = calculate_statistical_indicators(get_fitness_vector_from_upper_group(population));
@@ -166,6 +167,8 @@ void Cbma::run_heuristic() {
         immigrants.emplace_back(std::move(immigrant));
     }
 
+    // TODO: Adaptive Selection Scheme should be implemented here
+    // check if the elites are diverse enough, if not, then reduce the number of elites and increase the number of non-elites
     offspring.clear();
     // crossover and mutation
     // 5 pairs of (elite x elite)
@@ -287,26 +290,32 @@ int Cbma::get_luby(int j) const {
     return val >= max_perturbation_strength ? max_perturbation_strength : val;
 }
 
-size_t Cbma::get_dynamic_window(double gap_ratio, double min_window=20, double max_window=500, double k=0.5) {
-    // Normalise gap_ratio to [0, 1) range using bounded transformation
-    double norm = 1.0 - std::exp(-k*gap_ratio);  // asymptotically approaches 1
-    double window = min_window + norm * (max_window - min_window);
-    return static_cast<size_t>(std::clamp(window, min_window, max_window));
+inline void Cbma::update_recent_deltas(std::deque<double>& deltas, const double delta, const size_t max_size) {
+    while (deltas.size() >= max_size) {
+        deltas.pop_front();
+    }
+    deltas.push_back(delta);
 }
 
-bool Cbma::stuck_in_local_optima(const std::deque<double>& changes, size_t window_size, double epsilon=1e-3,
+size_t Cbma::get_dynamic_window(const double gap_ratio, const int min_window=20, const int max_window=500, const double k=0.5) {
+    // Normalise gap_ratio to [0, 1) range using bounded transformation
+    const double norm = 1.0 - std::exp(-k*gap_ratio);  // asymptotically approaches 1
+    const double window = min_window + norm * (max_window - min_window);
+    return static_cast<size_t>(std::clamp(static_cast<int>(std::round(window)), min_window, max_window));
+}
+
+bool Cbma::stuck_in_local_optima(const deque<double>& changes, const size_t window_size, const double epsilon=1e-3,
                                  double strong_delta_thresh=0.01) {
     if (changes.size() < window_size) return false;
 
     // Step 1: Count obvious changes
-    auto strong_change = std::count_if(changes.begin(), changes.end(),
-                                       [strong_delta_thresh](double d)
-                                       { return std::abs(d) >= strong_delta_thresh; });
+    const auto strong_change = std::count_if(changes.begin(), changes.end(),
+        [strong_delta_thresh](const double d){ return std::abs(d) >= strong_delta_thresh; });
 
     // Step 2: Average magnitude of recent changes (absolute value)
-    double avg = std::accumulate(changes.begin(), changes.end(), 0.0,
-                                 [](double sum, double d)
-                                 { return sum + std::abs(d); }) / static_cast<double>(changes.size());
+    const double avg = std::accumulate(changes.begin(), changes.end(), 0.0,
+        [](const double sum, const double d)
+        { return sum + std::abs(d); }) / static_cast<double>(changes.size());
 
     // Step 3: Determine if the search is stuck
     // - No strong changes
@@ -314,55 +323,51 @@ bool Cbma::stuck_in_local_optima(const std::deque<double>& changes, size_t windo
     return (strong_change < 1) && (avg < epsilon);
 }
 
-int Cbma::neighbourhood_explore(int i, int& k, Individual& temp_best, Individual& ind,
+int Cbma::neighbourhood_explore(const int individual_index, int& luby_index, Individual& temp_best, Individual& ind,
                                 vector<tuple<double, HistoryTag, int>>& history_list) {
     int steps = 0;  // records the number of steps taken in this neighbourhood exploration for terminating the loop
+    const int strength = get_luby(luby_index);
 
-    int strength = get_luby(k);
+    auto* leader = leaders[individual_index].get();
+    auto* follower = followers[individual_index].get();
+    auto* partial_sol = partial_sols[individual_index].get();
 
-    leaders[i]->load_individual(&temp_best);
-    leaders[i]->perturbation(strength);
-    leaders[i]->export_individual(&ind);
-    followers[i]->run(&ind);
-
+    leader->load_individual(&temp_best);
+    leader->perturbation(strength);
+    leader->export_individual(&ind);
+    follower->run(&ind);
 //    history_list.emplace_back(ind.upper_cost, HistoryTag::PERTURB, strength); // after perturbation
     steps++;  // count the perturbation step
 
 
     // Parameters controlling the search intensity in the local search
     // Parameters used to judge whether the local search is stuck in local optima
-    temp_recent_moves_pool.clear();
-    auto& recent_moves = temp_recent_moves_pool;
-    size_t window_size = 10;
+    temp_recent_deltas.clear();
+    auto& recent_deltas = temp_recent_deltas;
+    size_t window_size = 10; // initial window size for recent moves, TODO: initial window size should be tuned
 
     bool local_optima_flag = false;
     bool is_profitable = false;
-
     int local_step = 0;
-    while ((recent_moves.size() < window_size || !local_optima_flag) && local_step < MAX_LOCAL_STEPS) {
-        double temperature = LeaderCbma::get_temperature(local_step, T0, alpha);
 
-        double current_cost = leaders[i]->upper_cost;
-        bool has_moved = leaders[i]->local_search_move(partial_sols[i].get(), temperature);
-        double candidate_cost = leaders[i]->upper_cost;
+    while ((recent_deltas.size() < window_size || !local_optima_flag) && local_step < MAX_LOCAL_STEPS) {
+        double temperature = LeaderCbma::get_temperature(local_step, T0, alpha);
+        const double current_cost = leader->upper_cost;
+        const bool has_moved = leader->local_search_move(partial_sol, temperature);
+        const double candidate_cost = leader->upper_cost;
 
         local_step++;
 
         if (has_moved) {
-            followers[i]->run(partial_sols[i].get());
+            follower->run(partial_sol);
+            leader->export_individual(&ind);
+            follower->export_individual(&ind);
 
-            leaders[i]->export_individual(&ind);
-            followers[i]->export_individual(&ind);
-
-            while (recent_moves.size() >= window_size) {
-                recent_moves.pop_front();
-            }
-            recent_moves.push_back(current_cost - candidate_cost);
+            update_recent_deltas(recent_deltas, current_cost - candidate_cost, window_size);
 
             if (candidate_cost < temp_best.upper_cost) {
                 temp_best = ind;
                 global_best_upper_so_far = std::min(global_best_upper_so_far, candidate_cost);
-
                 is_profitable = true;
             }
 
@@ -372,12 +377,9 @@ int Cbma::neighbourhood_explore(int i, int& k, Individual& temp_best, Individual
 
         } else {
             // if there is no move, record it as a stable segment (delta = 0)
-            while (recent_moves.size() >= window_size) {
-                recent_moves.pop_front();
-            }
-            recent_moves.push_back(0.0);
+            update_recent_deltas(recent_deltas, 0.0, window_size);
 
-            local_optima_flag = stuck_in_local_optima(recent_moves, window_size);
+            local_optima_flag = stuck_in_local_optima(recent_deltas, window_size);
 //            if (local_optima_flag) {
 //                history_list.emplace_back(ind.upper_cost, HistoryTag::STUCK, 0);
 //            } else {
@@ -385,10 +387,10 @@ int Cbma::neighbourhood_explore(int i, int& k, Individual& temp_best, Individual
 //            }
         }
 
-        partial_sols[i]->clean();
+        partial_sol->clean();
 
-        const double gap_ratio = std::max(0.0, (current_cost - global_best_upper_so_far) / global_best_upper_so_far);
-        window_size = get_dynamic_window(gap_ratio);
+        const double gap_ratio = std::abs(current_cost - global_best_upper_so_far) / global_best_upper_so_far;
+        window_size = get_dynamic_window(gap_ratio, min_window_size, max_window_size, window_k);
     }
 
 
@@ -398,18 +400,16 @@ int Cbma::neighbourhood_explore(int i, int& k, Individual& temp_best, Individual
     // continue searching nearby.
     // If several consecutive local search stages show no improvement, gradually increase the perturbation to escape
     // local optima.
-    // k = is_profitable ? std::max(1, k - 1) : std::min(k + 1, max_perturbation_strength * 2);
-    k = is_profitable ? std::max(1, k - 1) : k + 1;
-//    k = is_profitable ? 1 : k + 1;
+    luby_index = is_profitable ? std::max(1, luby_index - 1) : luby_index + 1;
 
     return steps;
 }
 
 std::string Cbma::tag_to_str(HistoryTag tag) {
     switch (tag) {
-        case HistoryTag::PERTURB: return "perturb";
-        case HistoryTag::SEARCH:  return "search";
-        case HistoryTag::STUCK:   return "stuck";
+        case PERTURB: return "perturb";
+        case SEARCH:  return "search";
+        case STUCK:   return "stuck";
         default: return "unknown";
     }
 }
