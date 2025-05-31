@@ -105,6 +105,7 @@ void Cbma::initialize_heuristic() {
 }
 
 void Cbma::run_heuristic() {
+    std::shuffle(population.begin(), population.end(), random_engine);
     // Greedy local search until getting stuck into local optimum
     for (int i = 0; i < pop_size; ++i) {
         auto& ind = population[i];
@@ -118,7 +119,7 @@ void Cbma::run_heuristic() {
         }
         // neighbourhood exploration starting points, half from global best, half from the individual itself
         // TODO: 1. all from global best, 2. all from individual, 3. random mix
-        temp_best_individuals[i] = i % 2 == 0 ? *global_best : ind;
+        temp_best_individuals[i] = i < 20 ? *global_best : ind;
     }
 
     stats_greedy_local_opt = calculate_statistical_indicators(get_fitness_vector_from_upper_group(population));
