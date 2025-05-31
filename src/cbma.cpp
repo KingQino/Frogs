@@ -25,10 +25,14 @@ Cbma::Cbma(int seed_val, Case *instance, Preprocessor *preprocessor) : Heuristic
     chromosome_length = instance->num_customer_;
 
     population.reserve(pop_size);
-    elites.reserve(pop_size);
-    non_elites.reserve(pop_size);
-    immigrants.reserve(pop_size);
-    offspring.reserve(pop_size);
+    elites.resize(10);         // e.g., 10
+    non_elites.resize(90); // e.g., 90
+    immigrants.resize(30); // e.g., 30
+    offspring.resize(pop_size);
+    for (auto& vec : elites) vec.reserve(chromosome_length);
+    for (auto& vec : non_elites) vec.reserve(chromosome_length);
+    for (auto& vec : immigrants) vec.reserve(chromosome_length);
+    for (auto& chromosome : offspring) chromosome.reserve(chromosome_length);
     global_best_upper_so_far = std::numeric_limits<double>::max();
 
     initializer = std::make_unique<Initializer>(random_engine, instance, preprocessor);
@@ -153,24 +157,23 @@ void Cbma::run_heuristic() {
                   return a.upper_cost < b.upper_cost;
               });
 
-    elites.clear();
     for (int i = 0; i < 10; ++i) {
-        elites.emplace_back(std::move(population[i].get_chromosome()));
+        elites[i] = std::move(population[i].get_chromosome());
     }
-    non_elites.clear();
     for (int i = 10; i < pop_size; ++i) {
-        non_elites.emplace_back(std::move(population[i].get_chromosome()));
+        non_elites[i - 10] = std::move(population[i].get_chromosome());
     }
-    immigrants.clear();
     for (int i = 0; i < 30; ++i) {
-        vector<int> immigrant(preprocessor->customer_ids_);
-        shuffle(immigrant.begin(), immigrant.end(), random_engine);
-        immigrants.emplace_back(std::move(immigrant));
+        auto& chrom = immigrants[i];
+        chrom.clear();
+        chrom = preprocessor->customer_ids_;
+        shuffle(chrom.begin(), chrom.end(), random_engine);
     }
 
     // TODO: Adaptive Selection Scheme should be implemented here
     // check if the elites are diverse enough, if not, then reduce the number of elites and increase the number of non-elites
-    offspring.clear();
+    for (auto& chrom : offspring) chrom.clear();
+    int off_idx = 0;
     // crossover and mutation
     // 5 pairs of (elite x elite)
     for (int i = 0; i < 5; ++i) {
@@ -180,8 +183,8 @@ void Cbma::run_heuristic() {
 
         cx_partially_matched(parent1, parent2);
 
-        offspring.emplace_back(std::move(parent1));
-        offspring.emplace_back(std::move(parent2));
+        offspring[off_idx++] = std::move(parent1);
+        offspring[off_idx++] = std::move(parent2);
     }
     // 20 pairs of (elite x non_elite)
     std::shuffle(non_elites.begin(), non_elites.end(), random_engine);
@@ -191,8 +194,8 @@ void Cbma::run_heuristic() {
 
         cx_partially_matched(parent1, parent2);
 
-        offspring.emplace_back(std::move(parent1));
-        offspring.emplace_back(std::move(parent2));
+        offspring[off_idx++] = std::move(parent1);
+        offspring[off_idx++] = std::move(parent2);
     }
     // 20 pairs of (elite x immigrant)
     for (int i = 0; i < 20; ++i) {
@@ -201,12 +204,12 @@ void Cbma::run_heuristic() {
 
         cx_partially_matched(parent1, parent2);
 
-        offspring.emplace_back(std::move(parent1));
-        offspring.emplace_back(std::move(parent2));
+        offspring[off_idx++] = std::move(parent1);
+        offspring[off_idx++] = std::move(parent2);
     }
     // 10 immigrants
     for (int i = 20; i < 30; ++i) {
-        offspring.emplace_back(std::move(immigrants[i]));
+        offspring[off_idx++] = std::move(immigrants[i]);
     }
 
     for (auto& chromosome: offspring) {
