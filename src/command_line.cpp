@@ -4,9 +4,17 @@
 
 #include "command_line.hpp"
 #include <stdexcept>
+#include <limits.h>   // PATH_MAX
+#include <unistd.h>   // realpath
 
 CommandLine::CommandLine(const int argc, char* argv[]) {
-    const std::string absolute_path = argv[0];
+    char resolved_path[PATH_MAX];
+    if (realpath(argv[0], resolved_path) == nullptr) {
+        std::cerr << "Error resolving absolute path of executable.\n";
+        std::exit(1);
+    }
+
+    const std::string absolute_path = resolved_path;
     const std::size_t pos1 = absolute_path.rfind('/');
     const std::size_t pos2 = absolute_path.rfind('/', pos1 - 1);
     const std::string path = absolute_path.substr(0, pos2);
