@@ -290,7 +290,7 @@ int Cbma::get_luby(int j) const {
         k = 1;
         while ((1 << k) - 1 < j) ++k;
     }
-    return val >= max_perturbation_strength ? max_perturbation_strength : val;
+    return val >= max_perturbation_strength ? max_perturbation_strength : val + 10;
 }
 
 inline void Cbma::update_recent_deltas(std::deque<double>& deltas, const double delta, const size_t max_size) {
