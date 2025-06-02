@@ -96,7 +96,7 @@ void Cbma::run() {
 
 void Cbma::initialize_heuristic() {
     for (int i = 0; i < pop_size; ++i) {
-        vector<vector<int>> routes = initializer->routes_constructor_with_hien_method();
+        vector<vector<int>> routes = initializer->routes_constructor_with_split();
 
         auto cost = instance->compute_total_distance(routes);
         auto demand = instance->compute_demand_sum_per_route(routes);
