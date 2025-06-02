@@ -403,7 +403,7 @@ int Cbma::neighbourhood_explore(const int individual_index, int& luby_index, Ind
     // continue searching nearby.
     // If several consecutive local search stages show no improvement, gradually increase the perturbation to escape
     // local optima.
-    luby_index = is_profitable ? std::max(1, luby_index - 1) : luby_index + 1;
+    luby_index = is_profitable ? std::max(1, luby_index - 1) : std::min(luby_index + 1, max_perturbation_strength * 2);
 
     return steps;
 }
