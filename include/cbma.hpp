@@ -27,6 +27,7 @@ private:
     vector<vector<int>> non_elites;               // Non-elite
     vector<vector<int>> immigrants;               // Immigrants
     vector<vector<int>> offspring;                // Offspring produced by elites, non-elites, and immigrants
+    deque<Individual> elites_deque;               // Deque to store elites for logging
 
     int gen;                                      // evolutionary generation
     int pop_size;                                 // Population size
@@ -40,7 +41,6 @@ private:
     vector<int> temp_child2;
     std::unordered_map<int, int> temp_cx_map1;
     std::unordered_map<int, int> temp_cx_map2;
-    vector<Individual> temp_best_individuals;
     vector<tuple<double, HistoryTag, int>> temp_history_list;
     std::deque<double> temp_recent_deltas;
 public:
@@ -79,8 +79,8 @@ public:
     void save_log_for_solution() override;
 
     int get_luby(int j) const;
-    int neighbourhood_explore(int individual_index, int& luby_index, Individual& temp_best, Individual& ind,
-                              vector<tuple<double, HistoryTag, int>>& history_list);
+    int neighbourhood_explore(int individual_index, int& luby_index,
+        vector<tuple<double, HistoryTag, int>>& history_list);
 
     vector<vector<int>> select_random(const vector<vector<int>>& chromosomes, int k);
     void cx_partially_matched(vector<int>& parent1, vector<int>& parent2);
@@ -97,6 +97,7 @@ public:
     static string tag_to_str(HistoryTag tag);
     static void save_vector_to_csv(const std::vector<std::tuple<double, HistoryTag, int>>& history_list,
                                    const string& filename);
+    void push_to_queue(const Individual& ind);
 };
 
 #endif //FROGS_CBMA_HPP

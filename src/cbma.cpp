@@ -50,10 +50,6 @@ Cbma::Cbma(int seed_val, Case *instance, Preprocessor *preprocessor) : Heuristic
     temp_child2.reserve(chromosome_length);
     temp_cx_map1.reserve(chromosome_length);
     temp_cx_map2.reserve(chromosome_length);
-    temp_best_individuals.reserve(pop_size);
-    for (int i = 0; i < pop_size; ++i) {
-        temp_best_individuals.emplace_back(instance, preprocessor);
-    }
 }
 
 Cbma::~Cbma() = default;
@@ -119,10 +115,8 @@ void Cbma::run_heuristic() {
         global_best_upper_so_far = std::min(global_best_upper_so_far, ind.upper_cost);
         if (ind.lower_cost < global_best->lower_cost) {
             *global_best = ind;  // copy the content of ind to global_best, not deep copy
+            push_to_queue(ind);
         }
-        // neighbourhood exploration starting points, half from global best, half from the individual itself
-        // TODO: 1. all from global best, 2. all from individual, 3. random mix
-        temp_best_individuals[i] = i % 2 == 0 ? *global_best : ind;
     }
 
     stats_greedy_local_opt = calculate_statistical_indicators(get_fitness_vector_from_upper_group(population));
@@ -136,8 +130,7 @@ void Cbma::run_heuristic() {
         int total_steps = 0;
         temp_history_list.clear();
         while (total_steps < max_neigh_attempts) {
-            total_steps += neighbourhood_explore(i, luby_idx, temp_best_individuals[i],
-                                                         population[i], temp_history_list);
+            total_steps += neighbourhood_explore(i, luby_idx, temp_history_list);
         }
 //        save_vector_to_csv(temp_history_list, file);
     }
@@ -290,7 +283,7 @@ int Cbma::get_luby(int j) const {
         k = 1;
         while ((1 << k) - 1 < j) ++k;
     }
-    return val >= max_perturbation_strength ? max_perturbation_strength : val;
+    return val >= max_perturbation_strength ? max_perturbation_strength : val + 10;
 }
 
 inline void Cbma::update_recent_deltas(std::deque<double>& deltas, const double delta, const size_t max_size) {
@@ -326,16 +319,16 @@ bool Cbma::stuck_in_local_optima(const deque<double>& changes, const size_t wind
     return (strong_change < 1) && (avg < epsilon);
 }
 
-int Cbma::neighbourhood_explore(const int individual_index, int& luby_index, Individual& temp_best, Individual& ind,
-                                vector<tuple<double, HistoryTag, int>>& history_list) {
+int Cbma::neighbourhood_explore(const int individual_index, int& luby_index, vector<tuple<double, HistoryTag, int>>& history_list) {
     int steps = 0;  // records the number of steps taken in this neighbourhood exploration for terminating the loop
     const int strength = get_luby(luby_index);
+
+    auto& ind = population[individual_index];
 
     auto* leader = leaders[individual_index].get();
     auto* follower = followers[individual_index].get();
     auto* partial_sol = partial_sols[individual_index].get();
 
-    leader->load_individual(&temp_best);
     leader->perturbation(strength);
     leader->export_individual(&ind);
     follower->run(&ind);
@@ -347,7 +340,7 @@ int Cbma::neighbourhood_explore(const int individual_index, int& luby_index, Ind
     // Parameters used to judge whether the local search is stuck in local optima
     temp_recent_deltas.clear();
     auto& recent_deltas = temp_recent_deltas;
-    size_t window_size = 10; // initial window size for recent moves, TODO: initial window size should be tuned
+    size_t window_size = 10; // initial window size for recent moves
 
     bool local_optima_flag = false;
     bool is_profitable = false;
@@ -368,13 +361,13 @@ int Cbma::neighbourhood_explore(const int individual_index, int& luby_index, Ind
 
             update_recent_deltas(recent_deltas, current_cost - candidate_cost, window_size);
 
-            if (candidate_cost < temp_best.upper_cost) {
-                temp_best = ind;
-                global_best_upper_so_far = std::min(global_best_upper_so_far, candidate_cost);
-                is_profitable = true;
-            }
+            global_best_upper_so_far = std::min(global_best_upper_so_far, candidate_cost);
 
-            if (ind.lower_cost < global_best->lower_cost) *global_best = ind;
+            if (ind.lower_cost < global_best->lower_cost) {
+                *global_best = ind;
+                push_to_queue(ind);
+                is_profitable = true;  // the local search has found a better solution
+            }
 
 //            history_list.emplace_back(ind.upper_cost, HistoryTag::SEARCH, 0);
 
@@ -403,7 +396,7 @@ int Cbma::neighbourhood_explore(const int individual_index, int& luby_index, Ind
     // continue searching nearby.
     // If several consecutive local search stages show no improvement, gradually increase the perturbation to escape
     // local optima.
-    luby_index = is_profitable ? std::max(1, luby_index - 1) : luby_index + 1;
+    luby_index = is_profitable ? 1 : luby_index + 1;
 
     return steps;
 }
@@ -530,4 +523,11 @@ vector<double> Cbma::get_fitness_vector_from_lower_group(const vector<Individual
                    [](const auto& ind) { return ind.lower_cost; });
 
     return ans;
+}
+
+void Cbma::push_to_queue(const Individual &ind) {
+    if (elites_deque.size() >= 10) {
+        elites_deque.pop_front();
+    }
+    elites_deque.push_back(ind);
 }
