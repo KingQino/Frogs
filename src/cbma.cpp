@@ -50,6 +50,8 @@ Cbma::Cbma(int seed_val, Case *instance, Preprocessor *preprocessor) : Heuristic
     temp_child2.reserve(chromosome_length);
     temp_cx_map1.reserve(chromosome_length);
     temp_cx_map2.reserve(chromosome_length);
+    temp_distances.resize(pop_size - 1);
+    temp_ranking.reserve(pop_size);
 }
 
 Cbma::~Cbma() = default;
@@ -141,10 +143,17 @@ void Cbma::run_heuristic() {
     flush_row_into_evol_log();
 
 
-    // Sort the population based on upper cost and select elites, non-elites, and introduce immigrants
+    update_biased_fitness();
+    // for (int i = 0; i < pop_size; ++i) {
+    //     cout << "Population[" << i << "] - Upper Cost: " << population[i].upper_cost
+    //          << ", Biased Fitness: " << population[i].biased_fitness << endl;
+    // }
+    // cout << endl;
+
+    // Sort the population based on biased fitness and select elites, non-elites, and introduce immigrants
     std::sort(population.begin(), population.end(),
               [](const Individual& a, const Individual& b) {
-                  return a.upper_cost < b.upper_cost;
+                  return a.biased_fitness < b.biased_fitness;
               });
 
     for (int i = 0; i < 10; ++i) {
@@ -533,4 +542,76 @@ void Cbma::push_to_queue(const Individual &ind) {
         elites_deque.pop_front();
     }
     elites_deque.push_back(ind);
+}
+
+int Cbma::hamming_distance(const vector<int> &a, const vector<int> &b) {
+    if (a.size() != b.size()) {
+        throw std::invalid_argument("Vectors must be of the same length for Hamming distance calculation.");
+    }
+
+    int distance = 0;
+    for (size_t i = 0; i < a.size(); ++i) {
+        if (a[i] != b[i]) {
+            ++distance;
+        }
+    }
+    return distance;
+}
+
+double Cbma::average_hamming_distance_closest(
+    const vector<int>& target,
+    const vector<vector<int>>& population,
+    const int num_closest) {
+    if (num_closest <= 0 || num_closest > population.size()) {
+        throw std::invalid_argument("num_closest must be between 1 and the size of the population.");
+    }
+
+    int idx = 0;
+    for (const auto& other : population) {
+        if (&other == &target) continue;
+        temp_distances[idx++] = hamming_distance(target, other);
+    }
+
+    // Rearrange so that the first `use` elements are the smallest (not sorted)
+    std::nth_element(temp_distances.begin(), temp_distances.begin() + num_closest, temp_distances.end());
+
+    // Sum the first `use` the smallest distances
+    double sum = 0.0;
+    for (int i = 0; i < num_closest; ++i)
+        sum += temp_distances[i];
+
+    return sum / num_closest;
+}
+
+void Cbma::update_biased_fitness(const int nb_elite, const int nb_closest) {
+    // Step 0: Sort the population based on upper cost (ascending)
+    std::sort(population.begin(), population.end(),
+              [](const Individual& a, const Individual& b) {
+                  return a.upper_cost < b.upper_cost;
+              });
+
+    // Step 1: Extract chromosomes from the sorted population (used for diversity calculation)
+    for (int i = 0; i < pop_size; ++i) {
+        const auto& chrom = population[i].get_chromosome();
+        offspring[i].assign(chrom.begin(), chrom.end());
+    }
+
+    // Step 2: Rank individuals based on their diversity contribution (descending average Hamming distance to closest neighbors)
+    temp_ranking.clear();
+    for (int i = 0; i < pop_size; ++i)
+        temp_ranking.emplace_back(-average_hamming_distance_closest(offspring[i], offspring, nb_closest), i);
+    std::sort(temp_ranking.begin(), temp_ranking.end());
+
+    // Step 3: Update biased fitness based on fitness rank and diversity rank
+    for (int i = 0; i < pop_size; ++i) {
+        const int idx = temp_ranking[i].second;  // Index in the population (fitness-sorted)
+        const double div_rank = static_cast<double>(i) / (pop_size - 1);
+        const double fit_rank = static_cast<double>(idx) / (pop_size - 1);  // Already sorted by fitness
+
+        if (pop_size <= nb_elite) {
+            population[idx].biased_fitness = fit_rank;
+        } else {
+            population[idx].biased_fitness = fit_rank + (1.0 - static_cast<double>(nb_elite) / pop_size) * div_rank;
+        }
+    }
 }

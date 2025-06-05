@@ -43,6 +43,8 @@ private:
     std::unordered_map<int, int> temp_cx_map2;
     vector<tuple<double, HistoryTag, int>> temp_history_list;
     std::deque<double> temp_recent_deltas;
+    std::vector<int> temp_distances;
+    std::vector<std::pair<double, int>> temp_ranking;
 public:
     static const std::string ALGORITHM;
 
@@ -98,6 +100,11 @@ public:
     static void save_vector_to_csv(const std::vector<std::tuple<double, HistoryTag, int>>& history_list,
                                    const string& filename);
     void push_to_queue(const Individual& ind);
+
+    static int hamming_distance(const vector<int>& a, const vector<int>& b);
+    double average_hamming_distance_closest(const vector<int>& target, const vector<vector<int>>& population,
+        int num_closest=5);
+    void update_biased_fitness(int nb_elite=10, int nb_closest=5);
 };
 
 #endif //FROGS_CBMA_HPP

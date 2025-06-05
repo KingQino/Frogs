@@ -58,6 +58,8 @@ public:
 //    int*  lower_num_nodes_per_route{};  // the node number of each route in the lower-level solution
     double lower_cost{};              // the lower cost of the solution
 
+    // population diversity control
+    double biased_fitness{};														// Biased fitness of the solution
 
     Individual();                                                                   // Constructor: empty individual
     Individual(const Individual& ind);                                              // Copy constructor
