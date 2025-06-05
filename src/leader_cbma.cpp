@@ -691,6 +691,8 @@ bool LeaderCbma::perform_intra_move_neigh(const std::function<bool(int *, int)> 
     std::uniform_int_distribution<int> dist(0, num_routes - 1);
     int random_route_idx = dist(thread_rng);
 
+    // TODO: 可以在此处考虑，有一定概率翻转该条路径
+
     is_moved = move_func(routes[random_route_idx], num_nodes_per_route[random_route_idx]);
     if (is_moved) {
         partial_sol->set_intra_route(random_route_idx, routes[random_route_idx],num_nodes_per_route[random_route_idx]);
@@ -712,6 +714,8 @@ bool LeaderCbma::perform_inter_move_neigh(
     do {
         r2 = dist(thread_rng);
     } while (r1 == r2);
+
+    // TODO: 可以在此处考虑，有一定概率翻转r1或者r2路径
 
     is_moved = move_func(routes[r1], routes[r2], num_nodes_per_route[r1], num_nodes_per_route[r2],demand_sum_per_route[r1], demand_sum_per_route[r2]);
 

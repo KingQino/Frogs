@@ -138,9 +138,7 @@ void Cbma::run_heuristic() {
     stats_neigh_explore = calculate_statistical_indicators(get_fitness_vector_from_upper_group(population));
 
 
-    if (gen % 100 == 0) {
-        flush_row_into_evol_log();
-    }
+    flush_row_into_evol_log();
 
 
     // Sort the population based on upper cost and select elites, non-elites, and introduce immigrants
@@ -335,6 +333,7 @@ int Cbma::neighbourhood_explore(const int individual_index, int& luby_index, vec
 //    history_list.emplace_back(ind.upper_cost, HistoryTag::PERTURB, strength); // after perturbation
     steps++;  // count the perturbation step
 
+    const double neigh_start_cost = ind.upper_cost;
 
     // Parameters controlling the search intensity in the local search
     // Parameters used to judge whether the local search is stuck in local optima
@@ -369,6 +368,10 @@ int Cbma::neighbourhood_explore(const int individual_index, int& luby_index, vec
                 is_profitable = true;  // the local search has found a better solution
             }
 
+            if (candidate_cost < neigh_start_cost) {
+                is_profitable = true; // During the neighbour search, if the cost is reduced, then it is profitable
+            }
+
 //            history_list.emplace_back(ind.upper_cost, HistoryTag::SEARCH, 0);
 
         } else {
@@ -396,7 +399,7 @@ int Cbma::neighbourhood_explore(const int individual_index, int& luby_index, vec
     // continue searching nearby.
     // If several consecutive local search stages show no improvement, gradually increase the perturbation to escape
     // local optima.
-    luby_index = is_profitable ? 1 : luby_index + 1;
+    luby_index = is_profitable ? std::max(1, luby_index - 1) : luby_index + 1;
 
     return steps;
 }
