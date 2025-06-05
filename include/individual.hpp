@@ -74,6 +74,7 @@ public:
     [[nodiscard]] vector<int> get_chromosome() const; // Get the chromosome of the individual
 
     friend ostream& operator<<(ostream& os, const Individual& individual);
+    friend void swap(Individual& a, Individual& b) noexcept;
 };
 
 

@@ -144,17 +144,7 @@ void Cbma::run_heuristic() {
 
 
     update_biased_fitness();
-    // for (int i = 0; i < pop_size; ++i) {
-    //     cout << "Population[" << i << "] - Upper Cost: " << population[i].upper_cost
-    //          << ", Biased Fitness: " << population[i].biased_fitness << endl;
-    // }
-    // cout << endl;
-
-    // Sort the population based on biased fitness and select elites, non-elites, and introduce immigrants
-    std::sort(population.begin(), population.end(),
-              [](const Individual& a, const Individual& b) {
-                  return a.biased_fitness < b.biased_fitness;
-              });
+    selection_sort_by_biased_fitness(population);
 
     for (int i = 0; i < 10; ++i) {
         const auto& chrom = population[i].get_chromosome();
@@ -170,7 +160,6 @@ void Cbma::run_heuristic() {
         shuffle(chrom.begin(), chrom.end(), random_engine);
     }
 
-    // TODO: Adaptive Selection Scheme should be implemented here
     // check if the elites are diverse enough, if not, then reduce the number of elites and increase the number of non-elites
     int off_idx = 0;
     // crossover and mutation
@@ -206,9 +195,15 @@ void Cbma::run_heuristic() {
         offspring[off_idx++].assign(parent1.begin(), parent1.end());
         offspring[off_idx++].assign(parent2.begin(), parent2.end());
     }
-    // 10 immigrants
-    for (int i = 20; i < 30; ++i) {
-        offspring[off_idx++].assign(immigrants[i].begin(), immigrants[i].end());
+    // 5 pairs of (non_elite x non_elite)
+    for (int i = 20; i < 30; i=i+2) {
+        auto& parent1 = non_elites[i];
+        auto& parent2 = non_elites[i + 1];
+
+        cx_partially_matched(parent1, parent2);
+
+        offspring[off_idx++].assign(parent1.begin(), parent1.end());
+        offspring[off_idx++].assign(parent2.begin(), parent2.end());
     }
 
     for (auto& chromosome: offspring) {
@@ -612,6 +607,19 @@ void Cbma::update_biased_fitness(const int nb_elite, const int nb_closest) {
             population[idx].biased_fitness = fit_rank;
         } else {
             population[idx].biased_fitness = fit_rank + (1.0 - static_cast<double>(nb_elite) / pop_size) * div_rank;
+        }
+    }
+}
+
+void Cbma::selection_sort_by_biased_fitness(vector<Individual>& pop) {
+    for (int i = 0; i < pop.size(); ++i) {
+        int min_idx = i;
+        for (int j = i + 1; j < pop.size(); ++j) {
+            if (pop[j].biased_fitness < pop[min_idx].biased_fitness)
+                min_idx = j;
+        }
+        if (min_idx != i) {
+            swap(pop[i], pop[min_idx]); // <-- using the swap defined in our Individual
         }
     }
 }

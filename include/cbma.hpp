@@ -105,6 +105,7 @@ public:
     double average_hamming_distance_closest(const vector<int>& target, const vector<vector<int>>& population,
         int num_closest=5);
     void update_biased_fitness(int nb_elite=10, int nb_closest=5);
+    static void selection_sort_by_biased_fitness(vector<Individual>& pop);
 };
 
 #endif //FROGS_CBMA_HPP
