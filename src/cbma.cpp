@@ -218,6 +218,7 @@ void Cbma::run_heuristic() {
         population[i].clean();
 
         temp_dumb_routes.clear();
+        temp_dumb_routes.shrink_to_fit();
         initializer->prins_split(offspring[i], temp_dumb_routes);
 
         population[i].load_routes(temp_dumb_routes,
