@@ -36,7 +36,7 @@ private:
     double mut_ind_prob;                          // Mutation individual probability
 
     /* memory optimisation tricks */
-    vector<vector<int>> temp_dumb_routes;
+    vector<vector<int>> temp_dumb_routes; // Careful about the memory usage of this nested vector!
     vector<int> temp_child1;
     vector<int> temp_child2;
     std::unordered_map<int, int> temp_cx_map1;
